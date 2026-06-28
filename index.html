@@ -724,8 +724,17 @@ input  { font-family: var(--font-body); }
 let CLASS_DATA = null;
 
 /* ─── CONSTANTS ─── */
-const CLS_COLOR = { warrior:"#7C3AED", mage:"#0891B2", ranger:"#059669", healer:"#EC4899", rogue:"#4C1D95" };
-const CLS_LABEL = { warrior:"Warrior",  mage:"Mage",    ranger:"Ranger",   healer:"Healer",  rogue:"Rogue"  };
+const CLS_COLOR = {
+  warrior:"#7C3AED", archer:"#059669", fairy:"#EC4899", wizard:"#0891B2",
+  mage:"#0891B2", ranger:"#059669", healer:"#EC4899", rogue:"#7C3AED"
+};
+const CLS_LABEL = {
+  warrior:"Warrior", archer:"Archer", fairy:"Fairy", wizard:"Wizard",
+  mage:"Wizard", ranger:"Archer", healer:"Fairy", rogue:"Warrior"
+};
+function clsKey(student, merged) {
+  return merged.character || student.avatarClass || "warrior";
+}
 const ITEMS = {
   health_potion:    { i:"🧪", img:"icon_potion_red.png",  n:"Health Potion",   desc:"Restore 2 HP" },
   behavior_potion:  { i:"🔵", img:"icon_potion_blue.png",  n:"Mana Potion",     desc:"Restore 2 MP" },
@@ -1234,7 +1243,7 @@ function showCompanionReveal(file, onComplete) {
     <div class="companion-reveal-card">
       <div class="companion-reveal-label">✨ New Companion!</div>
       <div class="companion-reveal-img-wrap" style="border-color:${border}">
-        <img src="/companions/${file}" alt="${c.name}"/>
+        <img src="/companions/${file}" alt="${c.name}" width="88" height="88"/>
       </div>
       <div class="companion-reveal-name">${c.name}</div>
       <div class="companion-reveal-rarity" style="color:${border}">${label}</div>
@@ -1405,18 +1414,19 @@ function renderCode() {
 function renderGrid() {
   const p = STATE.currentPeriod;
   const tiles = p.students.map((s, i) => {
-    const m  = getMergedStudent(s);
-    const av = m.avatar || "avatar_warrior_01.png";
+    const m   = getMergedStudent(s);
+    const cls = clsKey(s, m);
+    const av  = m.avatar || "avatar_blankchibi.png";
     return `
     <button class="student-tile enter" style="animation-delay:${i*0.05}s" data-id="${s.id}">
-      <div class="avatar-ring" style="border-color:${CLS_COLOR[s.avatarClass]};padding:0">
-        <img src="/avatars/${av}" alt="${s.name}"/>
+      <div class="avatar-ring" style="border-color:${CLS_COLOR[cls]};padding:0">
+        <img src="/avatars/${av}" alt="${s.name}" width="130" height="130" loading="lazy"/>
       </div>
       <div>
         <div class="tile-name">${s.name}</div>
-        <div class="tile-cls" style="color:${CLS_COLOR[s.avatarClass]}">Lv.${s.level} ${CLS_LABEL[s.avatarClass]}</div>
+        <div class="tile-cls" style="color:${CLS_COLOR[cls]}">Lv.${s.level} ${CLS_LABEL[cls]}</div>
       </div>
-      <span class="tile-lvl" style="background:${CLS_COLOR[s.avatarClass]}">⭐ ${s.level}</span>
+      <span class="tile-lvl" style="background:${CLS_COLOR[cls]}">⭐ ${s.level}</span>
     </button>`;
   }).join("");
 
@@ -1451,7 +1461,7 @@ function renderPin() {
     <div class="pin-card enter">
       <button class="btn-back" id="pin-back">← Back</button>
       <div class="pin-avatar">
-        <div class="avatar-ring-lg" style="overflow:hidden;padding:0"><img src="/avatars/${getMergedStudent(s).avatar||'avatar_warrior_01.png'}" style="width:122px;height:122px;object-fit:cover;border-radius:50%;display:block" alt="${s.displayName}"/></div>
+        <div class="avatar-ring-lg" style="overflow:hidden;padding:0"><img src="/avatars/${getMergedStudent(s).avatar||'avatar_blankchibi.png'}" style="width:122px;height:122px;object-fit:cover;border-radius:50%;display:block" alt="${s.displayName}" width="122" height="122" loading="lazy"/></div>
         <div class="pin-name">${s.displayName}</div>
         <div class="pin-title">"${s.title}"</div>
       </div>
@@ -1496,7 +1506,7 @@ function renderHub() {
   // Live preview uses in-progress picker state
   const previewFile = buildAvatarFile(avClass, avVariant, avTone);
   const savedHasNewFormat = s.character && s.variant && s.skinTone;
-  const avatarFile = s.avatar || "avatar_warrior_01.png";
+  const avatarFile = s.avatar || "avatar_blankchibi.png";
   const avatarUrl  = `/avatars/${savedHasNewFormat ? buildAvatarFile(s.character, s.variant, s.skinTone) : avatarFile}`;
   const xpPct = Math.round((s.xp / s.xpNext) * 100);
 
@@ -1513,7 +1523,7 @@ function renderHub() {
     <div class="av-live-preview">
       <img class="av-live-img" src="/avatars/${previewFile}"
         onerror="this.src='/avatars/avatar_${avClass}_${avVariant}.png';this.onerror=null"
-        alt="Preview"/>
+        alt="Preview" width="168" height="168"/>
       <span class="av-live-label">Preview</span>
     </div>`;
 
@@ -1525,7 +1535,7 @@ function renderHub() {
           <div class="av-class-icon-wrap">
             <img src="/icons/icon_${c.key}.png"
               onerror="this.src='/icons/icons_${c.key}.png';this.onerror=function(){this.style.opacity='.15'}"
-              alt="${c.label}"/>
+              alt="${c.label}" width="96" height="96" loading="lazy"/>
           </div>
           <span class="av-class-name">${c.label}</span>
         </button>`).join("")}
@@ -1537,7 +1547,7 @@ function renderHub() {
         <button class="av-variant-btn${avVariant===v?" av-sel":""}" data-avvariant="${v}">
           <img src="/avatars/avatar_${avClass}_${v}_light.png"
             onerror="this.src='/avatars/avatar_${avClass}_${v}.png';this.onerror=null"
-            alt="Style ${parseInt(v)}"/>
+            alt="Style ${parseInt(v)}" width="100" height="100" loading="lazy"/>
           <span>Style ${parseInt(v)}</span>
         </button>`).join("")}
     </div>`;
@@ -1570,7 +1580,7 @@ function renderHub() {
           const isActive = activeCompanion === c.file;
           const border = COMPANION_RARITY_BORDER[c.rarity];
           return `<div class="companion-slot ${earned?"earned":"locked"}${isActive?" c-active":""}" style="border-color:${earned?border:"transparent"}" data-companion="${c.file}">
-            <img src="/companions/${c.file}" alt="${c.name}"/>
+            <img src="/companions/${c.file}" alt="${c.name}" width="58" height="58" loading="lazy"/>
             <span class="c-name">${c.name}</span>
             <span class="c-rarity" style="color:${border}">${earned ? COMPANION_RARITY_LABEL[c.rarity] : "???"}</span>
           </div>`;
@@ -1637,7 +1647,7 @@ function renderHub() {
       if (!it) return `<div class="item-slot empty"></div>`;
       const def = ITEMS[it] || { i:"❓", n: it };
       const imgTag = def.img
-        ? `<img class="item-img" src="/icons/${def.img}" alt="${def.n}" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:22px">${def.i}</span>`
+        ? `<img class="item-img" src="/icons/${def.img}" alt="${def.n}" width="64" height="64" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:22px">${def.i}</span>`
         : `<span style="font-size:22px">${def.i}</span>`;
       return `<div class="item-slot" title="${def.n}">${imgTag}<span class="item-name">${def.n}</span></div>`;
     }).join("");
@@ -1663,7 +1673,7 @@ function renderHub() {
       <div class="hub-panel id-panel-wrap enter" style="animation-delay:.05s">
         <div class="id-panel">
           <div class="id-avatar" style="flex-shrink:0">
-            <div class="avatar-ring-xl" style="overflow:hidden;padding:0"><img src="${avatarUrl}" class="hub-avatar-img" alt="Avatar"/></div>
+            <div class="avatar-ring-xl" style="overflow:hidden;padding:0"><img src="${avatarUrl}" class="hub-avatar-img" alt="Avatar" width="272" height="272"/></div>
           </div>
           <div class="id-info" style="justify-content:center">
             <div class="id-lvl">⭐ Level ${s.level}</div>
@@ -1673,7 +1683,7 @@ function renderHub() {
           ${activeCompanion ? (() => {
             const comp = companionByFile(activeCompanion);
             return `<div class="companion-card-slot">
-              <img src="/companions/${activeCompanion}" alt="${comp.name}"/>
+              <img src="/companions/${activeCompanion}" alt="${comp.name}" width="64" height="64"/>
               <span class="companion-card-name">${comp.name}</span>
             </div>`;
           })() : `<div class="companion-card-slot companion-card-empty">
@@ -1682,7 +1692,7 @@ function renderHub() {
           </div>`}
         </div>
         <button class="id-cust-btn" id="cust-btn" title="Customize Character">
-          <img src="/icons/icon_pencil.png" alt="Customize"/>
+          <img src="/icons/icon_pencil.png" alt="Customize" width="20" height="20"/>
         </button>
       </div>
       <div class="hub-panel stats-panel-wrap enter" style="animation-delay:.1s">
@@ -1950,7 +1960,7 @@ function buildLandSVG(land, pos, board, extraSVG) {
 function renderArrivalScreen() {
   const land = STATE.arrivalLand || LANDS[0];
   return `<div class="screen arrival-screen">
-    <img class="arrival-banner" src="/tiles/tile_arrival.png" alt="Arrival" onerror="this.style.display='none'"/>
+    <img class="arrival-banner" src="/tiles/tile_arrival.png" alt="Arrival" width="800" height="340" onerror="this.style.display='none'"/>
     <div class="arrival-body">
       <div class="arrival-land-name">Welcome to ${land.name}</div>
       <hr class="arrival-divider"/>
@@ -1997,7 +2007,7 @@ function renderBossScreen() {
 
       <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
         ${portrait
-          ? `<img class="boss-portrait" src="/bosses/${portrait}" alt="${bossName}"/>`
+          ? `<img class="boss-portrait" src="/bosses/${portrait}" alt="${bossName}" width="500" height="500"/>`
           : `<div class="boss-portrait boss-portrait-fallback">${BOSS_ICON[bossName] || "👹"}</div>`}
       </div>
 
@@ -2169,8 +2179,8 @@ function renderTeacherTileView() {
   const studentCards = onTile.map(s => {
     const m    = getMergedStudent(s);
     const prog = getTaskProgress(s.id, tile.id);
-    const cc   = CLS_COLOR[s.avatarClass];
-    const av   = m.avatar || "avatar_warrior_01.png";
+    const cc   = CLS_COLOR[clsKey(s, m)];
+    const av   = m.avatar || "avatar_blankchibi.png";
 
     const taskLines = (tasks, tier, cls, icon, lbl) => {
       if (!tasks.length) return "";
@@ -2190,10 +2200,10 @@ function renderTeacherTileView() {
     const hasTasks = mustDo.length || shouldDo.length || aspireTo.length;
     return `<div class="tt-student-row">
       <div class="tt-student-header">
-        <div class="tt-av" style="border-color:${cc}"><img src="/avatars/${av}" alt=""/></div>
+        <div class="tt-av" style="border-color:${cc}"><img src="/avatars/${av}" alt="" width="40" height="40" loading="lazy"/></div>
         <div>
           <div class="tt-name">${s.displayName}</div>
-          <div class="tt-cls" style="color:${cc}">Lv.${m.level} ${s.avatarClass}</div>
+          <div class="tt-cls" style="color:${cc}">Lv.${m.level} ${CLS_LABEL[clsKey(s, m)]}</div>
         </div>
       </div>
       <div class="tt-tiers">
@@ -2280,7 +2290,7 @@ function renderBoardView() {
       const col=i%perRow, row=Math.floor(i/perRow);
       const dx=(tile.x-ts/2)+pad+col*(DR*2+4)+DR;
       const dy=(tile.y-ts/2)+pad+row*(DR*2+4)+DR;
-      const color=CLS_COLOR[s.avatarClass], fl=!!flags[String(s.id)];
+      const color=CLS_COLOR[clsKey(s, getMergedStudent(s))], fl=!!flags[String(s.id)];
       const first=s.displayName.split(" ")[0].slice(0,5);
       dots+=`<circle cx="${dx.toFixed(1)}" cy="${dy.toFixed(1)}" r="${DR}" fill="${color}" stroke="white" stroke-width="2.2"/>
         ${fl?`<circle cx="${(dx+DR*.55).toFixed(1)}" cy="${(dy-DR*.55).toFixed(1)}" r="5" fill="#EF4444" stroke="white" stroke-width="1.2"/>`:``}
@@ -2353,8 +2363,8 @@ function renderTeacherDashboard() {
     const flg = flags[String(s.id)];
     const ov  = getOverrides().students[String(s.id)] || {};
 
-    const cc  = CLS_COLOR[s.avatarClass];
-    const av  = m.avatar || "avatar_warrior_01.png";
+    const cc  = CLS_COLOR[clsKey(s, m)];
+    const av  = m.avatar || "avatar_blankchibi.png";
     const hpP = Math.round((m.hp/10)*100);
     const mpP = Math.round((m.mp/10)*100);
     const spP = Math.round((m.sp/10)*100);
@@ -2371,10 +2381,10 @@ function renderTeacherDashboard() {
     return `
     <div class="t-s-card ${flg?"has-flag":""}" data-sid="${s.id}" tabindex="0" role="button" aria-label="Edit ${s.displayName}">
       <div class="t-s-top">
-        <div class="t-s-avatar" style="border-color:${cc};padding:0"><img src="/avatars/${av}" alt="${s.name}"/></div>
+        <div class="t-s-avatar" style="border-color:${cc};padding:0"><img src="/avatars/${av}" alt="${s.name}" width="44" height="44" loading="lazy"/></div>
         <div class="t-s-info">
           <div class="t-s-name">${s.displayName}</div>
-          <div class="t-s-cls" style="color:${cc}">Lv.${m.level} ${s.avatarClass}</div>
+          <div class="t-s-cls" style="color:${cc}">Lv.${m.level} ${CLS_LABEL[clsKey(s, m)]}</div>
         </div>
       </div>
       <div class="t-mini-bars">
@@ -2428,7 +2438,7 @@ function renderTeacherDashboard() {
         <div class="cpicker-grid">
           ${COMPANIONS.map(c => `
             <div class="cpicker-item" data-cpick="${c.file}" title="${c.name} (${COMPANION_RARITY_LABEL[c.rarity]})">
-              <img src="/companions/${c.file}" alt="${c.name}" style="border-radius:8px"/>
+              <img src="/companions/${c.file}" alt="${c.name}" style="border-radius:8px" width="46" height="46" loading="lazy"/>
               <span class="cp-name">${c.name}</span>
               <span class="cp-rarity" style="color:${COMPANION_RARITY_BORDER[c.rarity]}">${COMPANION_RARITY_LABEL[c.rarity]}</span>
             </div>`).join("")}
@@ -2443,7 +2453,8 @@ function renderTeacherEdit() {
   const edit = STATE.teacherEdit;
   const flags = getHelpFlags();
   const flgTime = flags[String(s.id)];
-  const cc = CLS_COLOR[s.avatarClass];
+  const _m = getMergedStudent(s);
+  const cc = CLS_COLOR[clsKey(s, _m)];
 
   const invChips = (edit.items || []).map(key => {
     const it = ITEMS[key];
@@ -2492,10 +2503,10 @@ function renderTeacherEdit() {
       </div>
 
       <div class="t-section" style="display:flex;align-items:center;gap:16px;padding:16px 20px">
-        <div style="border-radius:50%;border:3px solid ${cc};width:60px;height:60px;overflow:hidden;flex-shrink:0"><img src="/avatars/${getMergedStudent(s).avatar||'avatar_warrior_01.png'}" style="width:100%;height:100%;object-fit:cover;display:block" alt=""/></div>
+        <div style="border-radius:50%;border:3px solid ${cc};width:60px;height:60px;overflow:hidden;flex-shrink:0"><img src="/avatars/${_m.avatar||'avatar_blankchibi.png'}" style="width:100%;height:100%;object-fit:cover;display:block" alt="" width="60" height="60" loading="lazy"/></div>
         <div>
           <div style="font-family:var(--font-display);font-size:18px;font-weight:900;color:var(--purple-dark)">${s.displayName}</div>
-          <div style="font-size:12px;font-weight:700;color:${cc};text-transform:uppercase;letter-spacing:.5px">${s.avatarClass} · ${s.title||""}</div>
+          <div style="font-size:12px;font-weight:700;color:${cc};text-transform:uppercase;letter-spacing:.5px">${CLS_LABEL[clsKey(s, _m)]} · ${s.title||""}</div>
         </div>
       </div>
 
