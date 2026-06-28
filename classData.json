@@ -1,0 +1,3871 @@
+{
+  "periods": [
+    {
+      "id": 1,
+      "classCode": "REALM-P1",
+      "periodName": "Period 1",
+      "teacher": "Ms. Thompson",
+      "students": [
+        {
+          "id": 1,
+          "name": "Emma",
+          "displayName": "Emma Stormweaver",
+          "pin": "1001",
+          "avatarClass": "mage",
+          "title": "Keeper of Scrolls",
+          "level": 6,
+          "xp": 680,
+          "xpNext": 1000,
+          "hp": 5,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 2,
+          "name": "Liam",
+          "displayName": "Liam Ironshield",
+          "pin": "1002",
+          "avatarClass": "warrior",
+          "title": "Champion of Clarity",
+          "level": 5,
+          "xp": 510,
+          "xpNext": 1000,
+          "hp": 9,
+          "mp": 4,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 3,
+          "name": "Olivia",
+          "displayName": "Olivia Sunmender",
+          "pin": "1003",
+          "avatarClass": "healer",
+          "title": "Word Mender",
+          "level": 4,
+          "xp": 370,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 8,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "shield",
+            "scroll"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 4,
+          "name": "Noah",
+          "displayName": "Noah Brightarrow",
+          "pin": "1004",
+          "avatarClass": "ranger",
+          "title": "Swift Reader",
+          "level": 7,
+          "xp": 870,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 5,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge",
+            "amulet"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 5,
+          "name": "Ava",
+          "displayName": "Ava Crystalgaze",
+          "pin": "1005",
+          "avatarClass": "mage",
+          "title": "Apprentice Scholar",
+          "level": 3,
+          "xp": 240,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 8,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 6,
+          "name": "Elijah",
+          "displayName": "Elijah Flamecrest",
+          "pin": "1006",
+          "avatarClass": "warrior",
+          "title": "Guardian of Grammar",
+          "level": 5,
+          "xp": 490,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 3,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "behavior_potion",
+            "scroll",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 7,
+          "name": "Isabella",
+          "displayName": "Isabella Wildstride",
+          "pin": "1007",
+          "avatarClass": "ranger",
+          "title": "Tale Tracker",
+          "level": 6,
+          "xp": 650,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 5,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 8,
+          "name": "Oliver",
+          "displayName": "Oliver Nightwhisper",
+          "pin": "1008",
+          "avatarClass": "rogue",
+          "title": "Shadow Scribe",
+          "level": 4,
+          "xp": 380,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 4,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 9,
+          "name": "Sophia",
+          "displayName": "Sophia Goldleaf",
+          "pin": "1009",
+          "avatarClass": "healer",
+          "title": "Master of Lore",
+          "level": 8,
+          "xp": 1080,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 9,
+          "sp": 7,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge",
+            "amulet",
+            "crown"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire",
+            "Abysmara the Endless"
+          ],
+          "currentLand": 2,
+          "currentTile": 3,
+          "completedTiles": [
+            1,
+            2
+          ]
+        },
+        {
+          "id": 10,
+          "name": "Lucas",
+          "displayName": "Lucas Thunderfist",
+          "pin": "1010",
+          "avatarClass": "warrior",
+          "title": "Brave Beginner",
+          "level": 2,
+          "xp": 150,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 3,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "sword"
+          ],
+          "bosses": [],
+          "currentLand": 1,
+          "currentTile": 2,
+          "completedTiles": [
+            1
+          ]
+        },
+        {
+          "id": 11,
+          "name": "Mia",
+          "displayName": "Mia Moonwhisper",
+          "pin": "1011",
+          "avatarClass": "mage",
+          "title": "Story Seeker",
+          "level": 3,
+          "xp": 260,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 9,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 12,
+          "name": "Mason",
+          "displayName": "Mason Shadowstep",
+          "pin": "1012",
+          "avatarClass": "rogue",
+          "title": "Quest Starter",
+          "level": 5,
+          "xp": 520,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 4,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 13,
+          "name": "Charlotte",
+          "displayName": "Charlotte Dawnlight",
+          "pin": "1013",
+          "avatarClass": "healer",
+          "title": "Champion of Clarity",
+          "level": 6,
+          "xp": 700,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 14,
+          "name": "James",
+          "displayName": "James Stonewall",
+          "pin": "1014",
+          "avatarClass": "warrior",
+          "title": "Word Explorer",
+          "level": 4,
+          "xp": 340,
+          "xpNext": 1000,
+          "hp": 9,
+          "mp": 4,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "shield",
+            "scroll"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 15,
+          "name": "Amelia",
+          "displayName": "Amelia Starfall",
+          "pin": "1015",
+          "avatarClass": "mage",
+          "title": "Dragon Slayer",
+          "level": 7,
+          "xp": 850,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 10,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "amulet",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 16,
+          "name": "Ethan",
+          "displayName": "Ethan Swiftwind",
+          "pin": "1016",
+          "avatarClass": "ranger",
+          "title": "Swift Reader",
+          "level": 5,
+          "xp": 480,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 6,
+          "sp": 8,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 17,
+          "name": "Harper",
+          "displayName": "Harper Silvergrove",
+          "pin": "1017",
+          "avatarClass": "healer",
+          "title": "Young Scholar",
+          "level": 3,
+          "xp": 220,
+          "xpNext": 1000,
+          "hp": 5,
+          "mp": 7,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 18,
+          "name": "Aiden",
+          "displayName": "Aiden Brightblade",
+          "pin": "1018",
+          "avatarClass": "warrior",
+          "title": "Champion of Clarity",
+          "level": 6,
+          "xp": 660,
+          "xpNext": 1000,
+          "hp": 9,
+          "mp": 4,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 19,
+          "name": "Evelyn",
+          "displayName": "Evelyn Shadowspell",
+          "pin": "1019",
+          "avatarClass": "mage",
+          "title": "Word Explorer",
+          "level": 4,
+          "xp": 360,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 8,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 20,
+          "name": "Jackson",
+          "displayName": "Jackson Darkmoor",
+          "pin": "1020",
+          "avatarClass": "rogue",
+          "title": "Tale Tracker",
+          "level": 5,
+          "xp": 540,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 5,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 21,
+          "name": "Luna",
+          "displayName": "Luna Leafrunner",
+          "pin": "1021",
+          "avatarClass": "ranger",
+          "title": "Realm Guardian",
+          "level": 7,
+          "xp": 890,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 6,
+          "sp": 10,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge",
+            "amulet"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 22,
+          "name": "Logan",
+          "displayName": "Logan Ironfang",
+          "pin": "1022",
+          "avatarClass": "warrior",
+          "title": "Story Seeker",
+          "level": 3,
+          "xp": 250,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 3,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 23,
+          "name": "Aria",
+          "displayName": "Aria Arcaneheart",
+          "pin": "1023",
+          "avatarClass": "mage",
+          "title": "Keeper of Scrolls",
+          "level": 5,
+          "xp": 500,
+          "xpNext": 1000,
+          "hp": 5,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 24,
+          "name": "Sebastian",
+          "displayName": "Sebastian Silentblade",
+          "pin": "1024",
+          "avatarClass": "rogue",
+          "title": "Shadow Scribe",
+          "level": 6,
+          "xp": 720,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 5,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 25,
+          "name": "Chloe",
+          "displayName": "Chloe Brightgrace",
+          "pin": "1025",
+          "avatarClass": "healer",
+          "title": "Word Mender",
+          "level": 4,
+          "xp": 400,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 8,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "shield",
+            "scroll"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "classCode": "REALM-P2",
+      "periodName": "Period 2",
+      "teacher": "Ms. Thompson",
+      "students": [
+        {
+          "id": 26,
+          "name": "Jayden",
+          "displayName": "Jayden Steelheart",
+          "pin": "2001",
+          "avatarClass": "warrior",
+          "title": "Guardian of Grammar",
+          "level": 5,
+          "xp": 530,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 4,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 27,
+          "name": "Penelope",
+          "displayName": "Penelope Voidwhisper",
+          "pin": "2002",
+          "avatarClass": "mage",
+          "title": "Apprentice Scholar",
+          "level": 4,
+          "xp": 350,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 9,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 28,
+          "name": "Mateo",
+          "displayName": "Mateo Hawkeye",
+          "pin": "2003",
+          "avatarClass": "ranger",
+          "title": "Tale Tracker",
+          "level": 6,
+          "xp": 690,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 5,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 29,
+          "name": "Layla",
+          "displayName": "Layla Moonhealer",
+          "pin": "2004",
+          "avatarClass": "healer",
+          "title": "Young Scholar",
+          "level": 3,
+          "xp": 230,
+          "xpNext": 1000,
+          "hp": 5,
+          "mp": 8,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 30,
+          "name": "Owen",
+          "displayName": "Owen Quickfinger",
+          "pin": "2005",
+          "avatarClass": "rogue",
+          "title": "Shadow Scribe",
+          "level": 7,
+          "xp": 860,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 5,
+          "sp": 10,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "amulet",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 31,
+          "name": "Maya",
+          "displayName": "Maya Spellrift",
+          "pin": "2006",
+          "avatarClass": "mage",
+          "title": "Story Seeker",
+          "level": 5,
+          "xp": 460,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 10,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 32,
+          "name": "Leo",
+          "displayName": "Leo Goldenbrave",
+          "pin": "2007",
+          "avatarClass": "warrior",
+          "title": "Word Explorer",
+          "level": 4,
+          "xp": 380,
+          "xpNext": 1000,
+          "hp": 9,
+          "mp": 3,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "shield",
+            "scroll"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 33,
+          "name": "Grace",
+          "displayName": "Grace Lifeweave",
+          "pin": "2008",
+          "avatarClass": "healer",
+          "title": "Champion of Clarity",
+          "level": 6,
+          "xp": 710,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 9,
+          "sp": 7,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 34,
+          "name": "Dylan",
+          "displayName": "Dylan Greenbow",
+          "pin": "2009",
+          "avatarClass": "ranger",
+          "title": "Brave Beginner",
+          "level": 3,
+          "xp": 210,
+          "xpNext": 1000,
+          "hp": 5,
+          "mp": 5,
+          "sp": 8,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 35,
+          "name": "Lily",
+          "displayName": "Lily Crystalgaze",
+          "pin": "2010",
+          "avatarClass": "mage",
+          "title": "Story Seeker",
+          "level": 5,
+          "xp": 475,
+          "xpNext": 1000,
+          "hp": 5,
+          "mp": 8,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 36,
+          "name": "Grayson",
+          "displayName": "Grayson Flamecrest",
+          "pin": "2011",
+          "avatarClass": "warrior",
+          "title": "Realm Guardian",
+          "level": 7,
+          "xp": 900,
+          "xpNext": 1000,
+          "hp": 9,
+          "mp": 4,
+          "sp": 7,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge",
+            "amulet"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 37,
+          "name": "Zoey",
+          "displayName": "Zoey Holywater",
+          "pin": "2012",
+          "avatarClass": "healer",
+          "title": "Word Mender",
+          "level": 4,
+          "xp": 390,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 8,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "shield",
+            "scroll"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 38,
+          "name": "Levi",
+          "displayName": "Levi Swiftcloak",
+          "pin": "2013",
+          "avatarClass": "rogue",
+          "title": "Quest Starter",
+          "level": 5,
+          "xp": 555,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 4,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 39,
+          "name": "Nora",
+          "displayName": "Nora Moonwhisper",
+          "pin": "2014",
+          "avatarClass": "mage",
+          "title": "Keeper of Scrolls",
+          "level": 6,
+          "xp": 640,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 40,
+          "name": "Carter",
+          "displayName": "Carter Ironshield",
+          "pin": "2015",
+          "avatarClass": "warrior",
+          "title": "Young Scholar",
+          "level": 3,
+          "xp": 245,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 3,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 41,
+          "name": "Stella",
+          "displayName": "Stella Silvergrove",
+          "pin": "2016",
+          "avatarClass": "healer",
+          "title": "Word Mender",
+          "level": 5,
+          "xp": 505,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 8,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 42,
+          "name": "Hunter",
+          "displayName": "Hunter Trueshot",
+          "pin": "2017",
+          "avatarClass": "ranger",
+          "title": "Swift Reader",
+          "level": 4,
+          "xp": 345,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 5,
+          "sp": 8,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 43,
+          "name": "Elena",
+          "displayName": "Elena Shadowspell",
+          "pin": "2018",
+          "avatarClass": "mage",
+          "title": "Dragon Slayer",
+          "level": 7,
+          "xp": 840,
+          "xpNext": 1000,
+          "hp": 3,
+          "mp": 10,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge",
+            "amulet"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 44,
+          "name": "Eli",
+          "displayName": "Eli Brightblade",
+          "pin": "2019",
+          "avatarClass": "warrior",
+          "title": "Champion of Clarity",
+          "level": 6,
+          "xp": 670,
+          "xpNext": 1000,
+          "hp": 9,
+          "mp": 4,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 45,
+          "name": "Victoria",
+          "displayName": "Victoria Goldleaf",
+          "pin": "2020",
+          "avatarClass": "healer",
+          "title": "Apprentice Scholar",
+          "level": 3,
+          "xp": 270,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 7,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 46,
+          "name": "Caleb",
+          "displayName": "Caleb Nightwhisper",
+          "pin": "2021",
+          "avatarClass": "rogue",
+          "title": "Shadow Scribe",
+          "level": 5,
+          "xp": 490,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 4,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 47,
+          "name": "Aurora",
+          "displayName": "Aurora Starfall",
+          "pin": "2022",
+          "avatarClass": "mage",
+          "title": "Master of Lore",
+          "level": 8,
+          "xp": 1050,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 10,
+          "sp": 7,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge",
+            "amulet",
+            "phoenix"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire",
+            "Abysmara the Endless"
+          ],
+          "currentLand": 2,
+          "currentTile": 3,
+          "completedTiles": [
+            1,
+            2
+          ]
+        },
+        {
+          "id": 48,
+          "name": "Ryan",
+          "displayName": "Ryan Thunderfist",
+          "pin": "2023",
+          "avatarClass": "warrior",
+          "title": "Word Explorer",
+          "level": 4,
+          "xp": 410,
+          "xpNext": 1000,
+          "hp": 9,
+          "mp": 3,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "shield",
+            "scroll"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 49,
+          "name": "Hannah",
+          "displayName": "Hannah Dawnlight",
+          "pin": "2024",
+          "avatarClass": "healer",
+          "title": "Word Mender",
+          "level": 5,
+          "xp": 545,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 50,
+          "name": "Isaiah",
+          "displayName": "Isaiah Forestwalker",
+          "pin": "2025",
+          "avatarClass": "ranger",
+          "title": "Tale Tracker",
+          "level": 6,
+          "xp": 730,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 6,
+          "sp": 10,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "classCode": "REALM-P3",
+      "periodName": "Period 3",
+      "teacher": "Ms. Thompson",
+      "students": [
+        {
+          "id": 51,
+          "name": "Scarlett",
+          "displayName": "Scarlett Arcaneheart",
+          "pin": "3001",
+          "avatarClass": "mage",
+          "title": "Keeper of Scrolls",
+          "level": 5,
+          "xp": 470,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 52,
+          "name": "Nathan",
+          "displayName": "Nathan Stonewall",
+          "pin": "3002",
+          "avatarClass": "warrior",
+          "title": "Word Explorer",
+          "level": 4,
+          "xp": 360,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 4,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "shield",
+            "scroll"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 53,
+          "name": "Leah",
+          "displayName": "Leah Moonhealer",
+          "pin": "3003",
+          "avatarClass": "healer",
+          "title": "Champion of Clarity",
+          "level": 6,
+          "xp": 695,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 54,
+          "name": "Connor",
+          "displayName": "Connor Wildstride",
+          "pin": "3004",
+          "avatarClass": "ranger",
+          "title": "Brave Beginner",
+          "level": 3,
+          "xp": 215,
+          "xpNext": 1000,
+          "hp": 5,
+          "mp": 5,
+          "sp": 8,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 55,
+          "name": "Aubrey",
+          "displayName": "Aubrey Voidwhisper",
+          "pin": "3005",
+          "avatarClass": "mage",
+          "title": "Dragon Slayer",
+          "level": 7,
+          "xp": 880,
+          "xpNext": 1000,
+          "hp": 3,
+          "mp": 10,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "amulet",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 56,
+          "name": "Xavier",
+          "displayName": "Xavier Silentblade",
+          "pin": "3006",
+          "avatarClass": "rogue",
+          "title": "Shadow Scribe",
+          "level": 5,
+          "xp": 535,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 4,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 57,
+          "name": "Savannah",
+          "displayName": "Savannah Brightgrace",
+          "pin": "3007",
+          "avatarClass": "healer",
+          "title": "Word Mender",
+          "level": 4,
+          "xp": 385,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 8,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "shield",
+            "scroll"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 58,
+          "name": "Camden",
+          "displayName": "Camden Ironfang",
+          "pin": "3008",
+          "avatarClass": "warrior",
+          "title": "Champion of Clarity",
+          "level": 6,
+          "xp": 655,
+          "xpNext": 1000,
+          "hp": 9,
+          "mp": 4,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 59,
+          "name": "Addison",
+          "displayName": "Addison Moonwhisper",
+          "pin": "3009",
+          "avatarClass": "mage",
+          "title": "Young Scholar",
+          "level": 3,
+          "xp": 255,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 9,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 60,
+          "name": "Angel",
+          "displayName": "Angel Lifeweave",
+          "pin": "3010",
+          "avatarClass": "healer",
+          "title": "Story Seeker",
+          "level": 5,
+          "xp": 515,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 8,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 61,
+          "name": "Wyatt",
+          "displayName": "Wyatt Flamecrest",
+          "pin": "3011",
+          "avatarClass": "warrior",
+          "title": "Realm Guardian",
+          "level": 7,
+          "xp": 920,
+          "xpNext": 1000,
+          "hp": 10,
+          "mp": 4,
+          "sp": 7,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge",
+            "amulet"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 62,
+          "name": "Samantha",
+          "displayName": "Samantha Spellrift",
+          "pin": "3012",
+          "avatarClass": "mage",
+          "title": "Keeper of Scrolls",
+          "level": 4,
+          "xp": 395,
+          "xpNext": 1000,
+          "hp": 5,
+          "mp": 8,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 63,
+          "name": "Christopher",
+          "displayName": "Christopher Darkmoor",
+          "pin": "3013",
+          "avatarClass": "rogue",
+          "title": "Quest Starter",
+          "level": 5,
+          "xp": 560,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 4,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 64,
+          "name": "Brooklyn",
+          "displayName": "Brooklyn Silvergrove",
+          "pin": "3014",
+          "avatarClass": "healer",
+          "title": "Champion of Clarity",
+          "level": 6,
+          "xp": 740,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 9,
+          "sp": 7,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 65,
+          "name": "Andrew",
+          "displayName": "Andrew Steelheart",
+          "pin": "3015",
+          "avatarClass": "warrior",
+          "title": "Brave Beginner",
+          "level": 3,
+          "xp": 235,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 3,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 66,
+          "name": "Zoe",
+          "displayName": "Zoe Crystalgaze",
+          "pin": "3016",
+          "avatarClass": "mage",
+          "title": "Story Seeker",
+          "level": 5,
+          "xp": 485,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 67,
+          "name": "Joshua",
+          "displayName": "Joshua Leafrunner",
+          "pin": "3017",
+          "avatarClass": "ranger",
+          "title": "Swift Reader",
+          "level": 4,
+          "xp": 355,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 5,
+          "sp": 8,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 68,
+          "name": "Natalie",
+          "displayName": "Natalie Goldleaf",
+          "pin": "3018",
+          "avatarClass": "healer",
+          "title": "Master of Lore",
+          "level": 7,
+          "xp": 855,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 10,
+          "sp": 7,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge",
+            "amulet"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 69,
+          "name": "Dominic",
+          "displayName": "Dominic Ironshield",
+          "pin": "3019",
+          "avatarClass": "warrior",
+          "title": "Guardian of Grammar",
+          "level": 5,
+          "xp": 495,
+          "xpNext": 1000,
+          "hp": 9,
+          "mp": 3,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 70,
+          "name": "Faith",
+          "displayName": "Faith Starfall",
+          "pin": "3020",
+          "avatarClass": "mage",
+          "title": "Keeper of Scrolls",
+          "level": 6,
+          "xp": 705,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 71,
+          "name": "Derek",
+          "displayName": "Derek Quickfinger",
+          "pin": "3021",
+          "avatarClass": "rogue",
+          "title": "Shadow Scribe",
+          "level": 4,
+          "xp": 365,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 5,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 72,
+          "name": "Kayla",
+          "displayName": "Kayla Holywater",
+          "pin": "3022",
+          "avatarClass": "healer",
+          "title": "Word Mender",
+          "level": 5,
+          "xp": 525,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 8,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 73,
+          "name": "Marcus",
+          "displayName": "Marcus Thunderfist",
+          "pin": "3023",
+          "avatarClass": "warrior",
+          "title": "Young Scholar",
+          "level": 3,
+          "xp": 225,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 3,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 74,
+          "name": "Sierra",
+          "displayName": "Sierra Shadowspell",
+          "pin": "3024",
+          "avatarClass": "mage",
+          "title": "Realm Guardian",
+          "level": 6,
+          "xp": 750,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 10,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "amulet"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 75,
+          "name": "Tyler",
+          "displayName": "Tyler Hawkeye",
+          "pin": "3025",
+          "avatarClass": "ranger",
+          "title": "Dragon Slayer",
+          "level": 7,
+          "xp": 895,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 6,
+          "sp": 10,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge",
+            "amulet"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "classCode": "REALM-P4",
+      "periodName": "Period 4",
+      "teacher": "Ms. Thompson",
+      "students": [
+        {
+          "id": 76,
+          "name": "Brianna",
+          "displayName": "Brianna Dawnlight",
+          "pin": "4001",
+          "avatarClass": "healer",
+          "title": "Champion of Clarity",
+          "level": 5,
+          "xp": 555,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 77,
+          "name": "Kyle",
+          "displayName": "Kyle Brightblade",
+          "pin": "4002",
+          "avatarClass": "warrior",
+          "title": "Word Explorer",
+          "level": 4,
+          "xp": 375,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 4,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "shield",
+            "scroll"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 78,
+          "name": "Amber",
+          "displayName": "Amber Moonwhisper",
+          "pin": "4003",
+          "avatarClass": "mage",
+          "title": "Tale Tracker",
+          "level": 6,
+          "xp": 665,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 79,
+          "name": "Jordan",
+          "displayName": "Jordan Trueshot",
+          "pin": "4004",
+          "avatarClass": "ranger",
+          "title": "Brave Beginner",
+          "level": 3,
+          "xp": 225,
+          "xpNext": 1000,
+          "hp": 5,
+          "mp": 5,
+          "sp": 8,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 80,
+          "name": "Paige",
+          "displayName": "Paige Lifeweave",
+          "pin": "4005",
+          "avatarClass": "healer",
+          "title": "Realm Guardian",
+          "level": 7,
+          "xp": 910,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 10,
+          "sp": 7,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge",
+            "amulet"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 81,
+          "name": "Bryce",
+          "displayName": "Bryce Flamecrest",
+          "pin": "4006",
+          "avatarClass": "warrior",
+          "title": "Guardian of Grammar",
+          "level": 5,
+          "xp": 500,
+          "xpNext": 1000,
+          "hp": 9,
+          "mp": 4,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 82,
+          "name": "Destiny",
+          "displayName": "Destiny Spellrift",
+          "pin": "4007",
+          "avatarClass": "mage",
+          "title": "Story Seeker",
+          "level": 4,
+          "xp": 405,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 8,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 83,
+          "name": "Tristan",
+          "displayName": "Tristan Swiftcloak",
+          "pin": "4008",
+          "avatarClass": "rogue",
+          "title": "Shadow Scribe",
+          "level": 6,
+          "xp": 680,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 5,
+          "sp": 10,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 84,
+          "name": "Alexis",
+          "displayName": "Alexis Moonhealer",
+          "pin": "4009",
+          "avatarClass": "healer",
+          "title": "Young Scholar",
+          "level": 3,
+          "xp": 245,
+          "xpNext": 1000,
+          "hp": 5,
+          "mp": 7,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 85,
+          "name": "Alex",
+          "displayName": "Alex Ironshield",
+          "pin": "4010",
+          "avatarClass": "warrior",
+          "title": "Word Explorer",
+          "level": 5,
+          "xp": 475,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 4,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 86,
+          "name": "Morgan",
+          "displayName": "Morgan Arcaneheart",
+          "pin": "4011",
+          "avatarClass": "mage",
+          "title": "Dragon Slayer",
+          "level": 7,
+          "xp": 865,
+          "xpNext": 1000,
+          "hp": 3,
+          "mp": 10,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "amulet",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 87,
+          "name": "Cole",
+          "displayName": "Cole Greenbow",
+          "pin": "4012",
+          "avatarClass": "ranger",
+          "title": "Swift Reader",
+          "level": 4,
+          "xp": 340,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 5,
+          "sp": 8,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 88,
+          "name": "Jade",
+          "displayName": "Jade Brightgrace",
+          "pin": "4013",
+          "avatarClass": "healer",
+          "title": "Word Mender",
+          "level": 5,
+          "xp": 520,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 8,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 89,
+          "name": "Travis",
+          "displayName": "Travis Ironfang",
+          "pin": "4014",
+          "avatarClass": "warrior",
+          "title": "Champion of Clarity",
+          "level": 6,
+          "xp": 720,
+          "xpNext": 1000,
+          "hp": 9,
+          "mp": 4,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 90,
+          "name": "Kaylee",
+          "displayName": "Kaylee Voidwhisper",
+          "pin": "4015",
+          "avatarClass": "mage",
+          "title": "Young Scholar",
+          "level": 3,
+          "xp": 265,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 8,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 91,
+          "name": "Jaden",
+          "displayName": "Jaden Nightwhisper",
+          "pin": "4016",
+          "avatarClass": "rogue",
+          "title": "Quest Starter",
+          "level": 5,
+          "xp": 545,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 4,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 92,
+          "name": "Brittany",
+          "displayName": "Brittany Silvergrove",
+          "pin": "4017",
+          "avatarClass": "healer",
+          "title": "Master of Lore",
+          "level": 7,
+          "xp": 870,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 9,
+          "sp": 7,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge",
+            "amulet"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 93,
+          "name": "Devon",
+          "displayName": "Devon Goldenbrave",
+          "pin": "4018",
+          "avatarClass": "warrior",
+          "title": "Word Explorer",
+          "level": 4,
+          "xp": 350,
+          "xpNext": 1000,
+          "hp": 8,
+          "mp": 3,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "shield",
+            "scroll"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 94,
+          "name": "Hailey",
+          "displayName": "Hailey Crystalgaze",
+          "pin": "4019",
+          "avatarClass": "mage",
+          "title": "Keeper of Scrolls",
+          "level": 6,
+          "xp": 730,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 95,
+          "name": "Cody",
+          "displayName": "Cody Forestwalker",
+          "pin": "4020",
+          "avatarClass": "ranger",
+          "title": "Tale Tracker",
+          "level": 5,
+          "xp": 510,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 5,
+          "sp": 8,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "id": 96,
+          "name": "Taylor",
+          "displayName": "Taylor Goldleaf",
+          "pin": "4021",
+          "avatarClass": "healer",
+          "title": "Young Scholar",
+          "level": 3,
+          "xp": 240,
+          "xpNext": 1000,
+          "hp": 5,
+          "mp": 8,
+          "sp": 5,
+          "items": [
+            "health_potion",
+            "scroll",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding"
+          ],
+          "currentLand": 1,
+          "currentTile": 5,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "id": 97,
+          "name": "Micah",
+          "displayName": "Micah Steelheart",
+          "pin": "4022",
+          "avatarClass": "warrior",
+          "title": "Guardian of Grammar",
+          "level": 6,
+          "xp": 695,
+          "xpNext": 1000,
+          "hp": 9,
+          "mp": 4,
+          "sp": 7,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "sword",
+            "badge"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle"
+          ],
+          "currentLand": 1,
+          "currentTile": 14,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "id": 98,
+          "name": "Selena",
+          "displayName": "Selena Shadowspell",
+          "pin": "4023",
+          "avatarClass": "mage",
+          "title": "Master of Lore",
+          "level": 7,
+          "xp": 850,
+          "xpNext": 1000,
+          "hp": 4,
+          "mp": 10,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "badge",
+            "amulet",
+            "stamina_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable",
+            "Duskmantle",
+            "Thornspire"
+          ],
+          "currentLand": 1,
+          "currentTile": 15,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "id": 99,
+          "name": "Blake",
+          "displayName": "Blake Darkmoor",
+          "pin": "4024",
+          "avatarClass": "rogue",
+          "title": "Shadow Scribe",
+          "level": 4,
+          "xp": 370,
+          "xpNext": 1000,
+          "hp": 6,
+          "mp": 4,
+          "sp": 9,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil"
+          ],
+          "currentLand": 1,
+          "currentTile": 8,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "id": 100,
+          "name": "Vanessa",
+          "displayName": "Vanessa Lifeweave",
+          "pin": "4025",
+          "avatarClass": "healer",
+          "title": "Champion of Clarity",
+          "level": 5,
+          "xp": 530,
+          "xpNext": 1000,
+          "hp": 7,
+          "mp": 9,
+          "sp": 6,
+          "items": [
+            "health_potion",
+            "scroll",
+            "shield",
+            "behavior_potion"
+          ],
+          "bosses": [
+            "Aldric the Unyielding",
+            "Seraphine of the Veil",
+            "Gravox the Immovable"
+          ],
+          "currentLand": 1,
+          "currentTile": 11,
+          "completedTiles": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        }
+      ]
+    }
+  ]
+}
