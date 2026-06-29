@@ -1,0 +1,9 @@
+{
+  "name": "realm-of-ela",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "python3 serve.py",
+    "build": "echo 'Static site — no build step required.'"
+  }
+}
