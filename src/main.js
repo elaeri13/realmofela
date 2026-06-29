@@ -1428,18 +1428,16 @@ function tileImgURL(type, biome) {
 
 function getLandPos(student) {
   const ov = getOverrides().students[String(student.id)] || {};
-  const savedLand = ov.currentLand !== undefined ? ov.currentLand
-                  : ov._isReset ? null  // Firebase stripped null — treat as null for reset students
-                  : student.currentLand !== undefined ? student.currentLand
-                  : null;
-  // Brand-new students (no land set anywhere) always start in Land 0
-  if (savedLand === null && !ov.completedLand0) {
+  // Firebase strips null on write, so absent currentLand always means "Land 0 not yet completed."
+  // This covers new students, any reset (with or without _isReset flag in Firebase),
+  // and Land 0 in-progress students. Never fall through to classData's currentLand.
+  if (ov.currentLand === undefined && !ov.completedLand0) {
     return { land:0, tile: ov.currentTile || 1, completed: ov.completedTiles || [] };
   }
   return {
-    land: savedLand !== null ? savedLand : 1,
+    land: ov.currentLand !== null ? ov.currentLand : 1,
     tile: ov.currentTile || student.currentTile || 1,
-    completed: ov.completedTiles || student.completedTiles || [],
+    completed: ov.completedTiles || [],
   };
 }
 
