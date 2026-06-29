@@ -3867,5 +3867,153 @@
         }
       ]
     }
-  ]
+  ],
+  "npcs": {
+    "lumin_hint":          { "name": "Lumielle",     "type": "HINT",          "image": "/npcs/npc_lumin_hint.png",          "dialogue": "Look toward the light — it hides in every line. Ask yourself what the author keeps returning to." },
+    "lumin_lore":          { "name": "Starwarden",   "type": "LORE",          "image": "/npcs/npc_lumin_lore.png",          "dialogue": "We Lumin were born from the first dawn, before the Realm had words. Every sunrise is a new chapter." },
+    "lumin_encouragement": { "name": "Brightjoy",    "type": "ENCOURAGEMENT", "image": "/npcs/npc_lumin_encouragement.png", "dialogue": "Your progress shines SO brightly we can see it from the sky! Keep glowing, young scholar!" },
+    "lumin_easter":        { "name": "Flicker",      "type": "EASTER EGG",    "image": "/npcs/npc_lumin_easter.png",        "dialogue": "I once swallowed a firefly whole. I glowed for a week. 10 out of 10 — would recommend." },
+
+    "thornkin_hint":          { "name": "Sylvex the Seeker", "type": "HINT",          "image": "/npcs/npc_thornkin_hint.png",          "dialogue": "Psst! Looking for theme? Ask yourself: what does the character LEARN by the end? That's your clue, young traveler." },
+    "thornkin_lore":          { "name": "Elder Mossbark",    "type": "LORE",          "image": "/npcs/npc_thornkin_lore.png",          "dialogue": "The Verdant Vale has stood since the first story was told. Every leaf here holds a tale. The Warden watches... always." },
+    "thornkin_encouragement": { "name": "Bramblejoy",        "type": "ENCOURAGEMENT", "image": "/npcs/npc_thornkin_encouragement.png", "dialogue": "YOU ARE DOING AMAZING! The Vale believes in you! Go go go! WOOOO!" },
+    "thornkin_easter":        { "name": "Twig",               "type": "EASTER EGG",    "image": "/npcs/npc_thornkin_easter.png",        "dialogue": "I found this scroll but I cannot read it. It says... 'Ziν aℜe iη sℜv'... I think it might be a recipe for acorn soup?" },
+
+    "gravenborn_hint":          { "name": "Stonewhisper",  "type": "HINT",          "image": "/npcs/npc_gravenborn_hint.png",          "dialogue": "Each piece of evidence should support your claim like a stone supports a wall. Find three and the wall stands." },
+    "gravenborn_lore":          { "name": "Chiselmark",    "type": "LORE",          "image": "/npcs/npc_gravenborn_lore.png",          "dialogue": "The Stone Kingdoms were carved long before memory. Every wall holds a secret. I have read most of them." },
+    "gravenborn_encouragement": { "name": "Bouldercheer",  "type": "ENCOURAGEMENT", "image": "/npcs/npc_gravenborn_encouragement.png", "dialogue": "You are SOLID. You are STRONG. You are doing great, little scholar! Nothing can crumble your effort!" },
+    "gravenborn_easter":        { "name": "Pebble",        "type": "EASTER EGG",    "image": "/npcs/npc_gravenborn_easter.png",        "dialogue": "If I stand very still, they think I am a rock. I have stood still for three years. No one has noticed." },
+
+    "tideweaver_hint":          { "name": "Coralwhisper",    "type": "HINT",          "image": "/npcs/npc_tideweaver_hint.png",          "dialogue": "Words drift like currents. Look for context clues nearby to anchor the meaning before you guess." },
+    "tideweaver_lore":          { "name": "Riptide Elder",   "type": "LORE",          "image": "/npcs/npc_tideweaver_lore.png",          "dialogue": "The Depths were shaped by pressure over ages. Even the darkest trench holds life — and answers." },
+    "tideweaver_encouragement": { "name": "Bubblejoy",       "type": "ENCOURAGEMENT", "image": "/npcs/npc_tideweaver_encouragement.png", "dialogue": "YOU'RE MAKING WAVES! Keep swimming, scholar! The surface — and your goal — is just ahead!" },
+    "tideweaver_easter":        { "name": "Gloop",           "type": "EASTER EGG",    "image": "/npcs/npc_tideweaver_easter.png",        "dialogue": "I once mistook a jellyfish for a hat. It was a confusing afternoon for both of us. The jellyfish was also confused." },
+
+    "briarfolk_hint":          { "name": "Thornwhisper", "type": "HINT",          "image": "/npcs/npc_briarfolk_hint.png",          "dialogue": "Compare two texts like two paths through the woods — notice what changes and what stays the same." },
+    "briarfolk_lore":          { "name": "Rootkeeper",   "type": "LORE",          "image": "/npcs/npc_briarfolk_lore.png",          "dialogue": "The Thornwood remembers every story told beneath its canopy. Every root is a thread to the past." },
+    "briarfolk_encouragement": { "name": "Leafdance",    "type": "ENCOURAGEMENT", "image": "/npcs/npc_briarfolk_encouragement.png", "dialogue": "GROWING SO TALL! You've rooted your knowledge deep! Keep branching out — the sky is waiting!" },
+    "briarfolk_easter":        { "name": "Snag",         "type": "EASTER EGG",    "image": "/npcs/npc_briarfolk_easter.png",        "dialogue": "Last Tuesday I tried to walk through a door and got stuck for six hours. The door wins. The door always wins." },
+
+    "embersoul_hint":          { "name": "Cinderveil", "type": "HINT",          "image": "/npcs/npc_embersoul_hint.png",          "dialogue": "Can't find the evidence? Keep reading — the author will light the way soon. Follow the smoke." },
+    "embersoul_lore":          { "name": "Ashkeeper",  "type": "LORE",          "image": "/npcs/npc_embersoul_lore.png",          "dialogue": "The Hollows were once bright and burning. Now only the embers remain to remember what the fire once was." },
+    "embersoul_encouragement": { "name": "Sparkjoy",   "type": "ENCOURAGEMENT", "image": "/npcs/npc_embersoul_encouragement.png", "dialogue": "YOU'RE ON FIRE! Figuratively! Possibly literally! Your hard work is blazing brighter every day!" },
+    "embersoul_easter":        { "name": "Smolderpot", "type": "EASTER EGG",    "image": "/npcs/npc_embersoul_easter.png",        "dialogue": "I collect shadows. I have 47 shadows. My favorite is the shadow from a donut. It has a hole, you see." },
+
+    "voltari_hint":          { "name": "Stormscribe", "type": "HINT",          "image": "/npcs/npc_voltari_hint.png",          "dialogue": "Need to compare sources? List what they agree on first, then find what only one of them says." },
+    "voltari_lore":          { "name": "Thunderpeak", "type": "LORE",          "image": "/npcs/npc_voltari_lore.png",          "dialogue": "The Stormspire was raised in the final age by those who wished to touch the clouds — and succeeded." },
+    "voltari_encouragement": { "name": "Zappyjoy",    "type": "ENCOURAGEMENT", "image": "/npcs/npc_voltari_encouragement.png", "dialogue": "ELECTRIC EFFORT! You're basically a walking lightning bolt of genius right now! CRACKLE CRACKLE!" },
+    "voltari_easter":        { "name": "Crackle",     "type": "EASTER EGG",    "image": "/npcs/npc_voltari_easter.png",        "dialogue": "I once counted all the lightning bolts in a storm. There were seventeen thousand. I may have miscounted by one." }
+  },
+  "writingEvents": {
+    "land1": {
+      "title": "The Scribe's Calling",
+      "boss": "Kaeltharion the Narrator",
+      "portrait": "boss_kaeltharion.png",
+      "standard": "W.5.2 | W.5.9",
+      "type": "Literary Analysis Essay",
+      "prompt": "Choose a character from Unit 1 who overcomes an obstacle. Write an essay analyzing how the character's response to that obstacle reveals a theme of the story. Use evidence from the text to support your analysis.",
+      "checklist": [
+        "I stated a clear theme supported by the text",
+        "I analyzed how the character's actions reveal the theme",
+        "I used at least two pieces of text evidence",
+        "I wrote in complete sentences with correct punctuation"
+      ]
+    },
+    "land2": {
+      "title": "The Scribe's Calling",
+      "boss": "The Archivist of Worlds",
+      "portrait": "boss_archivist.png",
+      "standard": "W.5.2 | W.5.7",
+      "type": "Informational Article",
+      "prompt": "Write an informational article about one of the art movements or historical events from Unit 2. Include key details from at least two texts to explain why this event or movement was important.",
+      "checklist": [
+        "I introduced my topic clearly",
+        "I used details and facts from at least two unit texts",
+        "I organized my information logically",
+        "I wrote in complete sentences with correct punctuation"
+      ]
+    },
+    "land3": {
+      "title": "The Scribe's Calling",
+      "boss": "Threadweaver",
+      "portrait": "boss_threadweaver.png",
+      "standard": "W.5.3",
+      "type": "Narrative Legend",
+      "prompt": "Write an original legend that explains something about water — how a river was formed, why the ocean is salty, or where rain comes from. Use figurative language including at least one metaphor or simile in your legend.",
+      "checklist": [
+        "I wrote a legend that explains something about water",
+        "I included a clear beginning, middle, and end",
+        "I used at least one metaphor or simile",
+        "I wrote in complete sentences with correct punctuation"
+      ]
+    },
+    "land4": {
+      "title": "The Scribe's Calling",
+      "boss": "Vexara of the Iron Argument",
+      "portrait": "boss_vexara.png",
+      "standard": "W.5.1 | W.5.7",
+      "type": "Opinion Letter to the Editor",
+      "prompt": "Write a letter to the editor stating your opinion on this question: What is the most important survival skill a person can have? Use evidence from at least two texts in Unit 4 to support your opinion.",
+      "checklist": [
+        "I stated my opinion clearly in the opening",
+        "I supported my opinion with evidence from at least two unit texts",
+        "I addressed a possible opposing view",
+        "I wrote a strong concluding statement"
+      ]
+    },
+    "land5": {
+      "title": "The Scribe's Calling",
+      "boss": "Vexara Unbound",
+      "portrait": "boss_vexara_unbound.png",
+      "standard": "W.5.1 | W.5.7",
+      "type": "Opinion Speech",
+      "prompt": "Write a short persuasive speech about this question: Why is it important to stand up against injustice, even when it is dangerous? Use evidence from Unit 5 texts to support your argument.",
+      "checklist": [
+        "I opened with a strong hook that grabs the audience",
+        "I stated my opinion and supported it with unit text evidence",
+        "I used persuasive language throughout",
+        "I ended with a powerful call to action"
+      ]
+    },
+    "land6": {
+      "title": "The Scribe's Calling",
+      "boss": "The Chronicler",
+      "portrait": "boss_chronicler.png",
+      "standard": "W.5.2 | W.5.7",
+      "type": "Informational Book Chapter",
+      "prompt": "Write one chapter of an informational book about communication. Choose one form of communication from Unit 6 and explain how it works, why it matters, and what the world would be like without it. Use details from at least two unit texts.",
+      "checklist": [
+        "I introduced my topic with an engaging opening",
+        "I included facts and details from at least two unit texts",
+        "I used headings or organized sections if helpful",
+        "I wrote a conclusion that wraps up the chapter"
+      ]
+    }
+  },
+  "guilds": {
+    "crimson": {
+      "name": "Crimson Guild",
+      "color": "#C0392B",
+      "crest": "/guilds/guild_crimson.png",
+      "motto": "Courage in every chapter."
+    },
+    "storm": {
+      "name": "Storm Guild",
+      "color": "#1A6B8A",
+      "crest": "/guilds/guild_storm.png",
+      "motto": "Strike fast, think faster."
+    },
+    "ember": {
+      "name": "Ember Guild",
+      "color": "#E67E22",
+      "crest": "/guilds/guild_ember.png",
+      "motto": "Burn bright, never out."
+    },
+    "shadow": {
+      "name": "Shadow Guild",
+      "color": "#5B2C6F",
+      "crest": "/guilds/guild_shadow.png",
+      "motto": "Unseen. Unstoppable."
+    }
+  }
 }
