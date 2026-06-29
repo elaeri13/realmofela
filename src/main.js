@@ -752,7 +752,10 @@ function renderGuildReveal() {
 
 function resetStudentFull(studentId) {
   const sid = String(studentId);
+  // Firebase strips null and [] when writing, so we rely on _isReset:true as a
+  // sentinel that getMergedStudent and getLandPos use to restore those defaults.
   const resetData = {
+    _isReset: true,
     currentLand: null, currentTile: 1, completedTiles: [], completedLand0: false,
     hp: 10, mp: 10, sp: 10, xp: 0, xpNext: 50,
     taskProgress: {}, taskTimestamps: {},
@@ -765,7 +768,21 @@ function resetStudentFull(studentId) {
   clearHelpFlag(studentId);
 }
 function getMergedStudent(base) {
-  return Object.assign({}, base, getOverrides().students[String(base.id)] || {});
+  const ov = getOverrides().students[String(base.id)] || {};
+  const merged = Object.assign({}, base, ov);
+  if (ov._isReset) {
+    // Firebase omits null/[] on write, so restore reset defaults for any field
+    // still missing from the override (i.e. not yet overwritten by new gameplay).
+    if (!('currentLand' in ov))      merged.currentLand      = null;
+    if (!('guild' in ov))            merged.guild            = null;
+    if (!('title' in ov))            merged.title            = null;
+    if (!('activeCompanion' in ov))  merged.activeCompanion  = null;
+    if (!('bosses' in ov))           merged.bosses           = [];
+    if (!('items' in ov))            merged.items            = [];
+    if (!('companions' in ov))       merged.companions       = [];
+    if (!('completedTiles' in ov))   merged.completedTiles   = [];
+  }
+  return merged;
 }
 function getTaskProgress(studentId, tileId) {
   const ov = getOverrides().students[String(studentId)] || {};
@@ -1412,6 +1429,7 @@ function tileImgURL(type, biome) {
 function getLandPos(student) {
   const ov = getOverrides().students[String(student.id)] || {};
   const savedLand = ov.currentLand !== undefined ? ov.currentLand
+                  : ov._isReset ? null  // Firebase stripped null — treat as null for reset students
                   : student.currentLand !== undefined ? student.currentLand
                   : null;
   // Brand-new students (no land set anywhere) always start in Land 0
