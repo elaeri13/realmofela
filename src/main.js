@@ -3513,7 +3513,7 @@ function liveMount() {
 /* ─── BOOT — fetch classData.json + init Firebase, then start ─── */
 mount(); // show loading spinner immediately
 Promise.all([
-  fetch('./classData.json').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+  fetch('/classData.json').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
   initFirebaseCache(),
 ]).then(([data]) => {
   CLASS_DATA = data;
