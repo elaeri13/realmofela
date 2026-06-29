@@ -946,145 +946,385 @@ const LANDS = [
     ],
     pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27],
   },
+  // ── SHARED PATH CONSTANTS (all new lands use same serpentine grid as Land 1) ──
+  // Row 0 (y=70)  L→R: x = 65,195,325,455,585,715,845,975,1105
+  // Row 2 (y=350) R→L: x = 1105,975,845,715,585,455,325,195,65
+  // Row 4 (y=630) L→R: x = 65,195,325,455,585,715,845,975  →  dungeon at 975,840
+  // Branch row 1 (y=210): loot pairs at (455,210)↔(585,210) and (975,210)↔(1105,210)
+  // Branch row 3 (y=490): loot pairs at (845,490)↔(715,490) and (195,490)↔(65,490)
+  // 4-lesson lands use all 4 branch pairs.
+  // 3-lesson lands omit the 4th branch pair (it falls inside the CI section).
+
   {
     id:2, name:"The Stone Kingdoms", subtitle:"Unit 2: Art in America", biome:2,
-    tiles:[
-      {id: 1, type:"arrival", name:"Kingdom Gates", x:70, y:70},
-      {id: 2, type:"lesson", name:"The Carved Path", x:210, y:70},
-      {id: 3, type:"lesson", name:"Stone Records", x:350, y:70},
-      {id: 4, type:"boss", name:"Thornspire", x:490, y:70, skill:"RI.5.2"},
-      {id: 5, type:"lesson", name:"Crystal Caves", x:630, y:70},
-      {id: 6, type:"lesson", name:"The Deep Archive", x:770, y:70},
-      {id: 7, type:"boss", name:"Gravox the Immovable", x:770, y:270, skill:"RI.5.1"},
-      {id: 8, type:"lesson", name:"The Forge Path", x:630, y:270},
-      {id: 9, type:"event", name:"The Scribe's Calling", x:490, y:270},
-      {id:10, type:"lesson", name:"Rune Passages", x:350, y:270},
-      {id:11, type:"lesson", name:"The Iron Gate", x:210, y:270},
-      {id:12, type:"boss", name:"Cinderhull", x:210, y:470, skill:"RI.5.3"},
-      {id:13, type:"lesson", name:"Runevast's Trail", x:350, y:470},
-      {id:14, type:"boss", name:"Runevast", x:490, y:470, skill:"RI.5.4"},
-      {id:15, type:"lesson", name:"The Final Gate", x:630, y:470},
-      {id:16, type:"dungeon", name:"The Eternal Architect", x:770, y:470},
-      {id:17, type:"loot", name:"Stone Gems", x:490, y:170},
-      {id:18, type:"loot", name:"Crystal Cache", x:630, y:170},
-      {id:19, type:"loot", name:"Ancient Relics", x:910, y:270},
-      {id:20, type:"loot", name:"Iron Chest", x:910, y:470},
-      {id:21, type:"loot", name:"Deep Hoard", x:70, y:270},
-      {id:22, type:"loot", name:"Runed Vault", x:70, y:470},
+    bgImage:"/tiles/map_background_stone_kingdoms.png",
+    W:1195, H:980,
+    mainPaths:[
+      "M 65 70 L 195 70 L 325 70 L 455 70 L 585 70 L 715 70 L 845 70 L 975 70 L 1105 70",
+      "M 1105 70 C 1155 70 1155 350 1105 350",
+      "M 1105 350 L 975 350 L 845 350 L 715 350 L 585 350 L 455 350 L 325 350 L 195 350 L 65 350",
+      "M 65 350 C 15 350 15 630 65 630",
+      "M 65 630 L 195 630 L 325 630 L 455 630 L 585 630 L 715 630 L 845 630 L 975 630 L 975 840",
     ],
-    pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],
+    branchPaths:[
+      "M 455 70 L 455 210 L 585 210 L 585 70",
+      "M 975 70 L 975 210 L 1105 210 L 1105 70",
+      "M 845 350 L 845 490 L 715 490 L 715 350",
+      "M 195 350 L 195 490 L 65 490 L 65 350",
+    ],
+    decorations:[
+      {name:"castle",    x:65,   y:210},
+      {name:"mountains", x:715,  y:210},
+      {name:"graveyard", x:1105, y:490},
+      {name:"lake",      x:715,  y:770},
+    ],
+    tiles:[
+      // ── Row 0: main path L→R ──
+      {id: 1, type:"arrival", name:"Stone Kingdom Gates",          x:65,   y:70},
+      {id: 2, type:"lesson",  name:"L5-S1", sessionTitle:"The Harlem Renaissance",  x:195,  y:70},
+      {id: 3, type:"lesson",  name:"L5-S2",                        x:325,  y:70},
+      {id: 4, type:"lesson",  name:"L5-S3",                        x:455,  y:70},
+      {id: 5, type:"lesson",  name:"L5-S6",                        x:585,  y:70},
+      {id: 6, type:"boss",    name:"Thornspire",                   x:715,  y:70,  skill:"RI.5.2",
+        portrait:"boss_thornspire.png",
+        lore:"Thornspire rises from every paragraph whose main idea goes unnamed. Identify what the text is mostly about and support it with key details to bring this ancient tower down.",
+        pearUrl:""},
+      {id: 7, type:"lesson",  name:"L6-S1", sessionTitle:"The Arts of the People", x:845,  y:70},
+      {id: 8, type:"lesson",  name:"L6-S2",                        x:975,  y:70},
+      {id: 9, type:"lesson",  name:"L6-S3",                        x:1105, y:70},
+      // ── Row 2: main path R→L ──
+      {id:10, type:"lesson",  name:"L6-S6",                        x:1105, y:350},
+      {id:11, type:"boss",    name:"Thornspire Reborn",            x:975,  y:350, skill:"RI.5.2",
+        portrait:"boss_thornspire_reborn.png",
+        lore:"Thornspire has rebuilt itself from every forgotten central idea. Name the main claim and back it with evidence from the text to collapse it once more.",
+        pearUrl:""},
+      {id:12, type:"lesson",  name:"L7-S1", sessionTitle:"Dust Bowl",               x:845,  y:350},
+      {id:13, type:"lesson",  name:"L7-S2",                        x:715,  y:350},
+      {id:14, type:"lesson",  name:"L7-S3",                        x:585,  y:350},
+      {id:15, type:"lesson",  name:"L7-S6",                        x:455,  y:350},
+      {id:16, type:"boss",    name:"Cinderhull",                   x:325,  y:350, skill:"RI.5.3",
+        portrait:"boss_cinderhull.png",
+        lore:"Cinderhull scorches the connections between events, blurring every cause and effect. Explain how individuals, events, and ideas interact to extinguish its flames.",
+        pearUrl:""},
+      {id:17, type:"lesson",  name:"L8-S1", sessionTitle:"Public Works of Art",     x:195,  y:350},
+      {id:18, type:"lesson",  name:"L8-S2",                        x:65,   y:350},
+      // ── Row 4: main path L→R ──
+      {id:19, type:"lesson",  name:"L8-S3",                        x:65,   y:630},
+      {id:20, type:"lesson",  name:"L8-S6",                        x:195,  y:630},
+      {id:21, type:"boss",    name:"Runevast",                     x:325,  y:630, skill:"RI.5.4",
+        portrait:"boss_runevast.png",
+        lore:"Runevast guards its ancient inscriptions from any who cannot decode the domain-specific words carved into its walls. Determine word meanings in context to break through.",
+        pearUrl:""},
+      {id:22, type:"lesson",  name:"CI-S1", sessionTitle:"Forgotten Art",           x:455,  y:630},
+      {id:23, type:"lesson",  name:"CI-S2",                        x:585,  y:630},
+      {id:24, type:"lesson",  name:"CI-S3",                        x:715,  y:630},
+      {id:25, type:"lesson",  name:"CI-S4",                        x:845,  y:630},
+      {id:26, type:"event",   name:"The Scribe's Calling",         x:975,  y:630},
+      // ── Dungeon ──
+      {id:27, type:"dungeon", name:"The Eternal Architect",        x:975,  y:840, portrait:"boss_eternal_architect.png"},
+      // ── Branch tiles ──
+      {id:28, type:"loot", name:"L5-S4", x:455,  y:210, skill:"Should Do", nextTile:5,  parentTileId:4},
+      {id:29, type:"loot", name:"L5-S5", x:585,  y:210, skill:"Aspire To", nextTile:28, parentTileId:28},
+      {id:30, type:"loot", name:"L6-S4", x:975,  y:210, skill:"Should Do", nextTile:9,  parentTileId:8},
+      {id:31, type:"loot", name:"L6-S5", x:1105, y:210, skill:"Aspire To", nextTile:30, parentTileId:30},
+      {id:32, type:"loot", name:"L7-S4", x:845,  y:490, skill:"Should Do", nextTile:13, parentTileId:12},
+      {id:33, type:"loot", name:"L7-S5", x:715,  y:490, skill:"Aspire To", nextTile:32, parentTileId:32},
+      {id:34, type:"loot", name:"L8-S4", x:195,  y:490, skill:"Should Do", nextTile:18, parentTileId:17},
+      {id:35, type:"loot", name:"L8-S5", x:65,   y:490, skill:"Aspire To", nextTile:34, parentTileId:34},
+    ],
+    pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27],
   },
   {
     id:3, name:"The Drowned Depths", subtitle:"Unit 3: Earth's Water", biome:3,
-    tiles:[
-      {id: 1, type:"arrival", name:"Shore's Edge", x:70, y:70},
-      {id: 2, type:"lesson", name:"The Tidal Path", x:210, y:70},
-      {id: 3, type:"lesson", name:"Coral Approach", x:350, y:70},
-      {id: 4, type:"boss", name:"Abysmara the Endless", x:490, y:70, skill:"RL.5.4"},
-      {id: 5, type:"lesson", name:"Sunken Archives", x:630, y:70},
-      {id: 6, type:"lesson", name:"The Deep Shelf", x:770, y:70},
-      {id: 7, type:"boss", name:"Tidelurk", x:770, y:270, skill:"RI.5.1"},
-      {id: 8, type:"lesson", name:"Abyssal Crossing", x:630, y:270},
-      {id: 9, type:"event", name:"The Scribe's Calling", x:490, y:270},
-      {id:10, type:"lesson", name:"Reef Passage", x:350, y:270},
-      {id:11, type:"lesson", name:"Kelp Forest", x:210, y:270},
-      {id:12, type:"boss", name:"Coralspine", x:210, y:470, skill:"RI.5.5"},
-      {id:13, type:"lesson", name:"The Sunken Ruin", x:350, y:470},
-      {id:14, type:"lesson", name:"Bioluminous Cave", x:490, y:470},
-      {id:15, type:"lesson", name:"The Abyssal Door", x:630, y:470},
-      {id:16, type:"dungeon", name:"The Abyssal Sovereign", x:770, y:470},
-      {id:17, type:"loot", name:"Tidal Chest", x:490, y:170},
-      {id:18, type:"loot", name:"Sunken Gems", x:630, y:170},
-      {id:19, type:"loot", name:"Abyssal Cache", x:910, y:270},
-      {id:20, type:"loot", name:"Pearl Hoard", x:910, y:470},
-      {id:21, type:"loot", name:"Reef Chest", x:70, y:270},
-      {id:22, type:"loot", name:"Coral Vault", x:70, y:470},
+    bgImage:"/tiles/map_background_drowned_depths.png",
+    W:1195, H:980,
+    mainPaths:[
+      "M 65 70 L 195 70 L 325 70 L 455 70 L 585 70 L 715 70 L 845 70 L 975 70 L 1105 70",
+      "M 1105 70 C 1155 70 1155 350 1105 350",
+      "M 1105 350 L 975 350 L 845 350 L 715 350 L 585 350 L 455 350 L 325 350 L 195 350 L 65 350",
+      "M 65 350 C 15 350 15 630 65 630",
+      "M 65 630 L 195 630 L 325 630 L 455 630 L 585 630 L 715 630 L 845 630 L 975 630 L 975 840",
     ],
-    pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],
+    branchPaths:[
+      "M 455 70 L 455 210 L 585 210 L 585 70",
+      "M 975 70 L 975 210 L 1105 210 L 1105 70",
+      "M 845 350 L 845 490 L 715 490 L 715 350",
+    ],
+    decorations:[
+      {name:"lake",      x:65,   y:210},
+      {name:"lake",      x:715,  y:210},
+      {name:"castle",    x:1105, y:490},
+      {name:"graveyard", x:715,  y:770},
+    ],
+    tiles:[
+      // ── Row 0: main path L→R ──
+      {id: 1, type:"arrival", name:"The Drowned Gates",            x:65,   y:70},
+      {id: 2, type:"lesson",  name:"L9-S1",  sessionTitle:"Water and Humans",        x:195,  y:70},
+      {id: 3, type:"lesson",  name:"L9-S2",                        x:325,  y:70},
+      {id: 4, type:"lesson",  name:"L9-S3",                        x:455,  y:70},
+      {id: 5, type:"lesson",  name:"L9-S6",                        x:585,  y:70},
+      {id: 6, type:"boss",    name:"Abysmara the Endless",         x:715,  y:70,  skill:"RL.5.4",
+        portrait:"boss_abysmara.png",
+        lore:"Abysmara pulls readers into murky language where every word has two meanings. Determine what words and phrases mean as they are used in the text to surface the truth.",
+        pearUrl:""},
+      {id: 7, type:"lesson",  name:"L10-S1", sessionTitle:"Fresh Water",             x:845,  y:70},
+      {id: 8, type:"lesson",  name:"L10-S2",                       x:975,  y:70},
+      {id: 9, type:"lesson",  name:"L10-S3",                       x:1105, y:70},
+      // ── Row 2: main path R→L ──
+      {id:10, type:"lesson",  name:"L10-S6",                       x:1105, y:350},
+      {id:11, type:"boss",    name:"Tidelurk",                     x:975,  y:350, skill:"RI.5.1",
+        portrait:"boss_tidelurk.png",
+        lore:"Tidelurk lurks beneath every unsupported claim. Only a quote pulled precisely from the text will drive this creature back into the depths.",
+        pearUrl:""},
+      {id:12, type:"lesson",  name:"L11-S1", sessionTitle:"Water Problems and Solutions", x:845, y:350},
+      {id:13, type:"lesson",  name:"L11-S2",                       x:715,  y:350},
+      {id:14, type:"lesson",  name:"L11-S3",                       x:585,  y:350},
+      {id:15, type:"lesson",  name:"L11-S6",                       x:455,  y:350},
+      {id:16, type:"boss",    name:"Coralspine",                   x:325,  y:350, skill:"RI.5.5",
+        portrait:"boss_coralspine.png",
+        lore:"Coralspine has fused two texts into a labyrinth of tangled structures. Compare and contrast how each text organizes its ideas to chart a way through.",
+        pearUrl:""},
+      {id:17, type:"lesson",  name:"CI-S1",  sessionTitle:"The Future of Water",    x:195,  y:350},
+      {id:18, type:"lesson",  name:"CI-S2",                        x:65,   y:350},
+      // ── Row 4: main path L→R (CI continues to fill grid) ──
+      {id:19, type:"lesson",  name:"CI-S3",                        x:65,   y:630},
+      {id:20, type:"lesson",  name:"CI-S4",                        x:195,  y:630},
+      {id:21, type:"lesson",  name:"CI-S5",                        x:325,  y:630},
+      {id:22, type:"lesson",  name:"CI-S6",                        x:455,  y:630},
+      {id:23, type:"lesson",  name:"CI-S7",                        x:585,  y:630},
+      {id:24, type:"lesson",  name:"CI-S8",                        x:715,  y:630},
+      {id:25, type:"lesson",  name:"CI-S9",                        x:845,  y:630},
+      {id:26, type:"event",   name:"The Scribe's Calling",         x:975,  y:630},
+      // ── Dungeon ──
+      {id:27, type:"dungeon", name:"The Abyssal Sovereign",        x:975,  y:840, portrait:"boss_abyssal_sovereign.png"},
+      // ── Branch tiles (3 pairs — 4th branch falls in CI area and is omitted) ──
+      {id:28, type:"loot", name:"L9-S4",  x:455,  y:210, skill:"Should Do", nextTile:5,  parentTileId:4},
+      {id:29, type:"loot", name:"L9-S5",  x:585,  y:210, skill:"Aspire To", nextTile:28, parentTileId:28},
+      {id:30, type:"loot", name:"L10-S4", x:975,  y:210, skill:"Should Do", nextTile:9,  parentTileId:8},
+      {id:31, type:"loot", name:"L10-S5", x:1105, y:210, skill:"Aspire To", nextTile:30, parentTileId:30},
+      {id:32, type:"loot", name:"L11-S4", x:845,  y:490, skill:"Should Do", nextTile:13, parentTileId:12},
+      {id:33, type:"loot", name:"L11-S5", x:715,  y:490, skill:"Aspire To", nextTile:32, parentTileId:32},
+    ],
+    pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27],
   },
   {
     id:4, name:"The Thornwood", subtitle:"Unit 4: Survival", biome:4,
-    tiles:[
-      {id: 1, type:"arrival", name:"The Wood's Edge", x:70, y:70},
-      {id: 2, type:"lesson", name:"Tangled Roots", x:210, y:70},
-      {id: 3, type:"lesson", name:"The Briar Path", x:350, y:70},
-      {id: 4, type:"boss", name:"Bramblethorn", x:490, y:70, skill:"RI.5.5"},
-      {id: 5, type:"lesson", name:"Fog Ridge", x:630, y:70},
-      {id: 6, type:"lesson", name:"The Overgrown", x:770, y:70},
-      {id: 7, type:"boss", name:"Feraxis the Rootborn", x:770, y:270, skill:"RL.5.5"},
-      {id: 8, type:"lesson", name:"Root Depths", x:630, y:270},
-      {id: 9, type:"event", name:"The Scribe's Calling", x:490, y:270},
-      {id:10, type:"lesson", name:"The Dark Canopy", x:350, y:270},
-      {id:11, type:"lesson", name:"Thorn Hollow", x:210, y:270},
-      {id:12, type:"boss", name:"Hollowgaze", x:210, y:470, skill:"RL.5.6"},
-      {id:13, type:"lesson", name:"The Rotted Bridge", x:350, y:470},
-      {id:14, type:"lesson", name:"Ancient Heartwood", x:490, y:470},
-      {id:15, type:"lesson", name:"The Ancient Oak", x:630, y:470},
-      {id:16, type:"dungeon", name:"The Rootfather", x:770, y:470},
-      {id:17, type:"loot", name:"Briar Cache", x:490, y:170},
-      {id:18, type:"loot", name:"Root Gems", x:630, y:170},
-      {id:19, type:"loot", name:"Wild Chest", x:910, y:270},
-      {id:20, type:"loot", name:"Bark Hoard", x:910, y:470},
-      {id:21, type:"loot", name:"Thorn Chest", x:70, y:270},
-      {id:22, type:"loot", name:"Deep Roots", x:70, y:470},
+    bgImage:"/tiles/map_background_thornwood.png",
+    W:1195, H:980,
+    mainPaths:[
+      "M 65 70 L 195 70 L 325 70 L 455 70 L 585 70 L 715 70 L 845 70 L 975 70 L 1105 70",
+      "M 1105 70 C 1155 70 1155 350 1105 350",
+      "M 1105 350 L 975 350 L 845 350 L 715 350 L 585 350 L 455 350 L 325 350 L 195 350 L 65 350",
+      "M 65 350 C 15 350 15 630 65 630",
+      "M 65 630 L 195 630 L 325 630 L 455 630 L 585 630 L 715 630 L 845 630 L 975 630 L 975 840",
     ],
-    pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],
+    branchPaths:[
+      "M 455 70 L 455 210 L 585 210 L 585 70",
+      "M 975 70 L 975 210 L 1105 210 L 1105 70",
+      "M 845 350 L 845 490 L 715 490 L 715 350",
+    ],
+    decorations:[
+      {name:"mountains", x:65,   y:210},
+      {name:"graveyard", x:715,  y:210},
+      {name:"castle",    x:1105, y:490},
+      {name:"lake",      x:715,  y:770},
+    ],
+    tiles:[
+      // ── Row 0: main path L→R ──
+      {id: 1, type:"arrival", name:"The Thornwood Gate",           x:65,   y:70},
+      {id: 2, type:"lesson",  name:"L12-S1", sessionTitle:"I Will Survive",          x:195,  y:70},
+      {id: 3, type:"lesson",  name:"L12-S2",                       x:325,  y:70},
+      {id: 4, type:"lesson",  name:"L12-S3",                       x:455,  y:70},
+      {id: 5, type:"lesson",  name:"L12-S6",                       x:585,  y:70},
+      {id: 6, type:"boss",    name:"Bramblethorn",                 x:715,  y:70,  skill:"RI.5.5",
+        portrait:"boss_bramblethorn.png",
+        lore:"Bramblethorn tangles the structure of information until no connection survives. Explain how the author structures ideas and how each part relates to the whole.",
+        pearUrl:""},
+      {id: 7, type:"lesson",  name:"L13-S1", sessionTitle:"Danger on the Mountain",  x:845,  y:70},
+      {id: 8, type:"lesson",  name:"L13-S2",                       x:975,  y:70},
+      {id: 9, type:"lesson",  name:"L13-S3",                       x:1105, y:70},
+      // ── Row 2: main path R→L ──
+      {id:10, type:"lesson",  name:"L13-S6",                       x:1105, y:350},
+      {id:11, type:"boss",    name:"Feraxis the Rootborn",         x:975,  y:350, skill:"RL.5.5",
+        portrait:"boss_feraxis.png",
+        lore:"Feraxis the Rootborn has twisted two characters into one shape. Compare and contrast how each character thinks, acts, and changes to unravel them.",
+        pearUrl:""},
+      {id:12, type:"lesson",  name:"L14-S1", sessionTitle:"Lost at Sea",             x:845,  y:350},
+      {id:13, type:"lesson",  name:"L14-S2",                       x:715,  y:350},
+      {id:14, type:"lesson",  name:"L14-S3",                       x:585,  y:350},
+      {id:15, type:"lesson",  name:"L14-S6",                       x:455,  y:350},
+      {id:16, type:"boss",    name:"Hollowgaze",                   x:325,  y:350, skill:"RL.5.6",
+        portrait:"boss_hollowgaze.png",
+        lore:"Hollowgaze sees every story through the narrator's single eye. Describe how the speaker's point of view influences how events are described to break its hold.",
+        pearUrl:""},
+      {id:17, type:"lesson",  name:"CI-S1",  sessionTitle:"Put to the Test",         x:195,  y:350},
+      {id:18, type:"lesson",  name:"CI-S2",                        x:65,   y:350},
+      // ── Row 4: main path L→R ──
+      {id:19, type:"lesson",  name:"CI-S3",                        x:65,   y:630},
+      {id:20, type:"lesson",  name:"CI-S4",                        x:195,  y:630},
+      {id:21, type:"lesson",  name:"CI-S5",                        x:325,  y:630},
+      {id:22, type:"lesson",  name:"CI-S6",                        x:455,  y:630},
+      {id:23, type:"lesson",  name:"CI-S7",                        x:585,  y:630},
+      {id:24, type:"lesson",  name:"CI-S8",                        x:715,  y:630},
+      {id:25, type:"lesson",  name:"CI-S9",                        x:845,  y:630},
+      {id:26, type:"event",   name:"The Scribe's Calling",         x:975,  y:630},
+      // ── Dungeon ──
+      {id:27, type:"dungeon", name:"The Rootfather",               x:975,  y:840, portrait:"boss_rootfather.png"},
+      // ── Branch tiles ──
+      {id:28, type:"loot", name:"L12-S4", x:455,  y:210, skill:"Should Do", nextTile:5,  parentTileId:4},
+      {id:29, type:"loot", name:"L12-S5", x:585,  y:210, skill:"Aspire To", nextTile:28, parentTileId:28},
+      {id:30, type:"loot", name:"L13-S4", x:975,  y:210, skill:"Should Do", nextTile:9,  parentTileId:8},
+      {id:31, type:"loot", name:"L13-S5", x:1105, y:210, skill:"Aspire To", nextTile:30, parentTileId:30},
+      {id:32, type:"loot", name:"L14-S4", x:845,  y:490, skill:"Should Do", nextTile:13, parentTileId:12},
+      {id:33, type:"loot", name:"L14-S5", x:715,  y:490, skill:"Aspire To", nextTile:32, parentTileId:32},
+    ],
+    pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27],
   },
   {
     id:5, name:"The Ashen Hollows", subtitle:"Unit 5: Underground Railroad", biome:5,
-    tiles:[
-      {id: 1, type:"arrival", name:"Hollow's Gate", x:70, y:70},
-      {id: 2, type:"lesson", name:"Ash Path", x:210, y:70},
-      {id: 3, type:"lesson", name:"The Silent Row", x:350, y:70},
-      {id: 4, type:"boss", name:"Voranthis the Unseen", x:490, y:70, skill:"RI.5.8"},
-      {id: 5, type:"lesson", name:"Lantern Walk", x:630, y:70},
-      {id: 6, type:"lesson", name:"Mist Crossing", x:770, y:70},
-      {id: 7, type:"boss", name:"Mirrowick", x:770, y:270, skill:"RI.5.6"},
-      {id: 8, type:"lesson", name:"Tombstone Road", x:630, y:270},
-      {id: 9, type:"event", name:"The Scribe's Calling", x:490, y:270},
-      {id:10, type:"lesson", name:"Shadow Crossing", x:350, y:270},
-      {id:11, type:"lesson", name:"The Dim Passage", x:210, y:270},
-      {id:12, type:"boss", name:"Ashenveil", x:210, y:470, skill:"RL.5.9"},
-      {id:13, type:"lesson", name:"The Black Hollow", x:350, y:470},
-      {id:14, type:"lesson", name:"Final Lantern", x:490, y:470},
-      {id:15, type:"lesson", name:"The Last Lantern", x:630, y:470},
-      {id:16, type:"dungeon", name:"The Hollow King", x:770, y:470},
-      {id:17, type:"loot", name:"Ash Chest", x:490, y:170},
-      {id:18, type:"loot", name:"Ember Cache", x:630, y:170},
-      {id:19, type:"loot", name:"Shadow Gems", x:910, y:270},
-      {id:20, type:"loot", name:"Hollow Hoard", x:910, y:470},
-      {id:21, type:"loot", name:"Lantern Chest", x:70, y:270},
-      {id:22, type:"loot", name:"Ashen Vault", x:70, y:470},
+    bgImage:"/tiles/map_background_ashen_hollows.png",
+    W:1195, H:980,
+    mainPaths:[
+      "M 65 70 L 195 70 L 325 70 L 455 70 L 585 70 L 715 70 L 845 70 L 975 70 L 1105 70",
+      "M 1105 70 C 1155 70 1155 350 1105 350",
+      "M 1105 350 L 975 350 L 845 350 L 715 350 L 585 350 L 455 350 L 325 350 L 195 350 L 65 350",
+      "M 65 350 C 15 350 15 630 65 630",
+      "M 65 630 L 195 630 L 325 630 L 455 630 L 585 630 L 715 630 L 845 630 L 975 630 L 975 840",
     ],
-    pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],
+    branchPaths:[
+      "M 455 70 L 455 210 L 585 210 L 585 70",
+      "M 975 70 L 975 210 L 1105 210 L 1105 70",
+      "M 845 350 L 845 490 L 715 490 L 715 350",
+    ],
+    decorations:[
+      {name:"graveyard", x:65,   y:210},
+      {name:"mountains", x:715,  y:210},
+      {name:"graveyard", x:1105, y:490},
+      {name:"lake",      x:715,  y:770},
+    ],
+    tiles:[
+      // ── Row 0: main path L→R ──
+      {id: 1, type:"arrival", name:"The Ashen Gate",               x:65,   y:70},
+      {id: 2, type:"lesson",  name:"L15-S1", sessionTitle:"Slavery in the United States", x:195, y:70},
+      {id: 3, type:"lesson",  name:"L15-S2",                       x:325,  y:70},
+      {id: 4, type:"lesson",  name:"L15-S3",                       x:455,  y:70},
+      {id: 5, type:"lesson",  name:"L15-S6",                       x:585,  y:70},
+      {id: 6, type:"boss",    name:"Voranthis the Unseen",         x:715,  y:70,  skill:"RI.5.8",
+        portrait:"boss_voranthis.png",
+        lore:"Voranthis erases the evidence before your eyes, leaving only empty claims. Explain how the author uses reasons and evidence to support each key point.",
+        pearUrl:""},
+      {id: 7, type:"lesson",  name:"L16-S1", sessionTitle:"The Hard Path to Freedom", x:845, y:70},
+      {id: 8, type:"lesson",  name:"L16-S2",                       x:975,  y:70},
+      {id: 9, type:"lesson",  name:"L16-S3",                       x:1105, y:70},
+      // ── Row 2: main path R→L ──
+      {id:10, type:"lesson",  name:"L16-S6",                       x:1105, y:350},
+      {id:11, type:"boss",    name:"Mirrowick",                    x:975,  y:350, skill:"RI.5.6",
+        portrait:"boss_mirrowick.png",
+        lore:"Mirrowick reflects the same event in twelve distorted mirrors. Analyze multiple accounts of the same event and determine how each point of view shapes what we see.",
+        pearUrl:""},
+      {id:12, type:"lesson",  name:"L17-S1", sessionTitle:"Stories of the Underground Railroad", x:845, y:350},
+      {id:13, type:"lesson",  name:"L17-S2",                       x:715,  y:350},
+      {id:14, type:"lesson",  name:"L17-S3",                       x:585,  y:350},
+      {id:15, type:"lesson",  name:"L17-S6",                       x:455,  y:350},
+      {id:16, type:"boss",    name:"Ashenveil",                    x:325,  y:350, skill:"RL.5.9",
+        portrait:"boss_ashenveil.png",
+        lore:"Ashenveil merges two stories until their differences vanish in the smoke. Compare and contrast stories in the same genre — theme, pattern, character — to lift the veil.",
+        pearUrl:""},
+      {id:17, type:"lesson",  name:"CI-S1",  sessionTitle:"The Fight for Freedom",   x:195,  y:350},
+      {id:18, type:"lesson",  name:"CI-S2",                        x:65,   y:350},
+      // ── Row 4: main path L→R ──
+      {id:19, type:"lesson",  name:"CI-S3",                        x:65,   y:630},
+      {id:20, type:"lesson",  name:"CI-S4",                        x:195,  y:630},
+      {id:21, type:"lesson",  name:"CI-S5",                        x:325,  y:630},
+      {id:22, type:"lesson",  name:"CI-S6",                        x:455,  y:630},
+      {id:23, type:"lesson",  name:"CI-S7",                        x:585,  y:630},
+      {id:24, type:"lesson",  name:"CI-S8",                        x:715,  y:630},
+      {id:25, type:"lesson",  name:"CI-S9",                        x:845,  y:630},
+      {id:26, type:"event",   name:"The Scribe's Calling",         x:975,  y:630},
+      // ── Dungeon ──
+      {id:27, type:"dungeon", name:"The Hollow King",              x:975,  y:840, portrait:"boss_hollow_king.png"},
+      // ── Branch tiles ──
+      {id:28, type:"loot", name:"L15-S4", x:455,  y:210, skill:"Should Do", nextTile:5,  parentTileId:4},
+      {id:29, type:"loot", name:"L15-S5", x:585,  y:210, skill:"Aspire To", nextTile:28, parentTileId:28},
+      {id:30, type:"loot", name:"L16-S4", x:975,  y:210, skill:"Should Do", nextTile:9,  parentTileId:8},
+      {id:31, type:"loot", name:"L16-S5", x:1105, y:210, skill:"Aspire To", nextTile:30, parentTileId:30},
+      {id:32, type:"loot", name:"L17-S4", x:845,  y:490, skill:"Should Do", nextTile:13, parentTileId:12},
+      {id:33, type:"loot", name:"L17-S5", x:715,  y:490, skill:"Aspire To", nextTile:32, parentTileId:32},
+    ],
+    pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27],
   },
   {
     id:6, name:"The Stormspire", subtitle:"Unit 6: Communication", biome:6,
-    tiles:[
-      {id: 1, type:"arrival", name:"Spire Approach", x:70, y:70},
-      {id: 2, type:"lesson", name:"Thunder's First Echo", x:210, y:70},
-      {id: 3, type:"lesson", name:"The Storm Path", x:350, y:70},
-      {id: 4, type:"boss", name:"Omnivex the Eternal", x:490, y:70, skill:"RL.5.7"},
-      {id: 5, type:"lesson", name:"Lightning Archives", x:630, y:70},
-      {id: 6, type:"lesson", name:"The High Winds", x:770, y:70},
-      {id: 7, type:"boss", name:"Echovast", x:770, y:270, skill:"RI.5.7"},
-      {id: 8, type:"lesson", name:"Storm's Eye", x:630, y:270},
-      {id: 9, type:"event", name:"The Scribe's Calling", x:490, y:270},
-      {id:10, type:"lesson", name:"The Final Crossing", x:350, y:270},
-      {id:11, type:"lesson", name:"Abyss's Edge", x:210, y:270},
-      {id:12, type:"boss", name:"Solvanor the Last", x:210, y:470, skill:"RI.5.9"},
-      {id:13, type:"lesson", name:"The Spire Ascent", x:350, y:470},
-      {id:14, type:"lesson", name:"Above the Clouds", x:490, y:470},
-      {id:15, type:"lesson", name:"The Storm Gate", x:630, y:470},
-      {id:16, type:"dungeon", name:"The Voice of the Realm", x:770, y:470},
-      {id:17, type:"loot", name:"Lightning Cache", x:490, y:170},
-      {id:18, type:"loot", name:"Thunder Gems", x:630, y:170},
-      {id:19, type:"loot", name:"Sky Chest", x:910, y:270},
-      {id:20, type:"loot", name:"Storm Hoard", x:910, y:470},
-      {id:21, type:"loot", name:"Cloud Vault", x:70, y:270},
-      {id:22, type:"loot", name:"Sky Relics", x:70, y:470},
+    bgImage:"/tiles/map_background_stormspire.png",
+    W:1195, H:980,
+    mainPaths:[
+      "M 65 70 L 195 70 L 325 70 L 455 70 L 585 70 L 715 70 L 845 70 L 975 70 L 1105 70",
+      "M 1105 70 C 1155 70 1155 350 1105 350",
+      "M 1105 350 L 975 350 L 845 350 L 715 350 L 585 350 L 455 350 L 325 350 L 195 350 L 65 350",
+      "M 65 350 C 15 350 15 630 65 630",
+      "M 65 630 L 195 630 L 325 630 L 455 630 L 585 630 L 715 630 L 845 630 L 975 630 L 975 840",
     ],
-    pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16],
+    branchPaths:[
+      "M 455 70 L 455 210 L 585 210 L 585 70",
+      "M 975 70 L 975 210 L 1105 210 L 1105 70",
+      "M 845 350 L 845 490 L 715 490 L 715 350",
+    ],
+    decorations:[
+      {name:"castle",    x:65,   y:210},
+      {name:"lake",      x:715,  y:210},
+      {name:"mountains", x:1105, y:490},
+      {name:"graveyard", x:715,  y:770},
+    ],
+    tiles:[
+      // ── Row 0: main path L→R ──
+      {id: 1, type:"arrival", name:"The Stormspire Gates",         x:65,   y:70},
+      {id: 2, type:"lesson",  name:"L18-S1", sessionTitle:"Beyond Spoken Words",     x:195,  y:70},
+      {id: 3, type:"lesson",  name:"L18-S2",                       x:325,  y:70},
+      {id: 4, type:"lesson",  name:"L18-S3",                       x:455,  y:70},
+      {id: 5, type:"lesson",  name:"L18-S6",                       x:585,  y:70},
+      {id: 6, type:"boss",    name:"Omnivex the Eternal",          x:715,  y:70,  skill:"RL.5.7",
+        portrait:"boss_omnivex.png",
+        lore:"Omnivex the Eternal speaks in images, charts, diagrams, and words all at once. Analyze how visual and multimedia elements contribute to the meaning of the whole.",
+        pearUrl:""},
+      {id: 7, type:"lesson",  name:"L19-S1", sessionTitle:"From Here to There",      x:845,  y:70},
+      {id: 8, type:"lesson",  name:"L19-S2",                       x:975,  y:70},
+      {id: 9, type:"lesson",  name:"L19-S3",                       x:1105, y:70},
+      // ── Row 2: main path R→L ──
+      {id:10, type:"lesson",  name:"L19-S6",                       x:1105, y:350},
+      {id:11, type:"boss",    name:"Echovast",                     x:975,  y:350, skill:"RI.5.7",
+        portrait:"boss_echovast.png",
+        lore:"Echovast is assembled from fragments of countless sources. Draw on information from multiple print and digital sources to reveal its true form.",
+        pearUrl:""},
+      {id:12, type:"lesson",  name:"L20-S1", sessionTitle:"How Do YOU Say It?",      x:845,  y:350},
+      {id:13, type:"lesson",  name:"L20-S2",                       x:715,  y:350},
+      {id:14, type:"lesson",  name:"L20-S3",                       x:585,  y:350},
+      {id:15, type:"lesson",  name:"L20-S6",                       x:455,  y:350},
+      {id:16, type:"boss",    name:"Solvanor the Last",            x:325,  y:350, skill:"RI.5.9",
+        portrait:"boss_solvanor.png",
+        lore:"Solvanor is the final guardian, born from all texts that came before. Integrate information from several texts on the same topic to claim final victory.",
+        pearUrl:""},
+      {id:17, type:"lesson",  name:"CI-S1",  sessionTitle:"Messages in Code",        x:195,  y:350},
+      {id:18, type:"lesson",  name:"CI-S2",                        x:65,   y:350},
+      // ── Row 4: main path L→R ──
+      {id:19, type:"lesson",  name:"CI-S3",                        x:65,   y:630},
+      {id:20, type:"lesson",  name:"CI-S4",                        x:195,  y:630},
+      {id:21, type:"lesson",  name:"CI-S5",                        x:325,  y:630},
+      {id:22, type:"lesson",  name:"CI-S6",                        x:455,  y:630},
+      {id:23, type:"lesson",  name:"CI-S7",                        x:585,  y:630},
+      {id:24, type:"lesson",  name:"CI-S8",                        x:715,  y:630},
+      {id:25, type:"lesson",  name:"CI-S9",                        x:845,  y:630},
+      {id:26, type:"event",   name:"The Scribe's Calling",         x:975,  y:630},
+      // ── Dungeon ──
+      {id:27, type:"dungeon", name:"The Voice of the Realm",       x:975,  y:840, portrait:"boss_voice_realm.png"},
+      // ── Branch tiles ──
+      {id:28, type:"loot", name:"L18-S4", x:455,  y:210, skill:"Should Do", nextTile:5,  parentTileId:4},
+      {id:29, type:"loot", name:"L18-S5", x:585,  y:210, skill:"Aspire To", nextTile:28, parentTileId:28},
+      {id:30, type:"loot", name:"L19-S4", x:975,  y:210, skill:"Should Do", nextTile:9,  parentTileId:8},
+      {id:31, type:"loot", name:"L19-S5", x:1105, y:210, skill:"Aspire To", nextTile:30, parentTileId:30},
+      {id:32, type:"loot", name:"L20-S4", x:845,  y:490, skill:"Should Do", nextTile:13, parentTileId:12},
+      {id:33, type:"loot", name:"L20-S5", x:715,  y:490, skill:"Aspire To", nextTile:32, parentTileId:32},
+    ],
+    pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27],
   },
 ];
 const LAND_EMOJIS = ["🌿","⛏️","🌊","🌿","🕯️","⚡"];
@@ -2145,7 +2385,7 @@ function renderQuestMap() {
       <span style="font-size:12px;font-weight:800;color:rgba(255,255,255,.55)">Lv.${student.level}</span>
     </div>
     <div class="lm-svg-wrap">
-      <div class="lm-map-bg"></div>
+      <div class="lm-map-bg" ${land.bgImage ? `style="background-image:url('${land.bgImage}')"` : ""}></div>
       <svg viewBox="0 -30 ${land.W||LW.W} ${(land.H||LW.H)+30}" style="width:100%;max-height:100%;display:block" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
         ${buildLandSVG(land,pos,false,"")}
       </svg>
@@ -2166,6 +2406,12 @@ function renderTeacherTileView() {
   const onTile = period.students.filter(s => {
     const p = getLandPos(s);
     return p.land === land.id && p.tile === tile.id;
+  });
+  const completedTile = period.students.filter(s => {
+    const ov = getOverrides().students[String(s.id)] || {};
+    const completed = (ov.completedTiles || s.completedTiles || []).map(Number);
+    const p = getLandPos(s);
+    return p.land === land.id && completed.includes(tile.id) && p.tile !== tile.id;
   });
 
   const tierRows = (tasks, tier, cls, icon, lbl) => {
@@ -2244,6 +2490,17 @@ function renderTeacherTileView() {
         ${desc ? `<div class="ls-session-desc">${desc}</div>` : ""}
       </div>` : ""}
 
+      ${(tile.type === "boss" || tile.type === "dungeon") ? `
+      <div class="enter" style="animation-delay:.05s;display:flex;gap:20px;align-items:flex-start;background:rgba(0,0,0,.35);border:1.5px solid rgba(239,68,68,.35);border-radius:14px;padding:16px 20px;margin-bottom:4px">
+        ${tile.portrait ? `<img src="/bosses/${tile.portrait}" alt="${tile.name}" width="100" height="100" style="width:100px;height:100px;border-radius:50%;object-fit:cover;object-position:top center;border:3px solid #EF4444;flex-shrink:0" onerror="this.style.display='none'"/>` : ""}
+        <div style="flex:1;min-width:0">
+          <div style="font-family:var(--font-display);font-size:17px;font-weight:900;color:#FCA5A5;margin-bottom:2px">${tile.name}</div>
+          ${tile.skill ? `<div style="font-size:11px;font-weight:800;color:#F87171;letter-spacing:.5px;margin-bottom:8px">⚔️ ${tile.skill}</div>` : ""}
+          ${tile.lore  ? `<div style="font-size:13px;color:rgba(255,255,255,.75);line-height:1.55;font-style:italic">"${tile.lore}"</div>` : ""}
+          ${tile.pearUrl ? `<a href="${tile.pearUrl}" target="_blank" rel="noopener" style="display:inline-block;margin-top:10px;font-size:12px;font-weight:800;color:#FBBF24;text-decoration:none">🔗 Open PearDeck →</a>` : ""}
+        </div>
+      </div>` : ""}
+
       <div class="tt-section-hdr enter" style="animation-delay:.07s">
         👥 Students on this tile
         <span class="tt-count">${onTile.length}</span>
@@ -2260,6 +2517,37 @@ function renderTeacherTileView() {
         ${tierSummary(shouldDo,"ls-tier-should", "🟡","Should Do")}
         ${tierSummary(aspireTo,"ls-tier-aspire", "🟢","Aspire To")}
       </div>` : ""}
+
+      <div class="tt-section-hdr enter" style="animation-delay:.18s">
+        ✅ Completed
+        <span class="tt-count">${completedTile.length}</span>
+      </div>
+      <div class="tt-student-list enter" style="animation-delay:.20s">
+        ${completedTile.length ? completedTile.map(s => {
+          const m  = getMergedStudent(s);
+          const cc = CLS_COLOR[clsKey(s, m)];
+          const av = m.avatar || "avatar_blankchibi.png";
+          const ts = getTaskTimestamps(s.id, tile.id);
+          const timeStr = ts.completedAt ? ts.completedAt.replace("T"," ").slice(0,16) : null;
+          const rushed = ts.timeOnPage !== undefined && ts.timeOnPage < 120;
+          const timeOnPageStr = ts.timeOnPage !== undefined
+            ? `${rushed ? "⚠️ " : ""}${ts.timeOnPage < 60 ? ts.timeOnPage+"s" : Math.floor(ts.timeOnPage/60)+"m "+ts.timeOnPage%60+"s"}`
+            : null;
+          return `<div class="tt-student-row" style="opacity:.85">
+            <div class="tt-student-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none">
+              <div class="tt-av" style="border-color:${cc}"><img src="/avatars/${av}" alt="" width="40" height="40" loading="lazy"/></div>
+              <div style="flex:1">
+                <div class="tt-name">${s.displayName}</div>
+                <div class="tt-cls" style="color:${cc}">Lv.${m.level} ${CLS_LABEL[clsKey(s,m)]}</div>
+              </div>
+              <div style="text-align:right;font-size:11px;line-height:1.7">
+                <div style="color:#555;font-weight:600">${timeStr || '<span style="color:#aaa;font-style:italic">No timestamp</span>'}</div>
+                <div style="font-weight:700;${rushed ? "color:#DC2626" : "color:#888"}">${timeOnPageStr ? timeOnPageStr+" on page" : '<span style="color:#aaa;font-style:italic">Time not recorded</span>'}</div>
+              </div>
+            </div>
+          </div>`;
+        }).join("") : `<div class="tt-empty">No students have completed this tile yet</div>`}
+      </div>
     </div>
   </div>`;
 }
@@ -2317,8 +2605,9 @@ function renderBoardView() {
         <button class="btn btn-outline-sm" id="board-back">Exit</button>
       </div>
     </div>
-    <div class="board-map-wrap">
-      <svg viewBox="0 0 ${land.W||LW.W} ${land.H||LW.H}" style="width:100%;max-height:100%;display:block" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+    <div class="board-map-wrap" style="position:relative">
+      <div class="lm-map-bg" ${land.bgImage ? `style="background-image:url('${land.bgImage}')"` : ""}></div>
+      <svg viewBox="0 0 ${land.W||LW.W} ${land.H||LW.H}" style="width:100%;max-height:100%;display:block;position:relative" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
         ${buildLandSVG(land,{land:viewLand,tile:0,completed:[]},true,dots)}
       </svg>
     </div>
