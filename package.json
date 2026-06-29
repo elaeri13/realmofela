@@ -3,7 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "python3 serve.py",
-    "build": "echo 'Static site — no build step required.'"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "python3 serve.py"
+  },
+  "type": "module",
+  "dependencies": {
+    "firebase": "^12.15.0",
+    "vite": "^6.4.3"
   }
 }
