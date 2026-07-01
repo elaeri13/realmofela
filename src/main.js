@@ -747,6 +747,15 @@ function denyHealthPotion(studentId) {
   set(ref(db, `craftRequests/${sid}`), null).catch(console.error);
 }
 function getPacingSettings() { return (_settings && _settings.pacing) || null; }
+function getExitTicketEnabled(tileId) {
+  return !!((_settings.sessions || {})[String(tileId)] || {}).hasExitTicket;
+}
+function setExitTicket(tileId, enabled) {
+  if (!_settings.sessions) _settings.sessions = {};
+  if (!_settings.sessions[String(tileId)]) _settings.sessions[String(tileId)] = {};
+  _settings.sessions[String(tileId)].hasExitTicket = enabled || null;
+  set(ref(db, `settings/sessions/${tileId}/hasExitTicket`), enabled || null).catch(console.error);
+}
 function savePacingSettings(startDate, sessionsPerWeek) {
   if (!_settings) _settings = {};
   _settings.pacing = { startDate, sessionsPerWeek: Number(sessionsPerWeek) };
@@ -2802,6 +2811,28 @@ function renderTeacherDashboard() {
           ${pacing ? `<button class="btn-pacing-off" id="pacing-off">Turn Off</button>` : ''}
         </div>
       </details>
+      <details class="pacing-panel session-settings-panel">
+        <summary class="pacing-summary">📋 Session Settings <span class="pacing-off-badge">Exit Ticket toggles</span></summary>
+        <div class="session-settings-body">
+          ${LANDS.map(land => {
+            const lessonTiles = land.tiles.filter(t => t.type === 'lesson');
+            if (!lessonTiles.length) return '';
+            return `<div class="ss-land">
+              <div class="ss-land-name">${land.name}</div>
+              ${lessonTiles.map(t => {
+                const on = getExitTicketEnabled(t.id);
+                const label = t.sessionTitle ? `${t.name} — ${t.sessionTitle}` : t.name;
+                return `<div class="ss-row">
+                  <span class="ss-tile-name">${label}</span>
+                  <button class="ss-toggle ${on ? 'ss-on' : 'ss-off'}" data-et-tile="${t.id}" data-et-val="${on ? '1' : '0'}">
+                    ${on ? '✅ Exit Ticket ON' : 'Exit Ticket OFF'}
+                  </button>
+                </div>`;
+              }).join('')}
+            </div>`;
+          }).join('')}
+        </div>
+      </details>
       ${flagCount > 0 ? `
         <div class="help-alert">
           <div class="help-alert-count">${flagCount}</div>
@@ -3493,6 +3524,16 @@ function bindEvents() {
       });
     }
 
+    // Exit ticket toggles
+    document.querySelectorAll("[data-et-tile]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tileId = btn.dataset.etTile;
+        const current = btn.dataset.etVal === '1';
+        setExitTicket(tileId, !current);
+        mount();
+      });
+    });
+
     // Pacing settings
     $("pacing-save") && $("pacing-save").addEventListener("click", () => {
       const d = $("pacing-start"); const w = $("pacing-spw");
@@ -3937,7 +3978,7 @@ function bindEvents() {
       const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
       saveTileCompletion(STATE.student.id, tile.id, timeOnPage);
       const { levelsGained, newLevel } = awardXP(STATE.student, xpAmount);
-      const isS6 = tile.name && tile.name.endsWith('-S6');
+      const hasExitTicket = getExitTicketEnabled(tile.id);
       const isLesson = tile.type === 'lesson';
       const doAdvance = () => {
         if (isBranchTile) completeBranchTile(STATE.student, tile.id);
@@ -3960,7 +4001,7 @@ function bindEvents() {
         STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
         mount();
       };
-      const finalCallback = isS6 ? doAdvanceWithGrade : isLesson ? doAdvanceWithSideQuest : doAdvance;
+      const finalCallback = hasExitTicket ? doAdvanceWithGrade : isLesson ? doAdvanceWithSideQuest : doAdvance;
       showXPCelebration(xpAmount, levelsGained, newLevel, () => {
         // Aspire To companion drop
         if (aspireAllDone) {

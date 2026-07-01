@@ -879,6 +879,18 @@ input  { font-family: var(--font-body); }
 .flag-msg { display:block; font-size:11px; font-style:italic; color:#FCA5A5; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
 /* Flag message in teacher edit panel */
 .t-flag-msg { font-size:13px; font-style:italic; color:#FCA5A5; margin-top:4px; }
+/* Session settings panel */
+.session-settings-panel { margin-top:8px; }
+.session-settings-body { padding:12px 16px 16px; border-top:1px solid rgba(16,185,129,.15); display:flex; flex-direction:column; gap:12px; }
+.ss-land { display:flex; flex-direction:column; gap:6px; }
+.ss-land-name { font-size:11px; font-weight:800; color:#6EE7B7; letter-spacing:.6px; text-transform:uppercase; padding-bottom:2px; border-bottom:1px solid rgba(16,185,129,.15); }
+.ss-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:4px 0; }
+.ss-tile-name { font-size:12px; color:#C4B5FD; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ss-toggle { border:none; border-radius:8px; padding:5px 12px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap; }
+.ss-on  { background:rgba(16,185,129,.2); color:#6EE7B7; border:1px solid rgba(16,185,129,.5); }
+.ss-off { background:rgba(255,255,255,.05); color:#6B7280; border:1px solid rgba(255,255,255,.1); }
+.ss-on:hover  { background:rgba(16,185,129,.35); }
+.ss-off:hover { background:rgba(255,255,255,.1); color:#C4B5FD; }
 /* MP Bulk Edit overlay */
 .mp-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:200; display:flex; align-items:flex-end; justify-content:center; }
 .mp-modal { background:#1E1B4B; border-top:2px solid #3B82F6; border-radius:20px 20px 0 0; width:100%; max-width:600px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; }
