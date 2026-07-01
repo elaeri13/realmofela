@@ -663,6 +663,7 @@ const AVATAR = {
 let _overrides = {};       // { studentId: { hp, xp, ... } } — in-memory cache
 let _helpflags = {};       // { studentId: { flaggedAt, message } }
 let _craftRequests = {};   // { studentId: { requestedAt } } — pending potion requests
+let _settings = {};        // { pacing: { startDate, sessionsPerWeek } }
 
 function getOverrides() {
   return { students: _overrides };
@@ -712,6 +713,39 @@ function denyHealthPotion(studentId) {
   const sid = String(studentId);
   delete _craftRequests[sid];
   set(ref(db, `craftRequests/${sid}`), null).catch(console.error);
+}
+function getPacingSettings() { return (_settings && _settings.pacing) || null; }
+function savePacingSettings(startDate, sessionsPerWeek) {
+  if (!_settings) _settings = {};
+  _settings.pacing = { startDate, sessionsPerWeek: Number(sessionsPerWeek) };
+  set(ref(db, 'settings/pacing'), _settings.pacing).catch(console.error);
+}
+function countCompletedSessions(student) {
+  const ov = _overrides[String(student.id)] || {};
+  const ts = ov.taskTimestamps || {};
+  const lessonIds = new Set();
+  for (const land of LANDS) {
+    for (const tile of land.tiles) {
+      if (tile.type === 'lesson') lessonIds.add(String(tile.id));
+    }
+  }
+  return Object.keys(ts).filter(tid => lessonIds.has(tid) && ts[tid] && ts[tid].completedAt).length;
+}
+function calcPacedSP(student) {
+  const pacing = getPacingSettings();
+  if (!pacing || !pacing.startDate) return null;
+  const start = new Date(pacing.startDate);
+  const spw = Number(pacing.sessionsPerWeek) || 3;
+  const weeksElapsed = Math.max(0, (Date.now() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
+  const expected = weeksElapsed * spw;
+  if (expected <= 0) return 10;
+  const actual = countCompletedSessions(student);
+  return Math.max(1, Math.min(10, Math.round((actual / expected) * 10)));
+}
+function getEffectiveSP(student) {
+  const paced = calcPacedSP(student);
+  if (paced !== null) return paced;
+  return getMergedStudent(student).sp;
 }
 function useHealthPotion(student) {
   const s = getMergedStudent(student);
@@ -1317,19 +1351,23 @@ function renderHub() {
       </div>
     </div>` : "";
 
+  const pacingActive = getPacingSettings() !== null;
   const stats = [
     ["hp", "❤️", "#EF4444", "#FEE2E2"],
     ["mp", "💙", "#3B82F6", "#DBEAFE"],
     ["sp", "💚", "#10B981", "#D1FAE5"],
-  ].map(([k,icon,color,bg]) => `
-    <div class="stat-row">
+  ].map(([k,icon,color,bg]) => {
+    const val = k === 'sp' ? getEffectiveSP(STATE.student) : s[k];
+    const isPaced = k === 'sp' && pacingActive;
+    return `<div class="stat-row">
       <span class="stat-icon">${icon}</span>
-      <span class="stat-lbl">${k.toUpperCase()}</span>
+      <span class="stat-lbl">${k.toUpperCase()}${isPaced ? ' <span class="sp-auto-badge">auto</span>' : ''}</span>
       <div class="stat-track" style="background:${bg}">
-        <div class="stat-fill" style="background:${color}" data-w="${(s[k]/10*100).toFixed(0)}"></div>
+        <div class="stat-fill" style="background:${color}" data-w="${(val/10*100).toFixed(0)}"></div>
       </div>
-      <span class="stat-val">${s[k]}/10</span>
-    </div>`).join("");
+      <span class="stat-val">${val}/10</span>
+    </div>`;
+  }).join("");
 
   const craftReqs = getCraftRequests();
   const hasPendingPotion = !!craftReqs[String(s.id)];
@@ -2505,6 +2543,12 @@ function renderTeacherDashboard() {
   const period  = periods[STATE.teacherPeriodIdx];
   const flags   = getHelpFlags();
   const flagCount = Object.keys(flags).length;
+  const pacing = getPacingSettings();
+  const pacingExpected = (() => {
+    if (!pacing || !pacing.startDate) return null;
+    const weeks = Math.max(0, (Date.now() - new Date(pacing.startDate).getTime()) / (7*24*60*60*1000));
+    return Math.round(weeks * (pacing.sessionsPerWeek || 3));
+  })();
   const craftReqs = getCraftRequests();
   const pendingPotions = Object.entries(craftReqs)
     .map(([sid, req]) => {
@@ -2528,7 +2572,7 @@ function renderTeacherDashboard() {
     const av  = m.avatar || "avatar_blankchibi.png";
     const hpP = Math.round((m.hp/10)*100);
     const mpP = Math.round((m.mp/10)*100);
-    const spP = Math.round((m.sp/10)*100);
+    const spP = Math.round((getEffectiveSP(s)/10)*100);
     const pos = getLandPos(s);
     const sLand = getLandData(pos.land);
     const curTileObj = sLand.tiles.find(t => t.id === pos.tile);
@@ -2573,6 +2617,19 @@ function renderTeacherDashboard() {
         </div>
       </div>
       <div class="period-tabs">${tabs}</div>
+      <details class="pacing-panel" ${pacing ? 'open' : ''}>
+        <summary class="pacing-summary">📈 SP Pacing ${pacing ? `<span class="pacing-on-badge">ON — expect ${pacingExpected} sessions by today</span>` : '<span class="pacing-off-badge">OFF</span>'}</summary>
+        <div class="pacing-form">
+          <label class="pacing-lbl">School Start Date
+            <input type="date" id="pacing-start" value="${pacing ? pacing.startDate : ''}" class="pacing-input"/>
+          </label>
+          <label class="pacing-lbl">Sessions per Week
+            <input type="number" id="pacing-spw" min="1" max="30" value="${pacing ? pacing.sessionsPerWeek : 3}" class="pacing-input pacing-input-sm"/>
+          </label>
+          <button class="btn-pacing-save" id="pacing-save">Save</button>
+          ${pacing ? `<button class="btn-pacing-off" id="pacing-off">Turn Off</button>` : ''}
+        </div>
+      </details>
       ${flagCount > 0 ? `
         <div class="help-alert">
           <div class="help-alert-count">${flagCount}</div>
@@ -3161,6 +3218,19 @@ function bindEvents() {
         STATE.screen = "teacher-edit"; mount();
       });
     });
+    // Pacing settings
+    $("pacing-save") && $("pacing-save").addEventListener("click", () => {
+      const d = $("pacing-start"); const w = $("pacing-spw");
+      if (!d || !d.value) return;
+      savePacingSettings(d.value, Number(w ? w.value : 3) || 3);
+      mount();
+    });
+    $("pacing-off") && $("pacing-off").addEventListener("click", () => {
+      _settings.pacing = null;
+      set(ref(db, 'settings/pacing'), null).catch(console.error);
+      mount();
+    });
+
     // Potion approve / deny
     document.querySelectorAll("[data-approve-potion]").forEach(btn => {
       btn.addEventListener("click", e => {
@@ -3704,8 +3774,8 @@ function bindEvents() {
 /* ─── FIREBASE INIT + BOOT ─── */
 function initFirebaseCache() {
   return new Promise((resolve, reject) => {
-    let ovReady = false, hfReady = false, crReady = false;
-    function checkReady() { if (ovReady && hfReady && crReady) resolve(); }
+    let ovReady = false, hfReady = false, crReady = false, stReady = false;
+    function checkReady() { if (ovReady && hfReady && crReady && stReady) resolve(); }
 
     onValue(ref(db, 'overrides'), (snap) => {
       _overrides = snap.exists() ? snap.val() : {};
@@ -3722,6 +3792,12 @@ function initFirebaseCache() {
     onValue(ref(db, 'craftRequests'), (snap) => {
       _craftRequests = snap.exists() ? snap.val() : {};
       if (!crReady) { crReady = true; checkReady(); }
+      else liveMount();
+    }, reject);
+
+    onValue(ref(db, 'settings'), (snap) => {
+      _settings = snap.exists() ? snap.val() : {};
+      if (!stReady) { stReady = true; checkReady(); }
       else liveMount();
     }, reject);
   });

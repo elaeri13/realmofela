@@ -879,6 +879,22 @@ input  { font-family: var(--font-body); }
 .flag-msg { display:block; font-size:11px; font-style:italic; color:#FCA5A5; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
 /* Flag message in teacher edit panel */
 .t-flag-msg { font-size:13px; font-style:italic; color:#FCA5A5; margin-top:4px; }
+/* SP pacing — auto badge on stat row */
+.sp-auto-badge { font-size:9px; font-weight:700; background:#064E3B; color:#6EE7B7; border-radius:4px; padding:1px 5px; vertical-align:middle; letter-spacing:.4px; text-transform:uppercase; }
+/* Pacing settings panel */
+.pacing-panel { background:rgba(16,185,129,.06); border:1.5px solid rgba(16,185,129,.3); border-radius:12px; margin-bottom:14px; overflow:hidden; }
+.pacing-summary { padding:10px 16px; font-size:13px; font-weight:700; color:#6EE7B7; cursor:pointer; list-style:none; display:flex; align-items:center; gap:10px; }
+.pacing-summary::-webkit-details-marker { display:none; }
+.pacing-on-badge { font-size:11px; font-weight:600; color:#A7F3D0; background:rgba(16,185,129,.15); border-radius:6px; padding:2px 8px; }
+.pacing-off-badge { font-size:11px; color:#6B7280; }
+.pacing-form { display:flex; align-items:flex-end; gap:12px; padding:12px 16px; flex-wrap:wrap; border-top:1px solid rgba(16,185,129,.15); }
+.pacing-lbl { font-size:12px; color:#94A3B8; display:flex; flex-direction:column; gap:4px; }
+.pacing-input { background:#1E1B4B; border:1.5px solid rgba(16,185,129,.4); border-radius:8px; color:#EDE9FE; font-size:13px; padding:6px 10px; outline:none; font-family:inherit; }
+.pacing-input-sm { width:80px; }
+.btn-pacing-save { background:#10B981; color:#fff; border:none; border-radius:8px; padding:7px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn-pacing-save:hover { background:#059669; }
+.btn-pacing-off { background:transparent; border:1px solid #6B7280; color:#94A3B8; border-radius:8px; padding:7px 12px; font-size:12px; cursor:pointer; font-family:inherit; }
+.btn-pacing-off:hover { border-color:#EF4444; color:#EF4444; }
 /* Health Potion — usable inventory slots */
 .item-usable { cursor:pointer; position:relative; }
 .item-usable:hover { border-color:#EF4444 !important; background:rgba(239,68,68,.12); transform:scale(1.05); }
