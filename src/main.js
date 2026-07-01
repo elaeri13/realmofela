@@ -660,8 +660,9 @@ const AVATAR = {
 };
 
 /* ─── FIREBASE REALTIME DATABASE STORAGE ─── */
-let _overrides = {};   // { studentId: { hp, xp, ... } } — in-memory cache
-let _helpflags = {};   // { studentId: isoDateString }
+let _overrides = {};       // { studentId: { hp, xp, ... } } — in-memory cache
+let _helpflags = {};       // { studentId: { flaggedAt, message } }
+let _craftRequests = {};   // { studentId: { requestedAt } } — pending potion requests
 
 function getOverrides() {
   return { students: _overrides };
@@ -692,6 +693,35 @@ function saveGradeLog(studentId, lessonId, rawGrade, convertedHP) {
   const sid = String(studentId);
   const entry = { rawGrade, convertedHP, timestamp: new Date().toISOString() };
   set(ref(db, `gradeLog/${sid}/${lessonId}`), entry).catch(console.error);
+}
+function getCraftRequests() { return Object.assign({}, _craftRequests); }
+function requestHealthPotion(studentId) {
+  const sid = String(studentId);
+  _craftRequests[sid] = { requestedAt: new Date().toISOString() };
+  set(ref(db, `craftRequests/${sid}`), _craftRequests[sid]).catch(console.error);
+}
+function approveHealthPotion(studentId) {
+  const sid = String(studentId);
+  delete _craftRequests[sid];
+  set(ref(db, `craftRequests/${sid}`), null).catch(console.error);
+  const ov = _overrides[sid] || {};
+  const items = [...(ov.items || []), 'health_potion'];
+  saveStudentOverride(studentId, { items });
+}
+function denyHealthPotion(studentId) {
+  const sid = String(studentId);
+  delete _craftRequests[sid];
+  set(ref(db, `craftRequests/${sid}`), null).catch(console.error);
+}
+function useHealthPotion(student) {
+  const s = getMergedStudent(student);
+  const items = [...(s.items || [])];
+  const idx = items.indexOf('health_potion');
+  if (idx === -1) return false;
+  items.splice(idx, 1);
+  const newHP = Math.min(10, (s.hp || 0) + 2);
+  saveStudentOverride(student.id, { items, hp: newHP });
+  return true;
 }
 function getGuildCounts() {
   const guilds = CLASS_DATA && CLASS_DATA.guilds ? CLASS_DATA.guilds : {};
@@ -1301,14 +1331,21 @@ function renderHub() {
       <span class="stat-val">${s[k]}/10</span>
     </div>`).join("");
 
+  const craftReqs = getCraftRequests();
+  const hasPendingPotion = !!craftReqs[String(s.id)];
   const invSlots = [...s.items, ...Array(Math.max(0,8-s.items.length)).fill(null)]
-    .map(it => {
+    .map((it, idx) => {
       if (!it) return `<div class="item-slot empty"></div>`;
       const def = ITEMS[it] || { i:"❓", n: it };
+      const usable = it === 'health_potion';
       const imgTag = def.img
         ? `<img class="item-img" src="/icons/${def.img}" alt="${def.n}" width="64" height="64" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:22px">${def.i}</span>`
         : `<span style="font-size:22px">${def.i}</span>`;
-      return `<div class="item-slot" title="${def.n}">${imgTag}<span class="item-name">${def.n}</span></div>`;
+      return `<div class="item-slot${usable?' item-usable':''}" title="${def.n}" ${usable?`data-use-item="${it}" data-item-idx="${idx}"`:''}>
+        ${imgTag}
+        <span class="item-name">${def.n}</span>
+        ${usable ? `<span class="item-use-lbl">Tap to Use</span>` : ''}
+      </div>`;
     }).join("");
 
   const bossRows = s.bosses.length
@@ -1393,6 +1430,11 @@ function renderHub() {
       <div class="hub-panel inv-panel-wrap enter" style="animation-delay:.12s">
         <div class="panel-title">🎒 Inventory</div>
         <div class="inv-grid">${invSlots}</div>
+        <div class="brew-row">
+          ${hasPendingPotion
+            ? `<div class="brew-pending">⏳ Potion request sent — awaiting teacher approval</div>`
+            : `<button class="btn-brew" id="brew-potion-btn">🧪 Request Health Potion</button>`}
+        </div>
       </div>
       <div class="hub-panel boss-panel-wrap enter" style="animation-delay:.2s">
         <div class="panel-title">🏆 Bosses Defeated</div>
@@ -2463,6 +2505,13 @@ function renderTeacherDashboard() {
   const period  = periods[STATE.teacherPeriodIdx];
   const flags   = getHelpFlags();
   const flagCount = Object.keys(flags).length;
+  const craftReqs = getCraftRequests();
+  const pendingPotions = Object.entries(craftReqs)
+    .map(([sid, req]) => {
+      const allStudents = periods.flatMap(p => p.students);
+      const stu = allStudents.find(s => String(s.id) === sid);
+      return stu ? { student: stu, ...req } : null;
+    }).filter(Boolean);
 
   const tabs = periods.map((p, i) => `
     <button class="period-tab ${i===STATE.teacherPeriodIdx?"active":""}" data-pi="${i}">${p.periodName}</button>
@@ -2528,6 +2577,19 @@ function renderTeacherDashboard() {
         <div class="help-alert">
           <div class="help-alert-count">${flagCount}</div>
           ${flagCount === 1 ? "1 student needs help" : flagCount + " students need help"} — click their card to view and clear
+        </div>` : ""}
+      ${pendingPotions.length > 0 ? `
+        <div class="potion-alert">
+          <div class="potion-alert-hdr">🧪 Potion Requests (${pendingPotions.length})</div>
+          ${pendingPotions.map(p => {
+            const m = getMergedStudent(p.student);
+            return `<div class="potion-req-row">
+              <span class="potion-req-name">${m.displayName}</span>
+              <span class="potion-req-time">${formatFlagTime(p.requestedAt)}</span>
+              <button class="btn-approve-potion" data-approve-potion="${p.student.id}">✅ Approve</button>
+              <button class="btn-deny-potion" data-deny-potion="${p.student.id}">✕ Deny</button>
+            </div>`;
+          }).join("")}
         </div>` : ""}
       <div class="t-student-grid">${cards}</div>
       ${(() => {
@@ -3001,6 +3063,30 @@ function bindEvents() {
         slot.addEventListener("click", () => { STATE.pendingCompanion = slot.dataset.companion; mount(); });
       });
     }
+    // Brew potion request
+    $("brew-potion-btn") && $("brew-potion-btn").addEventListener("click", () => {
+      requestHealthPotion(STATE.student.id);
+      mount();
+      const t = document.createElement("div");
+      t.className = "toast"; t.textContent = "🧪 Potion request sent! Your teacher will approve it soon.";
+      document.body.appendChild(t); setTimeout(() => t.remove(), 4000);
+    });
+
+    // Use health potion from inventory
+    document.querySelectorAll("[data-use-item='health_potion']").forEach(slot => {
+      slot.addEventListener("click", () => {
+        const used = useHealthPotion(STATE.student);
+        if (!used) return;
+        // Flash animation before re-render
+        const statsPanel = document.querySelector(".stats-panel-wrap");
+        if (statsPanel) statsPanel.classList.add("hp-flash");
+        const floater = document.createElement("div");
+        floater.className = "hp-floater"; floater.textContent = "+2 HP ❤️";
+        statsPanel ? statsPanel.appendChild(floater) : document.body.appendChild(floater);
+        setTimeout(() => { floater.remove(); mount(); }, 900);
+      });
+    });
+
     $("help-btn") && $("help-btn").addEventListener("click", () => {
       STATE.helpModalOpen = true;
       mount();
@@ -3075,6 +3161,22 @@ function bindEvents() {
         STATE.screen = "teacher-edit"; mount();
       });
     });
+    // Potion approve / deny
+    document.querySelectorAll("[data-approve-potion]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        approveHealthPotion(parseInt(btn.dataset.approvePotion, 10));
+        mount();
+      });
+    });
+    document.querySelectorAll("[data-deny-potion]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        denyHealthPotion(parseInt(btn.dataset.denyPotion, 10));
+        mount();
+      });
+    });
+
     // Award companion buttons
     document.querySelectorAll("[data-award-companion]").forEach(btn => {
       btn.addEventListener("click", e => {
@@ -3602,8 +3704,8 @@ function bindEvents() {
 /* ─── FIREBASE INIT + BOOT ─── */
 function initFirebaseCache() {
   return new Promise((resolve, reject) => {
-    let ovReady = false, hfReady = false;
-    function checkReady() { if (ovReady && hfReady) resolve(); }
+    let ovReady = false, hfReady = false, crReady = false;
+    function checkReady() { if (ovReady && hfReady && crReady) resolve(); }
 
     onValue(ref(db, 'overrides'), (snap) => {
       _overrides = snap.exists() ? snap.val() : {};
@@ -3614,6 +3716,12 @@ function initFirebaseCache() {
     onValue(ref(db, 'helpflags'), (snap) => {
       _helpflags = snap.exists() ? snap.val() : {};
       if (!hfReady) { hfReady = true; checkReady(); }
+      else liveMount();
+    }, reject);
+
+    onValue(ref(db, 'craftRequests'), (snap) => {
+      _craftRequests = snap.exists() ? snap.val() : {};
+      if (!crReady) { crReady = true; checkReady(); }
       else liveMount();
     }, reject);
   });

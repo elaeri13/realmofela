@@ -879,6 +879,30 @@ input  { font-family: var(--font-body); }
 .flag-msg { display:block; font-size:11px; font-style:italic; color:#FCA5A5; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
 /* Flag message in teacher edit panel */
 .t-flag-msg { font-size:13px; font-style:italic; color:#FCA5A5; margin-top:4px; }
+/* Health Potion — usable inventory slots */
+.item-usable { cursor:pointer; position:relative; }
+.item-usable:hover { border-color:#EF4444 !important; background:rgba(239,68,68,.12); transform:scale(1.05); }
+.item-use-lbl { display:block; font-size:9px; font-weight:700; color:#EF4444; letter-spacing:.5px; text-transform:uppercase; margin-top:2px; }
+/* Brew button */
+.brew-row { margin-top:10px; display:flex; justify-content:center; }
+.btn-brew { background:rgba(239,68,68,.15); border:1.5px solid #EF4444; color:#FCA5A5; border-radius:10px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s; }
+.btn-brew:hover { background:rgba(239,68,68,.28); }
+.brew-pending { font-size:12px; color:#94A3B8; font-style:italic; text-align:center; }
+/* HP flash animation */
+@keyframes hpFlash { 0%,100%{background:transparent} 30%{background:rgba(239,68,68,.2)} }
+.hp-flash { animation:hpFlash .7s ease; }
+@keyframes hpFloat { 0%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(-40px)} }
+.hp-floater { position:absolute; top:10px; right:16px; font-size:16px; font-weight:900; color:#EF4444; animation:hpFloat .9s ease forwards; pointer-events:none; z-index:50; }
+/* Potion request panel on teacher dashboard */
+.potion-alert { background:rgba(239,68,68,.08); border:1.5px solid rgba(239,68,68,.4); border-radius:12px; padding:14px 16px; margin:0 0 16px; }
+.potion-alert-hdr { font-size:14px; font-weight:800; color:#FCA5A5; margin-bottom:10px; }
+.potion-req-row { display:flex; align-items:center; gap:10px; padding:6px 0; border-top:1px solid rgba(239,68,68,.15); flex-wrap:wrap; }
+.potion-req-name { font-size:13px; font-weight:700; color:#EDE9FE; flex:1; min-width:100px; }
+.potion-req-time { font-size:11px; color:#94A3B8; }
+.btn-approve-potion { background:#10B981; color:#fff; border:none; border-radius:8px; padding:5px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn-approve-potion:hover { background:#059669; }
+.btn-deny-potion { background:transparent; border:1px solid #6B7280; color:#94A3B8; border-radius:8px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn-deny-potion:hover { border-color:#EF4444; color:#EF4444; }
 /* Grade modal */
 .grade-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:200; display:flex; align-items:center; justify-content:center; padding:16px; }
 .grade-modal { background:#1E1B4B; border:2px solid #6D28D9; border-radius:16px; padding:24px 20px 20px; width:100%; max-width:340px; display:flex; flex-direction:column; gap:14px; }
