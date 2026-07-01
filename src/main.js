@@ -171,6 +171,7 @@ const LW = { W:1050, H:560, TILE:88, BTILE:96, DTILE:132, ETILE:120, LTILE:72 };
 const LANDS = [
   {
     id:1, name:"The Verdant Vale", subtitle:"Unit 1: Overcoming Obstacles", biome:1,
+    lore:"The Vale has stood for an age uncounted, its roots drinking deep from rivers of story. Many have come to this forest broken and left it stronger. Every scar in its bark marks a reader who refused to quit.",
     W:1195, H:980,
     mainPaths:[
       "M 65 70 L 195 70 L 325 70 L 455 70 L 585 70 L 715 70 L 845 70 L 975 70 L 1105 70",
@@ -270,6 +271,7 @@ const LANDS = [
 
   {
     id:2, name:"The Stone Kingdoms", subtitle:"Unit 2: Art in America", biome:2,
+    lore:"These walls were raised by those who believed beauty was worth fighting for. Carved into every stone is the memory of an artist who shaped chaos into meaning. To walk these halls is to hear a thousand unfinished songs.",
     bgImage:"/tiles/map_background_stone_kingdoms.png",
     W:1195, H:980,
     mainPaths:[
@@ -349,6 +351,7 @@ const LANDS = [
   },
   {
     id:3, name:"The Drowned Depths", subtitle:"Unit 3: Earth's Water", biome:3,
+    lore:"Beneath the surface, currents carry secrets older than memory. The waters here do not forget — they hold every word ever spoken into the deep. To read the Depths is to listen to the world breathing.",
     bgImage:"/tiles/map_background_drowned_depths.png",
     W:1195, H:980,
     mainPaths:[
@@ -418,6 +421,7 @@ const LANDS = [
   },
   {
     id:4, name:"The Thornwood", subtitle:"Unit 4: Survival", biome:4,
+    lore:"The Thornwood does not welcome the careless. It rewards only those willing to think carefully, adapt, and press through the dark. Every thorn here has a lesson, and every lesson has thorns.",
     bgImage:"/tiles/map_background_thornwood.png",
     W:1195, H:980,
     mainPaths:[
@@ -486,6 +490,7 @@ const LANDS = [
   },
   {
     id:5, name:"The Ashen Hollows", subtitle:"Unit 5: Underground Railroad", biome:5,
+    lore:"The Hollows remember those who walked in silence and shadow toward something greater than themselves. These passages were carved by courage and lit by the fire of hope. To know this land is to carry their memory forward.",
     bgImage:"/tiles/map_background_ashen_hollows.png",
     W:1195, H:980,
     mainPaths:[
@@ -554,6 +559,7 @@ const LANDS = [
   },
   {
     id:6, name:"The Stormspire", subtitle:"Unit 6: Communication", biome:6,
+    lore:"At the peak of the Stormspire, every word becomes lightning. The scholars who built it believed that the right message, sent at the right moment, could change everything. Choose your words well — they echo here for centuries.",
     bgImage:"/tiles/map_background_stormspire.png",
     W:1195, H:980,
     mainPaths:[
@@ -2055,6 +2061,16 @@ function renderLessonStop() {
         ${desc ? `<div class="ls-session-desc">${desc}</div>` : ""}
       </div>
 
+      ${(() => {
+        const loreText = tile.sessionLore || land.lore;
+        if (!loreText) return '';
+        return `<div class="ls-lore enter" style="animation-delay:.10s">
+          <div class="ls-lore-inner">
+            <span class="ls-lore-icon">📖</span>
+            <p class="ls-lore-text">${loreText}</p>
+          </div>
+        </div>`;
+      })()}
       <div class="ls-tiers enter" style="animation-delay:.12s">
         ${tierHTML(mustDo,   "mustDo",   "ls-tier-must",   "🔴", "Must Do")}
         ${tierHTML(shouldDo, "shouldDo", "ls-tier-should", "🟡", "Should Do")}
