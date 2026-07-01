@@ -728,20 +728,22 @@ function saveGradeLog(studentId, lessonId, rawGrade, convertedHP) {
   set(ref(db, `gradeLog/${sid}/${lessonId}`), entry).catch(console.error);
 }
 function getCraftRequests() { return Object.assign({}, _craftRequests); }
-function requestHealthPotion(studentId) {
+function requestCraft(studentId, itemKey) {
   const sid = String(studentId);
-  _craftRequests[sid] = { requestedAt: new Date().toISOString() };
+  _craftRequests[sid] = { itemRequested: itemKey, checkboxConfirmed: true, requestedAt: new Date().toISOString(), status: 'pending' };
   set(ref(db, `craftRequests/${sid}`), _craftRequests[sid]).catch(console.error);
 }
-function approveHealthPotion(studentId) {
+function approveCraft(studentId) {
   const sid = String(studentId);
+  const req = _craftRequests[sid] || {};
+  const itemKey = req.itemRequested || 'health_potion';
   delete _craftRequests[sid];
   set(ref(db, `craftRequests/${sid}`), null).catch(console.error);
   const ov = _overrides[sid] || {};
-  const items = [...(ov.items || []), 'health_potion'];
+  const items = [...(ov.items || []), itemKey];
   saveStudentOverride(studentId, { items });
 }
-function denyHealthPotion(studentId) {
+function denyCraft(studentId) {
   const sid = String(studentId);
   delete _craftRequests[sid];
   set(ref(db, `craftRequests/${sid}`), null).catch(console.error);
@@ -1078,6 +1080,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               companionPickerOpen:false, companionPickerStudentId:null,
               mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
               sideQuestModalOpen:false, sideQuestTileId:null, sideQuestSoloIdx:0, sideQuestCollabIdx:0,
+              craftingOpen:false, craftingStep:1, craftingSelected:null,
               lessonOpenedAt:null,
               npcOpen:false, currentNpcKey:null,
               sg0Open:false, sg0Tile:null,
@@ -1578,10 +1581,57 @@ function renderHub() {
         <div class="inv-grid">${invSlots}</div>
         <div class="brew-row">
           ${hasPendingPotion
-            ? `<div class="brew-pending">⏳ Potion request sent — awaiting teacher approval</div>`
-            : `<button class="btn-brew" id="brew-potion-btn">🧪 Request Health Potion</button>`}
+            ? `<div class="brew-pending">⏳ Crafting request sent — awaiting teacher approval</div>`
+            : `<button class="btn-brew" id="brew-crafting-btn">⚗️ Visit Crafting Station</button>`}
         </div>
       </div>
+      ${STATE.craftingOpen ? (() => {
+        if (STATE.craftingStep === 1) {
+          return `<div class="crafting-overlay" id="crafting-overlay">
+            <div class="crafting-modal">
+              <button class="crafting-close" id="crafting-close">✕</button>
+              <div class="crafting-title">⚗️ Crafting Station</div>
+              <div class="crafting-subtitle">What would you like to craft?</div>
+              <div class="crafting-cards">
+                <div class="crafting-card" data-craft-pick="health_potion">
+                  <span class="crafting-card-icon">❤️</span>
+                  <span class="crafting-card-name">Health Potion</span>
+                  <span class="crafting-card-desc">Restore 2 HP</span>
+                </div>
+                <div class="crafting-card" data-craft-pick="behavior_potion">
+                  <span class="crafting-card-icon">💙</span>
+                  <span class="crafting-card-name">Mana Potion</span>
+                  <span class="crafting-card-desc">Restore 2 MP</span>
+                </div>
+                <div class="crafting-card" data-craft-pick="stamina_potion">
+                  <span class="crafting-card-icon">💚</span>
+                  <span class="crafting-card-name">Focus Potion</span>
+                  <span class="crafting-card-desc">Restore 2 SP</span>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        } else {
+          const sel = ITEMS[STATE.craftingSelected] || { i:'⚗️', n: STATE.craftingSelected, desc:'' };
+          return `<div class="crafting-overlay" id="crafting-overlay">
+            <div class="crafting-modal">
+              <button class="crafting-back" id="crafting-back">← Back</button>
+              <button class="crafting-close" id="crafting-close">✕</button>
+              <div class="crafting-title">⚗️ Crafting Station</div>
+              <div class="crafting-selected-card">
+                <span class="crafting-card-icon" style="font-size:48px">${sel.i}</span>
+                <span class="crafting-card-name" style="font-size:18px">${sel.n}</span>
+                <span class="crafting-card-desc">${sel.desc}</span>
+              </div>
+              <label class="crafting-checkbox-row">
+                <input type="checkbox" id="crafting-confirm-cb"/>
+                <span>I have completed the crafting binder activity for this item and I am ready for my teacher to review it.</span>
+              </label>
+              <button class="btn-brew crafting-submit" id="crafting-submit" disabled>Submit Request</button>
+            </div>
+          </div>`;
+        }
+      })() : ''}
       ${(() => {
         const sq = getActiveSideQuests(STATE.student);
         const entries = Object.entries(sq);
@@ -2840,11 +2890,14 @@ function renderTeacherDashboard() {
         </div>` : ""}
       ${pendingPotions.length > 0 ? `
         <div class="potion-alert">
-          <div class="potion-alert-hdr">🧪 Potion Requests (${pendingPotions.length})</div>
+          <div class="potion-alert-hdr">⚗️ Crafting Submissions (${pendingPotions.length})</div>
           ${pendingPotions.map(p => {
             const m = getMergedStudent(p.student);
+            const itemKey = p.itemRequested || 'health_potion';
+            const itemDef = ITEMS[itemKey] || { i:'🧪', n: itemKey };
             return `<div class="potion-req-row">
               <span class="potion-req-name">${m.displayName}</span>
+              <span class="potion-req-item">${itemDef.i} ${itemDef.n}</span>
               <span class="potion-req-time">${formatFlagTime(p.requestedAt)}</span>
               <button class="btn-approve-potion" data-approve-potion="${p.student.id}">✅ Approve</button>
               <button class="btn-deny-potion" data-deny-potion="${p.student.id}">✕ Deny</button>
@@ -3389,12 +3442,46 @@ function bindEvents() {
       });
     });
 
-    // Brew potion request
-    $("brew-potion-btn") && $("brew-potion-btn").addEventListener("click", () => {
-      requestHealthPotion(STATE.student.id);
+    // Crafting station button
+    $("brew-crafting-btn") && $("brew-crafting-btn").addEventListener("click", () => {
+      STATE.craftingOpen = true; STATE.craftingStep = 1; STATE.craftingSelected = null;
       mount();
+    });
+    // Crafting modal — close
+    $("crafting-close") && $("crafting-close").addEventListener("click", () => {
+      STATE.craftingOpen = false; mount();
+    });
+    $("crafting-overlay") && $("crafting-overlay").addEventListener("click", e => {
+      if (e.target === $("crafting-overlay")) { STATE.craftingOpen = false; mount(); }
+    });
+    // Crafting modal — back to step 1
+    $("crafting-back") && $("crafting-back").addEventListener("click", () => {
+      STATE.craftingStep = 1; STATE.craftingSelected = null; mount();
+    });
+    // Crafting modal — pick item (step 1 cards)
+    document.querySelectorAll("[data-craft-pick]").forEach(card => {
+      card.addEventListener("click", () => {
+        STATE.craftingSelected = card.dataset.craftPick;
+        STATE.craftingStep = 2;
+        mount();
+      });
+    });
+    // Crafting modal — checkbox enables submit (step 2)
+    if ($("crafting-confirm-cb")) {
+      $("crafting-confirm-cb").addEventListener("change", () => {
+        const btn = $("crafting-submit");
+        if (btn) btn.disabled = !$("crafting-confirm-cb").checked;
+      });
+    }
+    // Crafting modal — submit (step 2)
+    $("crafting-submit") && $("crafting-submit").addEventListener("click", () => {
+      if (!STATE.craftingSelected) return;
+      requestCraft(STATE.student.id, STATE.craftingSelected);
+      STATE.craftingOpen = false;
+      mount();
+      const itemDef = ITEMS[STATE.craftingSelected] || { i:'⚗️', n: STATE.craftingSelected };
       const t = document.createElement("div");
-      t.className = "toast"; t.textContent = "🧪 Potion request sent! Your teacher will approve it soon.";
+      t.className = "toast"; t.textContent = `${itemDef.i} ${itemDef.n} request sent! Your teacher will review it soon.`;
       document.body.appendChild(t); setTimeout(() => t.remove(), 4000);
     });
 
