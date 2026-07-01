@@ -948,6 +948,22 @@ input  { font-family: var(--font-body); }
 .sq-hub-xp { font-size:12px; font-weight:700; color:#FDE68A; }
 .btn-sq-complete { background:#F59E0B; color:#1E1B4B; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:800; cursor:pointer; font-family:inherit; }
 .btn-sq-complete:hover { background:#D97706; }
+/* Equipment panel */
+.equip-panel { display:flex; flex-direction:column; gap:10px; }
+.equip-slots { display:flex; gap:10px; flex-wrap:wrap; }
+.equip-slot { display:flex; flex-direction:column; align-items:center; gap:4px; background:rgba(251,191,36,.08); border:1.5px solid rgba(251,191,36,.5); border-radius:12px; padding:10px 12px; cursor:pointer; position:relative; min-width:72px; transition:background .15s; }
+.equip-slot:hover { background:rgba(251,191,36,.18); }
+.equip-slot-name { font-size:10px; font-weight:700; color:#FDE68A; text-align:center; }
+.equip-slot-remove { position:absolute; top:4px; right:6px; font-size:10px; color:#94A3B8; opacity:0; transition:opacity .15s; }
+.equip-slot:hover .equip-slot-remove { opacity:1; }
+/* Equipped item glow in inventory */
+.item-equipped { border-color:#FBBF24 !important; background:rgba(251,191,36,.12) !important; box-shadow:0 0 8px rgba(251,191,36,.3); }
+.item-equip-lbl { display:block; font-size:9px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; margin-top:2px; }
+.item-equipped .item-equip-lbl { color:#FBBF24; }
+.item-slot:not(.item-equipped) .item-equip-lbl { color:#6B7280; }
+/* Make equippable items cursor:pointer */
+[data-equip-item] { cursor:pointer; }
+[data-equip-item]:hover { border-color:#FBBF24 !important; background:rgba(251,191,36,.1); }
 /* Health Potion — usable inventory slots */
 .item-usable { cursor:pointer; position:relative; }
 .item-usable:hover { border-color:#EF4444 !important; background:rgba(239,68,68,.12); transform:scale(1.05); }

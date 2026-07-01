@@ -30,7 +30,11 @@ const ITEMS = {
   shield:           { i:"🛡️", img:"icon_shield.png",       n:"Shield",          desc:"Protect 1 missed assignment" },
   amulet:           { i:"🟣", img:"icon_star.png",         n:"Starlight Sigil", desc:"Preview boss questions" },
   phoenix:          { i:"🔥", img:"icon_feather.png",      n:"Phoenix Feather", desc:"Restore all stats" },
+  sword:            { i:"⚔️", img:null,                    n:"Sword",           desc:"Mark of a true warrior" },
+  badge:            { i:"🏅", img:null,                    n:"Honor Badge",     desc:"Awarded for excellence" },
+  crown:            { i:"👑", img:null,                    n:"Crown",           desc:"Symbol of legendary status" },
 };
+const EQUIPPABLE = new Set(['sword','shield','scroll','amulet','badge','crown']);
 const BOSS_ICON = {
   "Aldric the Unyielding":  "⚔️",
   "Seraphine of the Veil":  "🌙",
@@ -779,6 +783,18 @@ function useHealthPotion(student) {
   saveStudentOverride(student.id, { items, hp: newHP });
   return true;
 }
+function getEquipped(student) {
+  return (_overrides[String(student.id)] || {}).equipped || {};
+}
+function equipItem(student, itemKey) {
+  const eq = Object.assign({}, getEquipped(student), { [itemKey]: true });
+  saveStudentOverride(student.id, { equipped: eq });
+}
+function unequipItem(student, itemKey) {
+  const eq = Object.assign({}, getEquipped(student));
+  delete eq[itemKey];
+  saveStudentOverride(student.id, { equipped: Object.keys(eq).length ? eq : null });
+}
 function getActiveSideQuests(student) {
   const ov = _overrides[String(student.id)] || {};
   return ov.sideQuests || {};
@@ -1423,20 +1439,44 @@ function renderHub() {
 
   const craftReqs = getCraftRequests();
   const hasPendingPotion = !!craftReqs[String(s.id)];
+  const equipped = getEquipped(STATE.student);
   const invSlots = [...s.items, ...Array(Math.max(0,8-s.items.length)).fill(null)]
     .map((it, idx) => {
       if (!it) return `<div class="item-slot empty"></div>`;
       const def = ITEMS[it] || { i:"❓", n: it };
       const usable = it === 'health_potion';
+      const equippable = EQUIPPABLE.has(it);
+      const isEquipped = equippable && !!equipped[it];
       const imgTag = def.img
         ? `<img class="item-img" src="/icons/${def.img}" alt="${def.n}" width="64" height="64" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:22px">${def.i}</span>`
-        : `<span style="font-size:22px">${def.i}</span>`;
-      return `<div class="item-slot${usable?' item-usable':''}" title="${def.n}" ${usable?`data-use-item="${it}" data-item-idx="${idx}"`:''}>
+        : `<span style="font-size:28px">${def.i}</span>`;
+      return `<div class="item-slot${usable?' item-usable':''}${isEquipped?' item-equipped':''}" title="${def.n}"
+        ${usable  ? `data-use-item="${it}" data-item-idx="${idx}"` : ''}
+        ${equippable ? `data-equip-item="${it}"` : ''}>
         ${imgTag}
         <span class="item-name">${def.n}</span>
-        ${usable ? `<span class="item-use-lbl">Tap to Use</span>` : ''}
+        ${usable     ? `<span class="item-use-lbl">Tap to Use</span>` : ''}
+        ${equippable ? `<span class="item-equip-lbl">${isEquipped ? '✓ Equipped' : 'Equip'}</span>` : ''}
       </div>`;
     }).join("");
+
+  const equippedKeys = Object.keys(equipped).filter(k => EQUIPPABLE.has(k));
+  const equipPanelHTML = equippedKeys.length ? `
+    <div class="hub-panel equip-panel enter" style="animation-delay:.11s">
+      <div class="panel-title">⚔️ Equipment</div>
+      <div class="equip-slots">
+        ${equippedKeys.map(k => {
+          const def = ITEMS[k] || { i:'❓', n: k };
+          return `<div class="equip-slot" data-unequip-item="${k}" title="${def.n} — tap to unequip">
+            ${def.img
+              ? `<img src="/icons/${def.img}" alt="${def.n}" width="40" height="40" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:22px">${def.i}</span>`
+              : `<span style="font-size:26px">${def.i}</span>`}
+            <span class="equip-slot-name">${def.n}</span>
+            <span class="equip-slot-remove">✕</span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
 
   const bossRows = s.bosses.length
     ? s.bosses.map(b => `
@@ -1517,6 +1557,7 @@ function renderHub() {
           </div>
         </div>
       </div>
+      ${equipPanelHTML}
       <div class="hub-panel inv-panel-wrap enter" style="animation-delay:.12s">
         <div class="panel-title">🎒 Inventory</div>
         <div class="inv-grid">${invSlots}</div>
@@ -3277,6 +3318,23 @@ function bindEvents() {
         slot.addEventListener("click", () => { STATE.pendingCompanion = slot.dataset.companion; mount(); });
       });
     }
+    // Equip / unequip items from inventory
+    document.querySelectorAll("[data-equip-item]").forEach(slot => {
+      slot.addEventListener("click", () => {
+        const key = slot.dataset.equipItem;
+        const eq = getEquipped(STATE.student);
+        if (eq[key]) unequipItem(STATE.student, key);
+        else equipItem(STATE.student, key);
+        mount();
+      });
+    });
+    document.querySelectorAll("[data-unequip-item]").forEach(slot => {
+      slot.addEventListener("click", () => {
+        unequipItem(STATE.student, slot.dataset.unequipItem);
+        mount();
+      });
+    });
+
     // Side quest complete buttons
     document.querySelectorAll(".btn-sq-complete").forEach(btn => {
       btn.addEventListener("click", () => {
