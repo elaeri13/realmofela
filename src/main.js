@@ -674,10 +674,10 @@ function saveStudentOverride(id, changes) {
 function getHelpFlags() {
   return Object.assign({}, _helpflags);
 }
-function setHelpFlag(id) {
+function setHelpFlag(id, message) {
   const sid = String(id);
-  _helpflags[sid] = new Date().toISOString();
-  update(ref(db, 'helpflags'), { [sid]: _helpflags[sid] }).catch(console.error);
+  _helpflags[sid] = { flaggedAt: new Date().toISOString(), message: message || '' };
+  set(ref(db, `helpflags/${sid}`), _helpflags[sid]).catch(console.error);
 }
 function clearHelpFlag(id) {
   const sid = String(id);
@@ -914,7 +914,7 @@ const TITLE_OPTIONS = [
 ];
 
 /* ─── STATE ─── */
-let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinError:"", helpFlagged:false,
+let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinError:"", helpFlagged:false, helpModalOpen:false,
               teacherPeriodIdx:0, teacherStudent:null, teacherEdit:null, boardLand:1,
               lessonTile:null, lessonLand:null, teacherTile:null, teacherTileLand:null,
               bossTile:null, bossLand:null, arrivalTile:null, arrivalLand:null,
@@ -1396,6 +1396,18 @@ function renderHub() {
       </div>
     </div>
     ${custHTML}
+    ${STATE.helpModalOpen ? `
+    <div class="help-modal-overlay" id="help-modal-overlay">
+      <div class="help-modal">
+        <div class="help-modal-title">🚩 Flag for Help</div>
+        <p class="help-modal-sub">What do you need help with? <span style="opacity:.6">(optional)</span></p>
+        <textarea class="help-modal-input" id="help-modal-input" maxlength="200" rows="3" placeholder="Type your question or leave blank to just raise your flag…"></textarea>
+        <div class="help-modal-btns">
+          <button class="btn btn-outline-sm" id="help-modal-skip">Skip</button>
+          <button class="btn btn-red" id="help-modal-send">🚩 Send Flag</button>
+        </div>
+      </div>
+    </div>` : ''}
   </div>`;
 }
 
@@ -2473,7 +2485,7 @@ function renderTeacherDashboard() {
         <span class="t-tile-badge">📍 ${tileName}</span>
         ${mustTotal ? `<span class="t-must-badge${mustAllDone?" t-must-done":""}">Must Do: ${mustDoneCount}/${mustTotal}${mustAllDone?" ✓":""}</span>` : ""}
       </div>
-      ${flg ? `<div class="flag-badge">🚩 ${formatFlagTime(flg)}</div>` : ""}
+      ${flg ? `<div class="flag-badge">🚩 ${formatFlagTime(flg.flaggedAt || flg)}${flg.message ? `<span class="flag-msg">${flg.message}</span>` : ''}</div>` : ""}
       <button class="t-award-companion-btn" data-award-companion="${s.id}">🐾 Award Companion</button>
     </div>`;
   }).join("");
@@ -2681,7 +2693,13 @@ function renderTeacherEdit() {
       <div class="t-section">
         <div class="t-section-title">🚩 Help Flag</div>
         ${flgTime
-          ? `<div class="t-flag-row"><span class="t-flag-time">🚩 Flagged ${formatFlagTime(flgTime)}</span><button class="btn-clear-flag" id="clear-flag-btn">Clear Flag</button></div>`
+          ? `<div class="t-flag-row">
+               <div>
+                 <span class="t-flag-time">🚩 Flagged ${formatFlagTime(flgTime.flaggedAt || flgTime)}</span>
+                 ${flgTime.message ? `<div class="t-flag-msg">"${flgTime.message}"</div>` : ''}
+               </div>
+               <button class="btn-clear-flag" id="clear-flag-btn">Clear Flag</button>
+             </div>`
           : `<p class="t-no-flag">No active help flag</p>`}
       </div>
 
@@ -2961,14 +2979,29 @@ function bindEvents() {
       });
     }
     $("help-btn") && $("help-btn").addEventListener("click", () => {
-      STATE.helpFlagged = true;
-      setHelpFlag(STATE.student.id);
+      STATE.helpModalOpen = true;
       mount();
-      const toast = document.createElement("div");
-      toast.className = "toast"; toast.textContent = "🙋 Your teacher has been notified! Hang tight, hero.";
-      document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 4000);
+      $("help-modal-input") && $("help-modal-input").focus();
     });
+    if ($("help-modal-send") || $("help-modal-skip")) {
+      const doFlag = (msg) => {
+        STATE.helpFlagged = true;
+        STATE.helpModalOpen = false;
+        setHelpFlag(STATE.student.id, msg);
+        mount();
+        const toast = document.createElement("div");
+        toast.className = "toast"; toast.textContent = "🙋 Your teacher has been notified! Hang tight, hero.";
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+      };
+      $("help-modal-send") && $("help-modal-send").addEventListener("click", () => {
+        doFlag(($("help-modal-input") || {}).value || '');
+      });
+      $("help-modal-skip") && $("help-modal-skip").addEventListener("click", () => doFlag(''));
+      $("help-modal-overlay") && $("help-modal-overlay").addEventListener("click", (e) => {
+        if (e.target === $("help-modal-overlay")) { STATE.helpModalOpen = false; mount(); }
+      });
+    }
   }
 
   /* TEACHER LOGIN */

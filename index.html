@@ -866,6 +866,19 @@ input  { font-family: var(--font-body); }
 .board-header { display:flex; align-items:center; justify-content:space-between; padding:10px 4px 8px; flex-shrink:0; }
 .board-title  { font-family:var(--font-display); font-size:18px; font-weight:900; color:white; text-shadow:0 1px 5px rgba(0,0,0,.5); }
 .board-map-wrap { flex:1; min-height:0; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+
+/* ── Help flag modal ── */
+.help-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:200; display:flex; align-items:center; justify-content:center; padding:16px; }
+.help-modal { background:#1E1B4B; border:2px solid #7C3AED; border-radius:16px; padding:24px 20px 20px; width:100%; max-width:360px; display:flex; flex-direction:column; gap:14px; }
+.help-modal-title { font-family:var(--font-display); font-size:20px; font-weight:900; color:#EDE9FE; text-align:center; }
+.help-modal-sub { color:#C4B5FD; font-size:14px; text-align:center; margin:0; }
+.help-modal-input { background:#2D2464; border:1.5px solid #7C3AED; border-radius:10px; color:#EDE9FE; font-size:14px; padding:10px 12px; resize:none; outline:none; font-family:inherit; }
+.help-modal-input::placeholder { color:#7C6FA8; }
+.help-modal-btns { display:flex; gap:10px; justify-content:flex-end; }
+/* Flag message on teacher dashboard card */
+.flag-msg { display:block; font-size:11px; font-style:italic; color:#FCA5A5; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+/* Flag message in teacher edit panel */
+.t-flag-msg { font-size:13px; font-style:italic; color:#FCA5A5; margin-top:4px; }
   </style>
 </head>
 <body>
