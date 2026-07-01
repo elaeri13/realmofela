@@ -995,6 +995,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               avStep:0, avClass:null, avVariant:null, avTone:null,
               customizeOpen:false, pendingTitle:null, pendingCompanion:undefined, custTab:"avatar",
               companionPickerOpen:false, companionPickerStudentId:null,
+              mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
               lessonOpenedAt:null,
               npcOpen:false, currentNpcKey:null,
               sg0Open:false, sg0Tile:null,
@@ -2612,6 +2613,7 @@ function renderTeacherDashboard() {
       <div class="t-dash-hdr">
         <span class="t-dash-title">👩‍🏫 Teacher Dashboard</span>
         <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn btn-outline-sm" id="t-mp-bulk-btn">💙 MP Bulk Edit</button>
           <button class="btn btn-outline-sm" id="t-board-view">📡 Board View</button>
           <button class="btn btn-outline-sm" id="t-dash-logout">Exit</button>
         </div>
@@ -2685,6 +2687,48 @@ function renderTeacherDashboard() {
       })()}
     </div>
   </div>
+  ${STATE.mpBulkOpen ? (() => {
+    const allStudents = periods.flatMap(p => p.students.map(s => ({ ...s, periodName: p.periodName })));
+    const filtered = STATE.mpBulkPeriod === 'all'
+      ? allStudents
+      : allStudents.filter(s => s.periodName === STATE.mpBulkPeriod);
+    const withMP = filtered.map(s => ({ s, mp: getMergedStudent(s).mp }));
+    withMP.sort((a, b) => STATE.mpBulkSort === 'asc' ? a.mp - b.mp : b.mp - a.mp);
+    const periodTabs = ['all', ...periods.map(p => p.periodName)].map(p =>
+      `<button class="mp-period-tab${STATE.mpBulkPeriod===p?' active':''}" data-mp-period="${p}">${p === 'all' ? 'All' : p}</button>`
+    ).join('');
+    const rows = withMP.map(({ s, mp }) => {
+      const m = getMergedStudent(s);
+      const pct = Math.round((mp / 10) * 100);
+      return `<div class="mp-row" data-mp-sid="${s.id}">
+        <div class="mp-row-info">
+          <span class="mp-row-name">${m.displayName}</span>
+          <span class="mp-row-period">${s.periodName}</span>
+        </div>
+        <div class="mp-bar-wrap">
+          <div class="mp-bar-track"><div class="mp-bar-fill" style="width:${pct}%"></div></div>
+          <span class="mp-val">${mp}/10</span>
+        </div>
+        <div class="mp-controls">
+          <button class="mp-btn mp-minus" data-mp-sid="${s.id}" data-mp-delta="-1" ${mp <= 1 ? 'disabled' : ''}>−</button>
+          <button class="mp-btn mp-plus"  data-mp-sid="${s.id}" data-mp-delta="1"  ${mp >= 10 ? 'disabled' : ''}>+</button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="mp-overlay" id="mp-overlay">
+      <div class="mp-modal">
+        <div class="mp-hdr">
+          <span class="mp-title">💙 MP Bulk Edit</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="mp-sort-btn" id="mp-sort-btn">${STATE.mpBulkSort==='asc'?'↑ Low→High':'↓ High→Low'}</button>
+            <button class="mp-close-btn" id="mp-close">✕</button>
+          </div>
+        </div>
+        <div class="mp-period-tabs">${periodTabs}</div>
+        <div class="mp-list">${rows}</div>
+      </div>
+    </div>`;
+  })() : ''}
   ${STATE.companionPickerOpen ? (() => {
     const pickerStudentName = (() => {
       if (!STATE.companionPickerStudentId) return "Student";
@@ -3218,6 +3262,43 @@ function bindEvents() {
         STATE.screen = "teacher-edit"; mount();
       });
     });
+    // MP Bulk Edit
+    $("t-mp-bulk-btn") && $("t-mp-bulk-btn").addEventListener("click", () => { STATE.mpBulkOpen = true; mount(); });
+    if (STATE.mpBulkOpen) {
+      $("mp-close") && $("mp-close").addEventListener("click", () => { STATE.mpBulkOpen = false; mount(); });
+      $("mp-overlay") && $("mp-overlay").addEventListener("click", e => {
+        if (e.target === $("mp-overlay")) { STATE.mpBulkOpen = false; mount(); }
+      });
+      $("mp-sort-btn") && $("mp-sort-btn").addEventListener("click", () => {
+        STATE.mpBulkSort = STATE.mpBulkSort === 'asc' ? 'desc' : 'asc'; mount();
+      });
+      document.querySelectorAll(".mp-period-tab").forEach(btn => {
+        btn.addEventListener("click", () => { STATE.mpBulkPeriod = btn.dataset.mpPeriod; mount(); });
+      });
+      document.querySelectorAll(".mp-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const sid = parseInt(btn.dataset.mpSid, 10);
+          const delta = parseInt(btn.dataset.mpDelta, 10);
+          const allStudents = CLASS_DATA.periods.flatMap(p => p.students);
+          const base = allStudents.find(s => s.id === sid);
+          if (!base) return;
+          const cur = getMergedStudent(base).mp;
+          const next = Math.max(1, Math.min(10, cur + delta));
+          saveStudentOverride(sid, { mp: next });
+          // Optimistic update without full remount — update just the row
+          const row = document.querySelector(`[data-mp-sid="${sid}"]`);
+          if (row) {
+            row.querySelector('.mp-val').textContent = `${next}/10`;
+            row.querySelector('.mp-bar-fill').style.width = `${next * 10}%`;
+            const minus = row.querySelector('.mp-minus');
+            const plus  = row.querySelector('.mp-plus');
+            if (minus) minus.disabled = next <= 1;
+            if (plus)  plus.disabled  = next >= 10;
+          }
+        });
+      });
+    }
+
     // Pacing settings
     $("pacing-save") && $("pacing-save").addEventListener("click", () => {
       const d = $("pacing-start"); const w = $("pacing-spw");
