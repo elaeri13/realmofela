@@ -684,6 +684,15 @@ function clearHelpFlag(id) {
   delete _helpflags[sid];
   set(ref(db, `helpflags/${sid}`), null).catch(console.error);
 }
+function gradeToHP(grade) {
+  const g = Math.max(0, Math.min(100, Math.round(grade)));
+  return Math.min(10, Math.floor(g / 10) + 1);
+}
+function saveGradeLog(studentId, lessonId, rawGrade, convertedHP) {
+  const sid = String(studentId);
+  const entry = { rawGrade, convertedHP, timestamp: new Date().toISOString() };
+  set(ref(db, `gradeLog/${sid}/${lessonId}`), entry).catch(console.error);
+}
 function getGuildCounts() {
   const guilds = CLASS_DATA && CLASS_DATA.guilds ? CLASS_DATA.guilds : {};
   const counts = {};
@@ -915,6 +924,7 @@ const TITLE_OPTIONS = [
 
 /* ─── STATE ─── */
 let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinError:"", helpFlagged:false, helpModalOpen:false,
+              gradeModalOpen:false, gradeModalLessonId:null,
               teacherPeriodIdx:0, teacherStudent:null, teacherEdit:null, boardLand:1,
               lessonTile:null, lessonLand:null, teacherTile:null, teacherTileLand:null,
               bossTile:null, bossLand:null, arrivalTile:null, arrivalLand:null,
@@ -1861,6 +1871,19 @@ function renderLessonStop() {
 
       ${wbRef ? `<div class="ls-workbook enter" style="animation-delay:.20s">${wbRef}</div>` : ""}
     </div>
+    ${STATE.gradeModalOpen ? `
+    <div class="grade-modal-overlay" id="grade-modal-overlay">
+      <div class="grade-modal">
+        <div class="grade-modal-title">📊 Log Your Grade</div>
+        <p class="grade-modal-sub">Enter your grade for this lesson — it sets your HP for next session!</p>
+        <input type="number" class="grade-modal-input" id="grade-modal-input" min="0" max="100" placeholder="0 – 100" />
+        <div class="grade-modal-preview" id="grade-modal-preview">HP: —</div>
+        <div class="grade-modal-btns">
+          <button class="btn btn-outline-sm" id="grade-modal-skip">Skip for now</button>
+          <button class="btn btn-purple" id="grade-modal-submit">✅ Save Grade</button>
+        </div>
+      </div>
+    </div>` : ''}
   </div>`;
 }
 
@@ -3467,11 +3490,20 @@ function bindEvents() {
       const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
       saveTileCompletion(STATE.student.id, tile.id, timeOnPage);
       const { levelsGained, newLevel } = awardXP(STATE.student, xpAmount);
+      const isS6 = tile.name && tile.name.endsWith('-S6');
       const doAdvance = () => {
         if (isBranchTile) completeBranchTile(STATE.student, tile.id);
         else advanceStudentTile(STATE.student, land);
         STATE.screen = "quest-map"; mount();
       };
+      const doAdvanceWithGrade = () => {
+        if (isBranchTile) completeBranchTile(STATE.student, tile.id);
+        else advanceStudentTile(STATE.student, land);
+        STATE.gradeModalOpen = true;
+        STATE.gradeModalLessonId = tile.id;
+        mount();
+      };
+      const finalCallback = isS6 ? doAdvanceWithGrade : doAdvance;
       showXPCelebration(xpAmount, levelsGained, newLevel, () => {
         // Aspire To companion drop
         if (aspireAllDone) {
@@ -3479,9 +3511,9 @@ function bindEvents() {
           const rarity = landToRarity(pos2.land);
           const companionFile = randFrom(companionsByRarity(rarity)).file;
           awardCompanion(STATE.student, companionFile);
-          showCompanionReveal(companionFile, doAdvance);
+          showCompanionReveal(companionFile, finalCallback);
         } else {
-          doAdvance();
+          finalCallback();
         }
       });
     });
@@ -3500,6 +3532,40 @@ function bindEvents() {
         }
       });
     });
+
+    // Grade modal handlers (shown after S6 completion)
+    if (STATE.gradeModalOpen) {
+      const gradeInput = $("grade-modal-input");
+      const gradePreview = $("grade-modal-preview");
+      const gradeClose = () => {
+        STATE.gradeModalOpen = false;
+        STATE.gradeModalLessonId = null;
+        STATE.screen = "quest-map";
+        mount();
+      };
+      gradeInput && gradeInput.addEventListener("input", () => {
+        const val = parseInt(gradeInput.value);
+        if (!isNaN(val) && val >= 0 && val <= 100) {
+          const hp = gradeToHP(val);
+          gradePreview.textContent = `HP: ${hp} / 10`;
+          gradePreview.style.color = "#A5F3FC";
+        } else {
+          gradePreview.textContent = "HP: —";
+          gradePreview.style.color = "";
+        }
+      });
+      $("grade-modal-skip") && $("grade-modal-skip").addEventListener("click", gradeClose);
+      $("grade-modal-submit") && $("grade-modal-submit").addEventListener("click", () => {
+        const val = parseInt(gradeInput ? gradeInput.value : "");
+        if (isNaN(val) || val < 0 || val > 100) { gradeClose(); return; }
+        const hp = gradeToHP(val);
+        const lessonId = STATE.gradeModalLessonId;
+        saveStudentOverride(STATE.student.id, { hp });
+        saveGradeLog(STATE.student.id, lessonId, val, hp);
+        gradeClose();
+      });
+      gradeInput && setTimeout(() => gradeInput.focus(), 50);
+    }
   }
 
   /* BOARD VIEW */
