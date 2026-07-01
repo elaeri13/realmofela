@@ -918,6 +918,36 @@ input  { font-family: var(--font-body); }
 .btn-pacing-save:hover { background:#059669; }
 .btn-pacing-off { background:transparent; border:1px solid #6B7280; color:#94A3B8; border-radius:8px; padding:7px 12px; font-size:12px; cursor:pointer; font-family:inherit; }
 .btn-pacing-off:hover { border-color:#EF4444; color:#EF4444; }
+/* Side Quest Modal */
+.sq-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:200; display:flex; align-items:center; justify-content:center; padding:16px; }
+.sq-modal { background:#1E1B4B; border:2px solid #F59E0B; border-radius:18px; padding:22px 20px 20px; width:100%; max-width:380px; display:flex; flex-direction:column; gap:14px; }
+.sq-title { font-family:var(--font-display); font-size:20px; font-weight:900; color:#FDE68A; text-align:center; }
+.sq-sub { color:#C4B5FD; font-size:13px; text-align:center; margin:0; }
+.sq-card { border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:8px; }
+.sq-solo  { background:rgba(124,58,237,.18); border:1.5px solid rgba(124,58,237,.5); }
+.sq-collab { background:rgba(16,185,129,.12); border:1.5px solid rgba(16,185,129,.4); }
+.sq-card-type { font-size:11px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; opacity:.75; }
+.sq-solo  .sq-card-type { color:#A78BFA; }
+.sq-collab .sq-card-type { color:#6EE7B7; }
+.sq-card-name { font-size:15px; font-weight:800; color:#EDE9FE; }
+.sq-card-desc { font-size:12px; color:#C4B5FD; line-height:1.5; }
+.sq-card-footer { display:flex; align-items:center; justify-content:space-between; margin-top:2px; }
+.sq-xp { font-size:13px; font-weight:700; color:#FDE68A; }
+.sq-accepted { font-size:12px; font-weight:700; color:#6EE7B7; }
+.btn-sq-accept { background:#7C3AED; color:#fff; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
+.btn-sq-accept:hover { background:#6D28D9; }
+.btn-sq-close { background:rgba(245,158,11,.15); border:1.5px solid #F59E0B; color:#FDE68A; border-radius:10px; padding:10px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; text-align:center; }
+.btn-sq-close:hover { background:rgba(245,158,11,.28); }
+/* Side Quest Hub Panel */
+.sq-hub-panel { display:flex; flex-direction:column; gap:10px; }
+.sq-hub-card { background:rgba(245,158,11,.08); border:1.5px solid rgba(245,158,11,.3); border-radius:12px; padding:12px 14px; display:flex; flex-direction:column; gap:6px; }
+.sq-hub-type { font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:#F59E0B; opacity:.8; }
+.sq-hub-name { font-size:14px; font-weight:800; color:#FDE68A; }
+.sq-hub-desc { font-size:12px; color:#C4B5FD; line-height:1.4; }
+.sq-hub-footer { display:flex; align-items:center; justify-content:space-between; margin-top:4px; }
+.sq-hub-xp { font-size:12px; font-weight:700; color:#FDE68A; }
+.btn-sq-complete { background:#F59E0B; color:#1E1B4B; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:800; cursor:pointer; font-family:inherit; }
+.btn-sq-complete:hover { background:#D97706; }
 /* Health Potion — usable inventory slots */
 .item-usable { cursor:pointer; position:relative; }
 .item-usable:hover { border-color:#EF4444 !important; background:rgba(239,68,68,.12); transform:scale(1.05); }

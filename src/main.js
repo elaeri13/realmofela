@@ -63,6 +63,28 @@ const STANDARD_NAMES = {
   "RI.5.5": "Text Structure",
   "RI.5.8": "Reasoning and Evidence",
 };
+/* ─── SIDE QUESTS ─── */
+const SOLO_QUESTS = [
+  { title:"Word Wizard",        desc:"Look up 2 vocabulary words from today's lesson and write them in your notes.",  xp:10 },
+  { title:"Reflection Knight",  desc:"Write 3 sentences about something new you learned today.",                       xp:10 },
+  { title:"Text Detective",     desc:"Find one quote from the text that best supports the main idea.",                xp:10 },
+  { title:"Summary Scribe",     desc:"Summarize today's session in 5 words or fewer.",                                xp:10 },
+  { title:"Question Forger",    desc:"Write 2 questions you still have after today's lesson.",                        xp:10 },
+  { title:"Evidence Hunter",    desc:"Find 2 pieces of text evidence that support your answer.",                      xp:10 },
+  { title:"Lore Keeper",        desc:"Write one sentence connecting today's lesson to something you already knew.",    xp:10 },
+];
+const COLLAB_QUESTS = [
+  { title:"Guild Scholars",     desc:"Discuss the main idea with a partner. Agree on one key point together.",         xp:15 },
+  { title:"Peer Forge",         desc:"Share your written response with a partner and give each other one piece of feedback.", xp:15 },
+  { title:"Alliance Quest",     desc:"Work with a partner to find 2 pieces of text evidence and compare them.",        xp:15 },
+  { title:"Council of Two",     desc:"Compare your answers — what's the same? What's different? Discuss why.",          xp:15 },
+  { title:"Twin Scribes",       desc:"Write a 2-sentence collaborative summary together with a partner.",               xp:15 },
+  { title:"Debate Knights",     desc:"Each of you takes a different side of a question from the text. Discuss!",        xp:15 },
+  { title:"Echo Chamber",       desc:"Read your answer aloud to a partner. They echo back what they heard. Switch.",    xp:15 },
+];
+function pickQuestIdx(pool, tileId, salt) {
+  return Math.abs((tileId * 17 + salt * 31)) % pool.length;
+}
 /* ─── COMPANIONS ─── */
 const COMPANIONS = [
   // Common (grey border)
@@ -757,6 +779,34 @@ function useHealthPotion(student) {
   saveStudentOverride(student.id, { items, hp: newHP });
   return true;
 }
+function getActiveSideQuests(student) {
+  const ov = _overrides[String(student.id)] || {};
+  return ov.sideQuests || {};
+}
+function acceptSideQuest(studentId, tileId, type, questIdx) {
+  const sid = String(studentId);
+  const ov = _overrides[sid] || {};
+  const sq = Object.assign({}, ov.sideQuests || {});
+  sq[`${tileId}_${type}`] = { questIdx, tileId, type, acceptedAt: new Date().toISOString() };
+  saveStudentOverride(sid, { sideQuests: sq });
+}
+function completeSideQuest(student, key) {
+  const sid = String(student.id);
+  const ov = _overrides[sid] || {};
+  const sq = Object.assign({}, ov.sideQuests || {});
+  const entry = sq[key];
+  if (!entry) return;
+  const pool = entry.type === 'collab' ? COLLAB_QUESTS : SOLO_QUESTS;
+  const quest = pool[entry.questIdx] || pool[0];
+  delete sq[key];
+  if (Object.keys(sq).length === 0) {
+    saveStudentOverride(sid, { sideQuests: null });
+  } else {
+    saveStudentOverride(sid, { sideQuests: sq });
+  }
+  const { levelsGained, newLevel } = awardXP(student, quest.xp);
+  showXPCelebration(quest.xp, levelsGained, newLevel, () => mount());
+}
 function getGuildCounts() {
   const guilds = CLASS_DATA && CLASS_DATA.guilds ? CLASS_DATA.guilds : {};
   const counts = {};
@@ -996,6 +1046,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               customizeOpen:false, pendingTitle:null, pendingCompanion:undefined, custTab:"avatar",
               companionPickerOpen:false, companionPickerStudentId:null,
               mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
+              sideQuestModalOpen:false, sideQuestTileId:null, sideQuestSoloIdx:0, sideQuestCollabIdx:0,
               lessonOpenedAt:null,
               npcOpen:false, currentNpcKey:null,
               sg0Open:false, sg0Tile:null,
@@ -1475,6 +1526,29 @@ function renderHub() {
             : `<button class="btn-brew" id="brew-potion-btn">🧪 Request Health Potion</button>`}
         </div>
       </div>
+      ${(() => {
+        const sq = getActiveSideQuests(STATE.student);
+        const entries = Object.entries(sq);
+        if (!entries.length) return '';
+        const cards = entries.map(([key, e]) => {
+          const pool = e.type === 'collab' ? COLLAB_QUESTS : SOLO_QUESTS;
+          const q = pool[e.questIdx] || pool[0];
+          const typeIcon = e.type === 'collab' ? '🤝' : '🗡️';
+          return `<div class="sq-hub-card">
+            <div class="sq-hub-type">${typeIcon} ${e.type === 'collab' ? 'Collaborative' : 'Solo'}</div>
+            <div class="sq-hub-name">${q.title}</div>
+            <div class="sq-hub-desc">${q.desc}</div>
+            <div class="sq-hub-footer">
+              <span class="sq-hub-xp">+${q.xp} XP</span>
+              <button class="btn-sq-complete" data-sq-key="${key}">✓ Mark Complete</button>
+            </div>
+          </div>`;
+        }).join('');
+        return `<div class="hub-panel sq-hub-panel enter" style="animation-delay:.16s">
+          <div class="panel-title">📜 Active Side Quests</div>
+          ${cards}
+        </div>`;
+      })()}
       <div class="hub-panel boss-panel-wrap enter" style="animation-delay:.2s">
         <div class="panel-title">🏆 Bosses Defeated</div>
         <div class="boss-list">${bossRows}</div>
@@ -1952,6 +2026,45 @@ function renderLessonStop() {
 
       ${wbRef ? `<div class="ls-workbook enter" style="animation-delay:.20s">${wbRef}</div>` : ""}
     </div>
+    ${STATE.sideQuestModalOpen ? (() => {
+      const solo  = SOLO_QUESTS[STATE.sideQuestSoloIdx]  || SOLO_QUESTS[0];
+      const collab = COLLAB_QUESTS[STATE.sideQuestCollabIdx] || COLLAB_QUESTS[0];
+      const tid = STATE.sideQuestTileId;
+      const sq = STATE.student ? getActiveSideQuests(STATE.student) : {};
+      const soloKey  = `${tid}_solo`;
+      const collabKey = `${tid}_collab`;
+      const soloAccepted  = !!sq[soloKey];
+      const collabAccepted = !!sq[collabKey];
+      return `<div class="sq-overlay" id="sq-overlay">
+        <div class="sq-modal">
+          <div class="sq-title">⚔️ Side Quests Unlocked!</div>
+          <p class="sq-sub">Complete bonus challenges to earn extra XP!</p>
+          <div class="sq-card sq-solo">
+            <div class="sq-card-type">🗡️ Solo Quest</div>
+            <div class="sq-card-name">${solo.title}</div>
+            <div class="sq-card-desc">${solo.desc}</div>
+            <div class="sq-card-footer">
+              <span class="sq-xp">+${solo.xp} XP</span>
+              ${soloAccepted
+                ? `<span class="sq-accepted">✓ Accepted</span>`
+                : `<button class="btn-sq-accept" data-sq-key="${soloKey}" data-sq-idx="${STATE.sideQuestSoloIdx}" data-sq-type="solo">Accept</button>`}
+            </div>
+          </div>
+          <div class="sq-card sq-collab">
+            <div class="sq-card-type">🤝 Collaborative Quest</div>
+            <div class="sq-card-name">${collab.title}</div>
+            <div class="sq-card-desc">${collab.desc}</div>
+            <div class="sq-card-footer">
+              <span class="sq-xp">+${collab.xp} XP</span>
+              ${collabAccepted
+                ? `<span class="sq-accepted">✓ Accepted</span>`
+                : `<button class="btn-sq-accept" data-sq-key="${collabKey}" data-sq-idx="${STATE.sideQuestCollabIdx}" data-sq-type="collab">Accept</button>`}
+            </div>
+          </div>
+          <button class="btn-sq-close" id="sq-close">Continue to Quest Map →</button>
+        </div>
+      </div>`;
+    })() : ''}
     ${STATE.gradeModalOpen ? `
     <div class="grade-modal-overlay" id="grade-modal-overlay">
       <div class="grade-modal">
@@ -3164,6 +3277,13 @@ function bindEvents() {
         slot.addEventListener("click", () => { STATE.pendingCompanion = slot.dataset.companion; mount(); });
       });
     }
+    // Side quest complete buttons
+    document.querySelectorAll(".btn-sq-complete").forEach(btn => {
+      btn.addEventListener("click", () => {
+        completeSideQuest(STATE.student, btn.dataset.sqKey);
+      });
+    });
+
     // Brew potion request
     $("brew-potion-btn") && $("brew-potion-btn").addEventListener("click", () => {
       requestHealthPotion(STATE.student.id);
@@ -3744,6 +3864,7 @@ function bindEvents() {
       saveTileCompletion(STATE.student.id, tile.id, timeOnPage);
       const { levelsGained, newLevel } = awardXP(STATE.student, xpAmount);
       const isS6 = tile.name && tile.name.endsWith('-S6');
+      const isLesson = tile.type === 'lesson';
       const doAdvance = () => {
         if (isBranchTile) completeBranchTile(STATE.student, tile.id);
         else advanceStudentTile(STATE.student, land);
@@ -3756,7 +3877,16 @@ function bindEvents() {
         STATE.gradeModalLessonId = tile.id;
         mount();
       };
-      const finalCallback = isS6 ? doAdvanceWithGrade : doAdvance;
+      const doAdvanceWithSideQuest = () => {
+        if (isBranchTile) completeBranchTile(STATE.student, tile.id);
+        else advanceStudentTile(STATE.student, land);
+        STATE.sideQuestModalOpen = true;
+        STATE.sideQuestTileId = tile.id;
+        STATE.sideQuestSoloIdx  = pickQuestIdx(SOLO_QUESTS, tile.id, 1);
+        STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
+        mount();
+      };
+      const finalCallback = isS6 ? doAdvanceWithGrade : isLesson ? doAdvanceWithSideQuest : doAdvance;
       showXPCelebration(xpAmount, levelsGained, newLevel, () => {
         // Aspire To companion drop
         if (aspireAllDone) {
@@ -3785,6 +3915,24 @@ function bindEvents() {
         }
       });
     });
+
+    // Side quest modal handlers
+    if (STATE.sideQuestModalOpen) {
+      const sqClose = () => { STATE.sideQuestModalOpen = false; STATE.sideQuestTileId = null; STATE.screen = "quest-map"; mount(); };
+      $("sq-close") && $("sq-close").addEventListener("click", sqClose);
+      document.querySelectorAll(".btn-sq-accept").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const key  = btn.dataset.sqKey;
+          const idx  = parseInt(btn.dataset.sqIdx, 10);
+          const type = btn.dataset.sqType;
+          acceptSideQuest(STATE.student.id, STATE.sideQuestTileId, type, idx);
+          mount(); // re-render to show "✓ Accepted"
+          // re-bind close so it still works after re-render
+          const newClose = document.getElementById("sq-close");
+          if (newClose) newClose.addEventListener("click", sqClose);
+        });
+      });
+    }
 
     // Grade modal handlers (shown after S6 completion)
     if (STATE.gradeModalOpen) {
