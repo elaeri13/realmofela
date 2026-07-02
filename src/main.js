@@ -1170,7 +1170,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               companionPickerOpen:false, companionPickerStudentId:null,
               mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
               sideQuestModalOpen:false, sideQuestTileId:null, sideQuestSoloIdx:0, sideQuestCollabIdx:0,
-              justCompletedTileId:null, sqBoardOpen:false, sqBoardLandId:null,
+              pendingSQAfterGrade:null, sqBoardOpen:false, sqBoardLandId:null,
               sqPartnerPickOpen:false, sqPartnerPickKey:null, sqPartnerPickIdx:0, sqPartnerPickType:null, sqPartnerPickTile:null, sqPartnerPickSelected:null,
               sqInviteNotifOpen:false,
               questJournalTab:'active',
@@ -2392,9 +2392,8 @@ function renderLessonStop() {
         const collabKey = `${tile.id}_collab`;
         const soloAccepted  = !!activeSQ[soloKey];
         const collabAccepted = !!activeSQ[collabKey];
-        const isJustDone = STATE.justCompletedTileId === tile.id;
-        return `<div class="ls-side-quests${isJustDone ? ' sq-slide-in' : ' enter'}" ${isJustDone ? '' : 'style="animation-delay:.14s"'}>
-          <div class="ls-sq-unlock-hdr">⚔️ Side Quests Unlocked!</div>
+        return `<div class="ls-side-quests enter" style="animation-delay:.14s">
+          <div class="ls-sq-header">⚔️ Side Quests <span class="ls-sq-sub">Optional — earn bonus XP</span></div>
           <div class="ls-sq-card ls-sq-solo">
             <div class="ls-sq-type">🗡️ Solo Quest</div>
             <div class="ls-sq-name">${solo.title}</div>
@@ -2423,8 +2422,6 @@ function renderLessonStop() {
       <button class="ls-submit-btn enter" id="ls-submit" ${(!isActionable || !mustAllDone) ? "disabled" : ""} data-completed="${!isActionable}" style="animation-delay:.18s">
         ${!isActionable ? "Quest Complete ✓" : mustAllDone ? "✅ I'm Ready!" : "🔒 Complete Must Do tasks to continue"}
       </button>
-
-      ${STATE.justCompletedTileId === tile.id ? `<button class="btn btn-gold sq-back-to-map" id="sq-back-to-map" style="width:100%;margin-top:10px;animation:slideInUp .4s ease-out 2s both;">🗺️ Back to Quest Map</button>` : ''}
 
       ${wbRef ? `<div class="ls-workbook enter" style="animation-delay:.20s">${wbRef}</div>` : ""}
     </div>
@@ -4502,8 +4499,7 @@ function bindEvents() {
   }
 
   if (STATE.screen === "lesson-stop") {
-    $("ls-back") && $("ls-back").addEventListener("click", () => { STATE.justCompletedTileId = null; STATE.sqPartnerPickOpen = false; STATE.screen = "quest-map"; mount(); });
-    $("sq-back-to-map") && $("sq-back-to-map").addEventListener("click", () => { STATE.justCompletedTileId = null; STATE.screen = "quest-map"; mount(); });
+    $("ls-back") && $("ls-back").addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.screen = "quest-map"; mount(); });
     // Partner picker modal
     if (STATE.sqPartnerPickOpen) {
       $("partner-pick-cancel") && $("partner-pick-cancel").addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.sqPartnerPickSelected = null; mount(); });
@@ -4556,11 +4552,17 @@ function bindEvents() {
       if (levelsGained > 0) logActivity(STATE.student.id, '⬆️', `Reached Level ${newLevel}!`);
       const hasExitTicket = getExitTicketEnabled(tile.id);
       const isLesson = tile.type === 'lesson';
+      const openSQPopup = (tileId) => {
+        STATE.sideQuestModalOpen = true;
+        STATE.sideQuestTileId = tileId;
+        STATE.sideQuestSoloIdx = pickQuestIdx(SOLO_QUESTS, tileId, 1);
+        STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tileId, 2);
+      };
       const doAdvance = () => {
         if (isBranchTile) completeBranchTile(STATE.student, tile.id);
         else advanceStudentTile(STATE.student, land);
         if (tile.type === 'lesson') {
-          STATE.justCompletedTileId = tile.id;
+          openSQPopup(tile.id);
           mount();
         } else {
           STATE.screen = "quest-map"; mount();
@@ -4569,6 +4571,13 @@ function bindEvents() {
       const doAdvanceWithGrade = () => {
         if (isBranchTile) completeBranchTile(STATE.student, tile.id);
         else advanceStudentTile(STATE.student, land);
+        if (tile.type === 'lesson') {
+          STATE.pendingSQAfterGrade = {
+            tileId: tile.id,
+            soloIdx: pickQuestIdx(SOLO_QUESTS, tile.id, 1),
+            collabIdx: pickQuestIdx(COLLAB_QUESTS, tile.id, 2)
+          };
+        }
         STATE.gradeModalOpen = true;
         STATE.gradeModalLessonId = tile.id;
         mount();
@@ -4617,13 +4626,54 @@ function bindEvents() {
       });
     });
 
+    // Side quest popup (shown after completing a lesson tile)
+    if (STATE.sideQuestModalOpen) {
+      $("sq-close") && $("sq-close").addEventListener("click", () => {
+        STATE.sideQuestModalOpen = false; STATE.screen = "quest-map"; mount();
+      });
+      $("sq-overlay") && $("sq-overlay").addEventListener("click", e => {
+        if (e.target === $("sq-overlay")) { STATE.sideQuestModalOpen = false; STATE.screen = "quest-map"; mount(); }
+      });
+      document.querySelectorAll(".btn-sq-accept").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const key  = btn.dataset.sqKey;
+          const idx  = parseInt(btn.dataset.sqIdx, 10);
+          const type = btn.dataset.sqType;
+          const tid  = STATE.sideQuestTileId;
+          if (type === 'collab') {
+            STATE.sqPartnerPickOpen = true;
+            STATE.sqPartnerPickKey = key;
+            STATE.sqPartnerPickIdx = idx;
+            STATE.sqPartnerPickType = type;
+            STATE.sqPartnerPickTile = tid;
+            STATE.sqPartnerPickSelected = null;
+            mount();
+          } else {
+            const quest = SOLO_QUESTS[idx] || SOLO_QUESTS[0];
+            acceptSideQuest(STATE.student.id, tid, type, idx);
+            logActivity(STATE.student.id, '📜', `Accepted quest: ${quest.title}`);
+            mount();
+          }
+        });
+      });
+    }
+
     // Grade modal handlers (shown after S6 completion)
     if (STATE.gradeModalOpen) {
       const gradeInput = $("grade-modal-input");
       const gradeClose = () => {
         STATE.gradeModalOpen = false;
         STATE.gradeModalLessonId = null;
-        STATE.screen = "quest-map";
+        if (STATE.pendingSQAfterGrade) {
+          const { tileId, soloIdx, collabIdx } = STATE.pendingSQAfterGrade;
+          STATE.pendingSQAfterGrade = null;
+          STATE.sideQuestModalOpen = true;
+          STATE.sideQuestTileId = tileId;
+          STATE.sideQuestSoloIdx = soloIdx;
+          STATE.sideQuestCollabIdx = collabIdx;
+        } else {
+          STATE.screen = "quest-map";
+        }
         mount();
       };
       $("grade-modal-skip") && $("grade-modal-skip").addEventListener("click", () => {
