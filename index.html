@@ -1002,8 +1002,11 @@ input  { font-family: var(--font-body); }
 .ls-sq-header { font-size:14px; font-weight:800; color:#FDE68A; display:flex; align-items:baseline; gap:8px; }
 .ls-sq-sub { font-size:11px; font-weight:500; color:#94A3B8; }
 /* Side Quest Board (map view) */
-.sq-board-btn { background:rgba(251,191,36,.18); border:1.5px solid rgba(251,191,36,.5); border-radius:8px; color:#FDE68A; font-size:18px; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
-.sq-board-btn:hover { background:rgba(251,191,36,.32); }
+.sq-board-banner { display:flex; align-items:center; gap:16px; width:100%; background:rgba(251,191,36,.15); border:2px solid rgba(251,191,36,.5); border-radius:16px; padding:18px 24px; cursor:pointer; transition:background .18s,border-color .18s; text-align:left; }
+.sq-board-banner:hover { background:rgba(251,191,36,.28); border-color:rgba(251,191,36,.8); }
+.sq-board-banner-scroll { font-size:52px; flex-shrink:0; line-height:1; }
+.sq-board-banner-text { font-size:18px; font-weight:900; color:#FDE68A; font-family:var(--font-display); display:block; }
+.sq-board-banner-sub { font-size:12px; font-weight:700; color:rgba(253,230,138,.65); display:block; margin-top:3px; }
 .sq-board-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:200; display:flex; align-items:center; justify-content:center; padding:16px; }
 .sq-board-modal { background:#1E1B4B; border:2px solid #7C3AED; border-radius:18px; padding:22px 20px 20px; width:100%; max-width:420px; max-height:80vh; display:flex; flex-direction:column; gap:0; position:relative; }
 .sq-board-title { font-family:var(--font-display); font-size:20px; font-weight:900; color:#EDE9FE; margin-bottom:2px; }

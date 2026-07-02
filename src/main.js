@@ -258,9 +258,9 @@ const LANDS = [
       {id:34, type:"loot", name:"L4-S4", x:195,  y:490, skill:"Should Do", nextTile:18, parentTileId:17},
       {id:35, type:"loot", name:"L4-S5", x:65,   y:490, skill:"Aspire To", nextTile:34, parentTileId:34},
       // ── NPC tiles ──
-      {id:36, type:"npc", npcKey:"thornkin_hint",          x:65,   y:210, landId:1},
+      {id:36, type:"npc", npcKey:"thornkin_hint",          x:195,  y:210, landId:1},
       {id:37, type:"npc", npcKey:"thornkin_lore",          x:715,  y:210, landId:1},
-      {id:38, type:"npc", npcKey:"thornkin_encouragement", x:1105, y:490, landId:1},
+      {id:38, type:"npc", npcKey:"thornkin_encouragement", x:975,  y:490, landId:1},
       {id:39, type:"npc", npcKey:"thornkin_easter",        x:325,  y:490, landId:1},
     ],
     pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27],
@@ -347,9 +347,9 @@ const LANDS = [
       {id:34, type:"loot", name:"L8-S4", x:195,  y:490, skill:"Should Do", nextTile:18, parentTileId:17},
       {id:35, type:"loot", name:"L8-S5", x:65,   y:490, skill:"Aspire To", nextTile:34, parentTileId:34},
       // ── NPC tiles ──
-      {id:36, type:"npc", npcKey:"gravenborn_lore",          x:65,   y:210, landId:2},
+      {id:36, type:"npc", npcKey:"gravenborn_lore",          x:195,  y:210, landId:2},
       {id:37, type:"npc", npcKey:"gravenborn_encouragement", x:715,  y:210, landId:2},
-      {id:38, type:"npc", npcKey:"gravenborn_easter",        x:1105, y:490, landId:2},
+      {id:38, type:"npc", npcKey:"gravenborn_easter",        x:975,  y:490, landId:2},
       {id:39, type:"npc", npcKey:"gravenborn_hint",          x:325,  y:490, landId:2},
     ],
     pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27],
@@ -417,9 +417,9 @@ const LANDS = [
       {id:32, type:"loot", name:"L11-S4", x:845,  y:490, skill:"Should Do", nextTile:13, parentTileId:12},
       {id:33, type:"loot", name:"L11-S5", x:715,  y:490, skill:"Aspire To", nextTile:32, parentTileId:32},
       // ── NPC tiles ──
-      {id:36, type:"npc", npcKey:"tideweaver_encouragement", x:65,   y:210, landId:3},
+      {id:36, type:"npc", npcKey:"tideweaver_encouragement", x:195,  y:210, landId:3},
       {id:37, type:"npc", npcKey:"tideweaver_easter",        x:715,  y:210, landId:3},
-      {id:38, type:"npc", npcKey:"tideweaver_hint",          x:1105, y:490, landId:3},
+      {id:38, type:"npc", npcKey:"tideweaver_hint",          x:975,  y:490, landId:3},
       {id:39, type:"npc", npcKey:"tideweaver_lore",          x:325,  y:490, landId:3},
     ],
     pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,26,27],
@@ -486,9 +486,9 @@ const LANDS = [
       {id:32, type:"loot", name:"L14-S4", x:845,  y:490, skill:"Should Do", nextTile:13, parentTileId:12},
       {id:33, type:"loot", name:"L14-S5", x:715,  y:490, skill:"Aspire To", nextTile:32, parentTileId:32},
       // ── NPC tiles ──
-      {id:36, type:"npc", npcKey:"briarfolk_easter",        x:65,   y:210, landId:4},
+      {id:36, type:"npc", npcKey:"briarfolk_easter",        x:195,  y:210, landId:4},
       {id:37, type:"npc", npcKey:"briarfolk_hint",          x:715,  y:210, landId:4},
-      {id:38, type:"npc", npcKey:"briarfolk_lore",          x:1105, y:490, landId:4},
+      {id:38, type:"npc", npcKey:"briarfolk_lore",          x:975,  y:490, landId:4},
       {id:39, type:"npc", npcKey:"briarfolk_encouragement", x:325,  y:490, landId:4},
     ],
     pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,26,27],
@@ -555,9 +555,9 @@ const LANDS = [
       {id:32, type:"loot", name:"L17-S4", x:845,  y:490, skill:"Should Do", nextTile:13, parentTileId:12},
       {id:33, type:"loot", name:"L17-S5", x:715,  y:490, skill:"Aspire To", nextTile:32, parentTileId:32},
       // ── NPC tiles ──
-      {id:36, type:"npc", npcKey:"embersoul_hint",          x:65,   y:210, landId:5},
+      {id:36, type:"npc", npcKey:"embersoul_hint",          x:195,  y:210, landId:5},
       {id:37, type:"npc", npcKey:"embersoul_lore",          x:715,  y:210, landId:5},
-      {id:38, type:"npc", npcKey:"embersoul_encouragement", x:1105, y:490, landId:5},
+      {id:38, type:"npc", npcKey:"embersoul_encouragement", x:975,  y:490, landId:5},
       {id:39, type:"npc", npcKey:"embersoul_easter",        x:325,  y:490, landId:5},
     ],
     pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,26,27],
@@ -624,9 +624,9 @@ const LANDS = [
       {id:32, type:"loot", name:"L20-S4", x:845,  y:490, skill:"Should Do", nextTile:13, parentTileId:12},
       {id:33, type:"loot", name:"L20-S5", x:715,  y:490, skill:"Aspire To", nextTile:32, parentTileId:32},
       // ── NPC tiles ──
-      {id:36, type:"npc", npcKey:"voltari_lore",          x:65,   y:210, landId:6},
+      {id:36, type:"npc", npcKey:"voltari_lore",          x:195,  y:210, landId:6},
       {id:37, type:"npc", npcKey:"voltari_easter",        x:715,  y:210, landId:6},
-      {id:38, type:"npc", npcKey:"voltari_hint",          x:1105, y:490, landId:6},
+      {id:38, type:"npc", npcKey:"voltari_hint",          x:975,  y:490, landId:6},
       {id:39, type:"npc", npcKey:"voltari_encouragement", x:325,  y:490, landId:6},
     ],
     pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,26,27],
@@ -657,9 +657,9 @@ const LAND0 = {
       flavor:"No hero charges into battle untrained. Walk through a practice session and prove you are ready for the real lessons that wait on the road ahead." },
     { id:6, type:"sg", name:"The Village Gate",       x:195, y:630, sgModal:"gate",
       flavor:"The Starting Grounds are behind you now. The Verdant Vale stretches ahead, and with it your first true quest. Take a breath. Your adventure begins now." },
-    { id:10, type:"npc", npcKey:"lumin_hint",          x:65,   y:210, landId:0 },
+    { id:10, type:"npc", npcKey:"lumin_hint",          x:195,  y:210, landId:0 },
     { id:11, type:"npc", npcKey:"lumin_lore",          x:715,  y:210, landId:0 },
-    { id:12, type:"npc", npcKey:"lumin_encouragement", x:1105, y:490, landId:0 },
+    { id:12, type:"npc", npcKey:"lumin_encouragement", x:975,  y:490, landId:0 },
     { id:13, type:"npc", npcKey:"lumin_easter",        x:325,  y:490, landId:0 },
   ],
   pathOrder:[1,2,3,4,5,6],
@@ -2826,7 +2826,6 @@ function renderQuestMap() {
       <span class="lm-title">🗺 ${land.name}</span>
       <div class="lm-lands">${landDots}</div>
       <span style="font-size:12px;font-weight:800;color:rgba(255,255,255,.55)">Lv.${student.level}</span>
-      ${completedInLand ? `<button class="sq-board-btn" id="sq-board-btn" title="Side Quest Board">📜</button>` : ''}
     </div>
     <div class="lm-svg-wrap">
       <div class="lm-map-bg" ${land.bgImage ? `style="background-image:url('${land.bgImage}')"` : ""}></div>
@@ -2834,6 +2833,12 @@ function renderQuestMap() {
         ${buildLandSVG(land,pos,false,"")}
       </svg>
     </div>
+    ${completedInLand ? `
+    <button class="sq-board-banner" id="sq-board-btn">
+      <span class="sq-board-banner-scroll">📜</span>
+      <span class="sq-board-banner-text">Side Quest Board</span>
+      <span class="sq-board-banner-sub">View available side quests for this land</span>
+    </button>` : ''}
     ${sqBoardHTML}
     ${renderNpcModal()}
     ${renderSg0Modal()}
