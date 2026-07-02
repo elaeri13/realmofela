@@ -36,9 +36,9 @@ const ITEMS = {
 };
 const EQUIPPABLE = new Set(['sword', 'shield', 'amulet']);
 const EQUIP_SLOTS = [
-  { label: '⚔️ Weapon',    key: 'weapon',    itemKey: 'sword'  },
-  { label: '🛡️ Shield',    key: 'shield',    itemKey: 'shield' },
-  { label: '💎 Accessory', key: 'accessory', itemKey: 'amulet' },
+  { label: 'Weapon',    icon: '⚔️', key: 'weapon',    itemKey: 'sword'  },
+  { label: 'Shield',    icon: '🛡️', key: 'shield',    itemKey: 'shield' },
+  { label: 'Accessory', icon: '💎', key: 'accessory', itemKey: 'amulet' },
 ];
 const BOSS_ICON = {
   "Aldric the Unyielding":  "⚔️",
@@ -670,6 +670,15 @@ function getLandData(id) {
   return LANDS[id-1] || LANDS[0];
 }
 
+function findTileById(tileId) {
+  const allLands = [LAND0, ...LANDS];
+  for (const land of allLands) {
+    const tile = (land.tiles || []).find(t => t.id === tileId);
+    if (tile) return { tile, land };
+  }
+  return null;
+}
+
 const LAND_EMOJIS = ["🌿","⛏️","🌊","🌿","🕯️","⚡"];
 /* Grid: CW=140 RH=200 X0=70 Y0=70
    Fork1 TOP:   loops below boss1(490,70)  → rejoins tile5(630,70)
@@ -1181,6 +1190,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               npcOpen:false, currentNpcKey:null,
               sg0Open:false, sg0Tile:null,
               sg0GuildReveal:null,
+              catchUpModalOpen:false, gradeFromCatchUp:false,
               teacherResetConfirm:false };
 
 /* ─── CHIBI SVG ─── */
@@ -1394,6 +1404,46 @@ function buildAvatarFile(char, variant, tone) {
   return `avatar_${char}_${variant}_${tone}.png`;
 }
 
+function renderCatchUpModal() {
+  if (!STATE.catchUpModalOpen) return '';
+  const reminders = getGradeReminders(STATE.student.id);
+  const keys = Object.keys(reminders).sort((a, b) => Number(a) - Number(b));
+  if (!keys.length) {
+    return `<div class="grade-modal-overlay" id="catchup-modal-overlay">
+      <div class="grade-modal" style="max-width:460px">
+        <div class="grade-modal-title">✅ All caught up!</div>
+        <p class="grade-modal-sub">All your grades have been logged. Your stats are up to date.</p>
+        <div class="grade-modal-btns">
+          <button class="btn btn-purple" id="catchup-close">Close</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  const rows = keys.map(k => {
+    const id = Number(k);
+    const found = findTileById(id);
+    const label = found ? found.tile.name : `Lesson ${id}`;
+    const title = found && found.tile.sessionTitle ? found.tile.sessionTitle : label;
+    return `<div class="catchup-row">
+      <div class="catchup-row-info">
+        <span class="catchup-session-label">${label}</span>
+        <span class="catchup-lesson-name">${title !== label ? title : ''}</span>
+      </div>
+      <button class="btn btn-purple btn-sm catchup-log-btn" data-lesson-id="${id}">Log Grade</button>
+    </div>`;
+  }).join('');
+  return `<div class="grade-modal-overlay" id="catchup-modal-overlay">
+    <div class="grade-modal" style="max-width:460px;display:flex;flex-direction:column;max-height:80vh">
+      <div class="grade-modal-title">⚠️ Unlogged Grades</div>
+      <p class="grade-modal-sub">You have grades that haven't been logged yet. Log them below to keep your stats current.</p>
+      <div class="catchup-list">${rows}</div>
+      <div class="grade-modal-btns" style="margin-top:16px">
+        <button class="btn btn-outline-sm" id="catchup-close">Close</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderHub() {
   const s = getMergedStudent(STATE.student);
 
@@ -1580,7 +1630,7 @@ function renderHub() {
       </div>`;
     }).join("");
 
-  const equipSlotsHTML = EQUIP_SLOTS.map(({ label, itemKey }) => {
+  const equipSlotsHTML = EQUIP_SLOTS.map(({ label, icon, itemKey }) => {
     const owned = s.items.includes(itemKey);
     const def = ITEMS[itemKey] || {};
     const isEquipped = owned && !!equipped[itemKey];
@@ -1588,7 +1638,7 @@ function renderHub() {
       ? `<img src="/icons/${def.img}" alt="${def.n}" width="120" height="120" style="object-fit:contain" onerror="this.style.display='none'"/>`
       : owned
       ? `<span style="font-size:48px;line-height:1">${def.i}</span>`
-      : `<span class="equip-slot-ph">${label.split(' ')[0]}</span>`;
+      : `<span class="equip-slot-ph">${icon}</span>`;
     return `<div class="equip-slot${isEquipped ? ' equip-slot-on' : owned ? ' equip-slot-off' : ' equip-slot-empty'}"
       ${owned ? `data-equip-item="${itemKey}"` : ''}>
       <div class="equip-slot-img">${imgEl}</div>
@@ -1634,34 +1684,37 @@ function renderHub() {
         if (!Object.keys(reminders).length) return '';
         return `<button class="grade-reminder-banner" id="grade-reminder-banner">⚠️ You have unlogged grades. Tap here to catch up.</button>`;
       })()}
-      <div class="hub-panel char-card-unified enter" style="animation-delay:.05s">
-        <div class="char-card-cols">
-          <!-- Left: Name, Avatar, Companion toolbar -->
-          <div class="char-col-identity">
-            <div class="char-name-row">
-              <div class="char-name">${s.displayName}</div>
-              <button class="id-cust-btn" id="cust-btn" title="Customize Character">
-                <img src="/icons/icon_pencil.png" alt="Customize" width="18" height="18"/>
-              </button>
-            </div>
-            ${activeTitle ? `<div class="char-title-badge">👑 ${activeTitle}</div>` : ''}
-            <div class="char-avatar-area">
-              <div class="char-avatar-wrap">
-                <div class="avatar-ring-xl" style="overflow:hidden;padding:0">
-                  <img src="${avatarUrl}" class="hub-avatar-img" alt="Avatar" width="250" height="250"/>
+      <div class="hub-inv-bosses">
+        <!-- Left panel: Avatar + Equipment -->
+        <div class="hub-panel char-card-unified enter" style="animation-delay:.05s">
+          <div class="char-card-cols">
+            <div class="char-col-identity">
+              <div class="char-name-row">
+                <div class="char-name">${s.displayName}</div>
+                <button class="id-cust-btn" id="cust-btn" title="Customize Character">
+                  <img src="/icons/icon_pencil.png" alt="Customize" width="18" height="18"/>
+                </button>
+              </div>
+              ${activeTitle ? `<div class="char-title-badge">👑 ${activeTitle}</div>` : ''}
+              <div class="char-avatar-area">
+                <div class="char-avatar-wrap">
+                  <div class="avatar-ring-xl" style="overflow:hidden;padding:0">
+                    <img src="${avatarUrl}" class="hub-avatar-img" alt="Avatar" width="250" height="250"/>
+                  </div>
+                </div>
+                <div class="char-companion-slot${activeCompanion ? '' : ' char-companion-empty'}" title="${activeCompanion ? (() => { const c = companionByFile(activeCompanion); return c.name; })() : 'No companion'}">
+                  ${activeCompanion ? `<img src="/companions/${activeCompanion}" alt="companion" width="65" height="65"/>` : `<span style="font-size:22px;opacity:.35">🐾</span>`}
+                  <span class="char-companion-name">${activeCompanion ? companionByFile(activeCompanion).name : 'Companion'}</span>
                 </div>
               </div>
-              <div class="char-companion-slot${activeCompanion ? '' : ' char-companion-empty'}" title="${activeCompanion ? (() => { const c = companionByFile(activeCompanion); return c.name; })() : 'No companion'}">
-                ${activeCompanion ? `<img src="/companions/${activeCompanion}" alt="companion" width="65" height="65"/>` : `<span style="font-size:22px;opacity:.35">🐾</span>`}
-                <span class="char-companion-name">${activeCompanion ? companionByFile(activeCompanion).name : 'Companion'}</span>
-              </div>
+            </div>
+            <div class="char-col-equip">
+              <div class="equip-slot-col">${equipSlotsHTML}</div>
             </div>
           </div>
-          <!-- Middle: Equipment -->
-          <div class="char-col-equip">
-            <div class="equip-slot-col">${equipSlotsHTML}</div>
-          </div>
-          <!-- Right: Stats -->
+        </div>
+        <!-- Right panel: Battle Stats -->
+        <div class="hub-panel char-stats-panel enter" style="animation-delay:.08s">
           <div class="char-col-stats">
             <div class="char-level-stat">⭐ Level ${s.level}</div>
             ${(() => {
@@ -1747,7 +1800,7 @@ function renderHub() {
         <div class="panel-title">🏆 Bosses Defeated</div>
         <div class="boss-list">${bossRows}</div>
       </div>
-      </div>
+      </div><!-- /hub-inv-bosses bottom -->
       <div class="hub-actions enter" style="animation-delay:.2s">
         <button class="btn btn-gold" id="continue-quest-btn">⚔️ Continue Quest</button>
         <button class="btn ${STATE.helpFlagged?"btn-red btn-red-dim":"btn-red"}" id="help-btn" ${STATE.helpFlagged?"disabled":""}>
@@ -1793,12 +1846,14 @@ function renderHub() {
                 const pool = e.type === 'collab' ? COLLAB_QUESTS : SOLO_QUESTS;
                 const q = pool[e.questIdx] || pool[0];
                 const typeIcon = e.type === 'collab' ? '🤝' : '🗡️';
+                const activeTileId = parseInt(key.split('_')[0]);
                 return `<div class="sq-hub-card">
                   <div class="sq-hub-type">${typeIcon} ${e.type === 'collab' ? 'Collaborative' : 'Solo'}</div>
                   <div class="sq-hub-name">${q.title}</div>
                   <div class="sq-hub-desc">${q.desc}</div>
                   <div class="sq-hub-footer">
                     <span class="sq-hub-xp">+${q.xp} XP</span>
+                    <button class="sq-view-lesson-btn" data-sq-tile="${activeTileId}">📖 View Lesson</button>
                     <button class="btn-sq-complete" data-sq-key="${key}">✓ Mark Complete</button>
                   </div>
                 </div>`;
@@ -1813,6 +1868,7 @@ function renderHub() {
                   <div class="sq-hub-desc">${q.desc}</div>
                   <div class="sq-hub-footer">
                     <span class="sq-hub-xp">+${q.xp} XP</span>
+                    <button class="sq-view-lesson-btn" data-sq-tile="${tileId}">📖 View Lesson</button>
                     <button class="ls-sq-accept-btn" data-sq-key="${key}" data-sq-idx="${idx}" data-sq-type="${type}" data-sq-tile="${tileId}">Accept</button>
                   </div>
                 </div>`;
@@ -1821,10 +1877,15 @@ function renderHub() {
           const completedContent = completedSQ.length
             ? [...completedSQ].reverse().map(c => {
                 const typeIcon = c.type === 'collab' ? '🤝' : '🗡️';
+                const doneTileId = c.key ? parseInt(c.key.split('_')[0]) : null;
                 return `<div class="sq-hub-card sq-done-card">
                   <div class="sq-hub-type">${typeIcon} ${c.type === 'collab' ? 'Collaborative' : 'Solo'}</div>
                   <div class="sq-hub-name">${c.title}</div>
-                  <div class="sq-hub-footer"><span class="sq-hub-xp">+${c.xp} XP</span><span class="sq-done-badge">✓ Done</span></div>
+                  <div class="sq-hub-footer">
+                    <span class="sq-hub-xp">+${c.xp} XP</span>
+                    ${doneTileId ? `<button class="sq-view-lesson-btn" data-sq-tile="${doneTileId}">📖 View Lesson</button>` : ''}
+                    <span class="sq-done-badge">✓ Done</span>
+                  </div>
                 </div>`;
               }).join('')
             : `<div class="sq-empty">No completed quests yet — keep adventuring!</div>`;
@@ -1843,6 +1904,19 @@ function renderHub() {
       </div>
     </div>
     ${custHTML}
+    ${renderCatchUpModal()}
+    ${STATE.gradeModalOpen && STATE.gradeFromCatchUp ? `
+    <div class="grade-modal-overlay" id="grade-modal-overlay">
+      <div class="grade-modal">
+        <div class="grade-modal-title">📊 Log Your Progress</div>
+        <p class="grade-modal-sub">Enter the grade you received on this lesson's assignment. This keeps your stats current.</p>
+        <input type="number" class="grade-modal-input" id="grade-modal-input" min="0" max="100" placeholder="0 – 100" />
+        <div class="grade-modal-btns">
+          <button class="btn btn-outline-sm" id="grade-modal-skip">Remind Me Later</button>
+          <button class="btn btn-purple" id="grade-modal-submit">✅ Save Grade</button>
+        </div>
+      </div>
+    </div>` : ''}
     ${renderPartnerPickerModal()}
     ${STATE.sqInviteNotifOpen ? renderInviteNotifModal() : ''}
     ${STATE.helpModalOpen ? `
@@ -2180,7 +2254,13 @@ function renderArrivalScreen() {
     <div class="arrival-body">
       <div class="arrival-land-name">Welcome to ${land.name}</div>
       <hr class="arrival-divider"/>
-      <p class="arrival-intro">You have arrived at the Verdant Vale, a lush land of ancient forests and hidden paths. Your journey as a scholar-adventurer begins here. Prove your mastery and face the challenges that await.</p>
+      <div class="arrival-intro">
+        <p>You have arrived at the Verdant Vale — a land where ancient trees grow so tall their canopies swallow the sky, and every rustling leaf sounds like a whispered story waiting to be told.</p>
+        <p>The Thornkin people make their home here among the roots and moss. Small, quick, and woven from bark and living green, they are the keepers of every tale the forest holds. They speak in riddles, trade in questions, and trust only those who can prove they truly understand what they read — not just the words, but the meaning beneath them.</p>
+        <p>They have been watching you since you arrived.</p>
+        <p>But something else watches too. Deep in the heart of the Vale, where the oldest trees grow dark and close together, a presence stirs. The Thornkin call her Seraphine. They do not say her name loudly. They say she was once a guardian — but that something changed her, and now she tests those who dare to seek mastery in her forest. Not everyone who enters the deep wood comes back out.</p>
+        <p>Your journey as a scholar-adventurer begins here. Earn the trust of the Thornkin. Master the skills of this land. And when the time comes — face whatever waits for you in the dark.</p>
+      </div>
       <button class="arrival-btn" id="arrival-begin">Begin Your Quest! ⚔️</button>
     </div>
   </div>`;
@@ -2359,70 +2439,29 @@ function renderLessonStop() {
         <div class="ls-breadcrumb">
           <span class="ls-bc-land">${land.name}</span>
           <span class="ls-bc-sep">›</span>
-          <span class="ls-bc-tile">${tile.name || ""}</span>
+          <span class="ls-bc-tile">${tile.name || ""}${tile.sessionTitle ? ` — ${tile.sessionTitle}` : ""}</span>
         </div>
-      </div>
-
-      <button class="ls-video-btn enter" id="ls-video-btn" style="animation-delay:.05s">
-        <span class="ls-play-icon">▶</span>
-        <span>Open Video Lesson</span>
-      </button>
-
-      <div class="ls-session-card enter" style="animation-delay:.08s">
-        <div class="ls-session-title">${title}</div>
-        ${desc ? `<div class="ls-session-desc">${desc}</div>` : ""}
       </div>
 
       ${(() => {
         const loreText = tile.sessionLore || land.lore;
         if (!loreText) return '';
-        return `<div class="ls-lore enter" style="animation-delay:.10s">
+        return `<div class="ls-lore enter" style="animation-delay:.05s">
           <div class="ls-lore-inner">
             <span class="ls-lore-icon">📖</span>
             <p class="ls-lore-text">${loreText}</p>
           </div>
         </div>`;
       })()}
+
+      <button class="ls-video-btn enter" id="ls-video-btn" style="animation-delay:.10s">
+        <span class="ls-play-icon">▶</span>
+        <span>Open Video Lesson</span>
+      </button>
       <div class="ls-tiers enter" style="animation-delay:.12s">
         ${tierHTML(mustDo, "mustDo", "ls-tier-must", "🔴", "Must Do")}
       </div>
 
-      ${(tile.type === 'lesson' && isCompleted) ? (() => {
-        const soloIdx  = pickQuestIdx(SOLO_QUESTS,  tile.id, 1);
-        const collabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
-        const solo  = SOLO_QUESTS[soloIdx];
-        const collab = COLLAB_QUESTS[collabIdx];
-        const activeSQ = student ? getActiveSideQuests(student) : {};
-        const soloKey  = `${tile.id}_solo`;
-        const collabKey = `${tile.id}_collab`;
-        const soloAccepted  = !!activeSQ[soloKey];
-        const collabAccepted = !!activeSQ[collabKey];
-        return `<div class="ls-side-quests enter" style="animation-delay:.14s">
-          <div class="ls-sq-header">⚔️ Side Quests <span class="ls-sq-sub">Optional — earn bonus XP</span></div>
-          <div class="ls-sq-card ls-sq-solo">
-            <div class="ls-sq-type">🗡️ Solo Quest</div>
-            <div class="ls-sq-name">${solo.title}</div>
-            <div class="ls-sq-desc">${solo.desc}</div>
-            <div class="ls-sq-footer">
-              <span class="ls-sq-xp">+${solo.xp} XP</span>
-              ${soloAccepted
-                ? `<span class="ls-sq-accepted">✓ Accepted</span>`
-                : `<button class="ls-sq-accept-btn" data-sq-key="${soloKey}" data-sq-idx="${soloIdx}" data-sq-type="solo" data-sq-tile="${tile.id}">Accept</button>`}
-            </div>
-          </div>
-          <div class="ls-sq-card ls-sq-collab">
-            <div class="ls-sq-type">🤝 Collaborative</div>
-            <div class="ls-sq-name">${collab.title}</div>
-            <div class="ls-sq-desc">${collab.desc}</div>
-            <div class="ls-sq-footer">
-              <span class="ls-sq-xp">+${collab.xp} XP</span>
-              ${collabAccepted
-                ? `<span class="ls-sq-accepted">✓ Accepted</span>`
-                : `<button class="ls-sq-accept-btn" data-sq-key="${collabKey}" data-sq-idx="${collabIdx}" data-sq-type="collab" data-sq-tile="${tile.id}">Accept</button>`}
-            </div>
-          </div>
-        </div>`;
-      })() : ''}
 
       <button class="ls-submit-btn enter" id="ls-submit" ${(!isActionable || !mustAllDone) ? "disabled" : ""} data-completed="${!isActionable}" style="animation-delay:.18s">
         ${!isActionable ? "Quest Complete ✓" : mustAllDone ? "✅ I'm Ready!" : "🔒 Complete Must Do tasks to continue"}
@@ -2784,8 +2823,8 @@ function renderQuestMap() {
       const collabIdx = pickQuestIdx(COLLAB_QUESTS, t.id, 2);
       const lessonDone = completed.includes(t.id);
       return [
-        { q: SOLO_QUESTS[soloIdx],   type:'solo',  idx:soloIdx,   key:`${t.id}_solo`,  tileId:t.id, lessonDone },
-        { q: COLLAB_QUESTS[collabIdx], type:'collab', idx:collabIdx, key:`${t.id}_collab`, tileId:t.id, lessonDone },
+        { q: SOLO_QUESTS[soloIdx],   type:'solo',  idx:soloIdx,   key:`${t.id}_solo`,  tileId:t.id, lessonDone, tileName:t.name },
+        { q: COLLAB_QUESTS[collabIdx], type:'collab', idx:collabIdx, key:`${t.id}_collab`, tileId:t.id, lessonDone, tileName:t.name },
       ];
     }).flat();
     return `<div class="sq-board-overlay" id="sq-board-overlay">
@@ -2794,15 +2833,16 @@ function renderQuestMap() {
         <div class="sq-board-title">📜 Side Quest Board</div>
         <div class="sq-board-subtitle">${land.name}</div>
         <div class="sq-board-list">
-          ${rows.map(({ q, type, idx, key, tileId, lessonDone }) => {
+          ${rows.map(({ q, type, idx, key, tileId, lessonDone, tileName }) => {
             const isActive    = !!activeSQ[key];
             const isDone      = completedSQ.some(c => c.key === key);
             const locked      = !lessonDone;
             const typeIcon    = type === 'collab' ? '🤝' : '🗡️';
+            const isAvail = !isDone && !isActive && !locked;
             const statusBadge = isDone ? `<span class="sq-board-badge sq-board-done">✓ Done</span>`
               : isActive ? `<span class="sq-board-badge sq-board-active">⚡ Active</span>`
               : locked   ? `<span class="sq-board-badge sq-board-locked">🔒 Locked</span>`
-              :            `<span class="sq-board-badge sq-board-avail">Available</span>`;
+              :            `<button class="ls-sq-accept-btn sq-board-accept sq-board-badge sq-board-accept-badge" data-sq-key="${key}" data-sq-idx="${idx}" data-sq-type="${type}" data-sq-tile="${tileId}">Accept</button>`;
             return `<div class="sq-board-row${locked ? ' sq-board-row-locked' : ''}">
               <div class="sq-board-row-info">
                 <span class="sq-board-row-type">${typeIcon} ${type === 'collab' ? 'Collab' : 'Solo'}</span>
@@ -2811,7 +2851,7 @@ function renderQuestMap() {
               </div>
               <div class="sq-board-row-right">
                 ${statusBadge}
-                ${!locked && !isDone && !isActive ? `<button class="ls-sq-accept-btn sq-board-accept" data-sq-key="${key}" data-sq-idx="${idx}" data-sq-type="${type}" data-sq-tile="${tileId}">Accept</button>` : ''}
+                <button class="sq-view-lesson-btn" data-sq-tile="${tileId}">📖 Lesson${tileName ? ` · ${tileName}` : ''}</button>
               </div>
             </div>`;
           }).join('')}
@@ -3742,11 +3782,8 @@ function bindEvents() {
     $("continue-quest-btn") && $("continue-quest-btn").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
     $("grade-reminder-banner") && $("grade-reminder-banner").addEventListener("click", () => {
       const reminders = getGradeReminders(STATE.student.id);
-      const keys = Object.keys(reminders).sort((a, b) => Number(a) - Number(b));
-      if (!keys.length) return;
-      STATE.gradeModalOpen = true;
-      STATE.gradeModalLessonId = Number(keys[0]);
-      STATE.screen = "quest-map";
+      if (!Object.keys(reminders).length) return;
+      STATE.catchUpModalOpen = true;
       mount();
     });
     $("sq-invite-badge") && $("sq-invite-badge").addEventListener("click", () => {
@@ -3782,6 +3819,49 @@ function bindEvents() {
         }
         STATE.sqInviteNotifOpen = false; mount();
       });
+    }
+    // Catch-up modal handlers
+    if (STATE.catchUpModalOpen) {
+      $("catchup-close") && $("catchup-close").addEventListener("click", () => {
+        STATE.catchUpModalOpen = false; mount();
+      });
+      $("catchup-modal-overlay") && $("catchup-modal-overlay").addEventListener("click", e => {
+        if (e.target === $("catchup-modal-overlay")) { STATE.catchUpModalOpen = false; mount(); }
+      });
+      document.querySelectorAll(".catchup-log-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          STATE.gradeModalLessonId = Number(btn.dataset.lessonId);
+          STATE.gradeModalOpen = true;
+          STATE.gradeFromCatchUp = true;
+          mount();
+        });
+      });
+    }
+    // Grade modal handlers (catch-up flow on hub)
+    if (STATE.gradeModalOpen && STATE.gradeFromCatchUp) {
+      const gradeInput = $("grade-modal-input");
+      const gradeClose = () => {
+        STATE.gradeModalOpen = false;
+        STATE.gradeFromCatchUp = false;
+        STATE.gradeModalLessonId = null;
+        STATE.catchUpModalOpen = true;
+        mount();
+      };
+      $("grade-modal-skip") && $("grade-modal-skip").addEventListener("click", () => {
+        if (STATE.gradeModalLessonId != null) saveGradeReminder(STATE.student.id, STATE.gradeModalLessonId);
+        gradeClose();
+      });
+      $("grade-modal-submit") && $("grade-modal-submit").addEventListener("click", () => {
+        const val = parseInt(gradeInput ? gradeInput.value : "");
+        if (isNaN(val) || val < 0 || val > 100) { gradeClose(); return; }
+        const hp = gradeToHP(val);
+        const lessonId = STATE.gradeModalLessonId;
+        saveStudentOverride(STATE.student.id, { hp });
+        saveGradeLog(STATE.student.id, lessonId, val, hp);
+        if (lessonId != null) clearGradeReminder(STATE.student.id, lessonId);
+        gradeClose();
+      });
+      gradeInput && setTimeout(() => gradeInput.focus(), 50);
     }
     // Customize button — opens full customize overlay
     $("cust-btn") && $("cust-btn").addEventListener("click", () => {
@@ -3864,6 +3944,18 @@ function bindEvents() {
     document.querySelectorAll(".btn-sq-complete").forEach(btn => {
       btn.addEventListener("click", () => {
         completeSideQuest(STATE.student, btn.dataset.sqKey);
+      });
+    });
+    // View Lesson buttons on side quest cards
+    document.querySelectorAll(".sq-view-lesson-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tileId = parseInt(btn.dataset.sqTile);
+        const found = findTileById(tileId);
+        if (!found) return;
+        STATE.lessonTile = found.tile;
+        STATE.lessonLand = found.land;
+        STATE.screen = "lesson-stop";
+        mount();
       });
     });
     // Side quest accept buttons in quest journal
@@ -4333,6 +4425,19 @@ function bindEvents() {
     });
     $("sq-board-close") && $("sq-board-close").addEventListener("click", () => { STATE.sqBoardOpen = false; mount(); });
     $("sq-board-overlay") && $("sq-board-overlay").addEventListener("click", e => { if (e.target === $("sq-board-overlay")) { STATE.sqBoardOpen = false; mount(); } });
+    // View Lesson buttons in sq-board
+    document.querySelectorAll(".sq-view-lesson-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tileId = parseInt(btn.dataset.sqTile);
+        const found = findTileById(tileId);
+        if (!found) return;
+        STATE.sqBoardOpen = false;
+        STATE.lessonTile = found.tile;
+        STATE.lessonLand = found.land;
+        STATE.screen = "lesson-stop";
+        mount();
+      });
+    });
     document.querySelectorAll(".sq-board-accept").forEach(btn => {
       btn.addEventListener("click", () => {
         const key = btn.dataset.sqKey;
