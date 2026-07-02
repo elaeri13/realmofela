@@ -996,11 +996,31 @@ input  { font-family: var(--font-body); }
 .hp-flash { animation:hpFlash .7s ease; }
 @keyframes hpFloat { 0%{opacity:1;transform:translateY(0)} 100%{opacity:0;transform:translateY(-40px)} }
 .hp-floater { position:absolute; top:10px; right:16px; font-size:16px; font-weight:900; color:#EF4444; animation:hpFloat .9s ease forwards; pointer-events:none; z-index:50; }
-/* Potion request panel on teacher dashboard */
-.potion-alert { background:rgba(239,68,68,.08); border:1.5px solid rgba(239,68,68,.4); border-radius:12px; padding:14px 16px; margin:0 0 16px; }
-.potion-alert-hdr { font-size:14px; font-weight:800; color:#FCA5A5; margin-bottom:10px; }
-.potion-req-row { display:flex; align-items:center; gap:10px; padding:6px 0; border-top:1px solid rgba(239,68,68,.15); flex-wrap:wrap; }
+/* Crafting station modal */
+.crafting-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:200; display:flex; align-items:center; justify-content:center; padding:16px; }
+.crafting-modal { background:#1E1B2E; border:2px solid rgba(167,139,250,.35); border-radius:20px; padding:28px 24px 24px; width:100%; max-width:380px; max-height:90vh; overflow-y:auto; position:relative; }
+.crafting-title { font-size:18px; font-weight:900; color:#EDE9FE; text-align:center; margin-bottom:4px; }
+.crafting-subtitle { font-size:13px; color:#94A3B8; text-align:center; margin-bottom:20px; }
+.crafting-close { position:absolute; top:12px; right:14px; background:none; border:none; color:#6B7280; font-size:18px; cursor:pointer; line-height:1; }
+.crafting-close:hover { color:#EDE9FE; }
+.crafting-back { position:absolute; top:12px; left:14px; background:none; border:none; color:#94A3B8; font-size:13px; cursor:pointer; font-family:inherit; }
+.crafting-back:hover { color:#EDE9FE; }
+.crafting-cards { display:flex; flex-direction:column; gap:12px; }
+.crafting-card { background:rgba(255,255,255,.05); border:1.5px solid rgba(255,255,255,.1); border-radius:14px; padding:16px 18px; display:flex; align-items:center; gap:14px; cursor:pointer; transition:background .15s,border-color .15s; }
+.crafting-card:hover { background:rgba(167,139,250,.15); border-color:rgba(167,139,250,.5); }
+.crafting-card-icon { font-size:32px; flex-shrink:0; }
+.crafting-card-name { font-size:15px; font-weight:800; color:#EDE9FE; display:block; }
+.crafting-card-desc { font-size:12px; color:#94A3B8; display:block; margin-top:2px; }
+.crafting-selected-card { display:flex; flex-direction:column; align-items:center; gap:6px; padding:20px; background:rgba(167,139,250,.08); border-radius:14px; margin-bottom:20px; }
+.crafting-checkbox-row { display:flex; align-items:flex-start; gap:10px; font-size:13px; color:#CBD5E1; line-height:1.5; margin-bottom:18px; cursor:pointer; }
+.crafting-checkbox-row input[type=checkbox] { margin-top:3px; flex-shrink:0; width:16px; height:16px; accent-color:#A78BFA; cursor:pointer; }
+.crafting-submit:disabled { opacity:.4; cursor:not-allowed; }
+/* Crafting submissions panel on teacher dashboard */
+.potion-alert { background:rgba(167,139,250,.08); border:1.5px solid rgba(167,139,250,.3); border-radius:12px; padding:14px 16px; margin:0 0 16px; }
+.potion-alert-hdr { font-size:14px; font-weight:800; color:#C4B5FD; margin-bottom:10px; }
+.potion-req-row { display:flex; align-items:center; gap:10px; padding:6px 0; border-top:1px solid rgba(167,139,250,.15); flex-wrap:wrap; }
 .potion-req-name { font-size:13px; font-weight:700; color:#EDE9FE; flex:1; min-width:100px; }
+.potion-req-item { font-size:13px; color:#C4B5FD; font-weight:600; }
 .potion-req-time { font-size:11px; color:#94A3B8; }
 .btn-approve-potion { background:#10B981; color:#fff; border:none; border-radius:8px; padding:5px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
 .btn-approve-potion:hover { background:#059669; }

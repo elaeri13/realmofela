@@ -3634,18 +3634,18 @@ function bindEvents() {
       mount();
     });
 
-    // Potion approve / deny
+    // Crafting approve / deny
     document.querySelectorAll("[data-approve-potion]").forEach(btn => {
       btn.addEventListener("click", e => {
         e.stopPropagation();
-        approveHealthPotion(parseInt(btn.dataset.approvePotion, 10));
+        approveCraft(parseInt(btn.dataset.approvePotion, 10));
         mount();
       });
     });
     document.querySelectorAll("[data-deny-potion]").forEach(btn => {
       btn.addEventListener("click", e => {
         e.stopPropagation();
-        denyHealthPotion(parseInt(btn.dataset.denyPotion, 10));
+        denyCraft(parseInt(btn.dataset.denyPotion, 10));
         mount();
       });
     });
