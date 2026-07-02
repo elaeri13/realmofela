@@ -559,6 +559,11 @@ input  { font-family: var(--font-body); }
 .hub-inv-bosses { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 .hub-2col-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 .char-col-stats { display:flex; flex-direction:column; }
+.guild-banner { display:flex; align-items:center; gap:10px; margin-top:12px; padding:10px 12px; border:1.5px solid; border-radius:10px; }
+.guild-banner-crest { flex-shrink:0; object-fit:contain; }
+.guild-banner-info { display:flex; flex-direction:column; gap:1px; }
+.guild-banner-label { font-size:9px; font-weight:900; color:var(--text-light); text-transform:uppercase; letter-spacing:.6px; }
+.guild-banner-name { font-size:13px; font-weight:900; font-family:var(--font-display); }
 @media (max-width:600px) {
   .char-card-cols { grid-template-columns:1fr; }
   .hub-inv-bosses { grid-template-columns:1fr; }
