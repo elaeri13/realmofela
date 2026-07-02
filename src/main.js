@@ -1,4 +1,4 @@
-import { db, ref, set, get, update, onValue } from './firebaseClient.js'
+import { db, ref, set, get, update, onValue, push, query, limitToLast } from './firebaseClient.js'
 
 /* ═══════════════════════════════════════════════
    REALM OF ELA  —  Pure Vanilla JS
@@ -166,7 +166,7 @@ function hasCompletedAnyBoss(student) {
 
 /* ─── QUEST BOARD DATA ─── */
 const QB = { W:1050, H:430, TILE:80, DTILE:96, LTILE:66 };
-const LW = { W:1050, H:560, TILE:88, BTILE:96, DTILE:132, ETILE:120, LTILE:72 };
+const LW = { W:1050, H:560, TILE:88, BTILE:96, DTILE:132, ETILE:120, LTILE:72, NPTILE:120 };
 
 const LANDS = [
   {
@@ -696,6 +696,7 @@ let _overrides = {};       // { studentId: { hp, xp, ... } } — in-memory cache
 let _helpflags = {};       // { studentId: { flaggedAt, message } }
 let _craftRequests = {};   // { studentId: { requestedAt } } — pending potion requests
 let _settings = {};        // { pacing: { startDate, targetDate, targetCount } }
+let _activityLog = {};     // { studentId: { pushKey: { type, message, icon, ts } } }
 
 function getOverrides() {
   return { students: _overrides };
@@ -742,6 +743,8 @@ function approveCraft(studentId) {
   const ov = _overrides[sid] || {};
   const items = [...(ov.items || []), itemKey];
   saveStudentOverride(studentId, { items });
+  const itemDef = ITEMS[itemKey] || { i:'🧪', n: itemKey };
+  logActivity(sid, itemDef.i, `Crafted ${itemDef.n}`);
 }
 function denyCraft(studentId) {
   const sid = String(studentId);
@@ -750,6 +753,21 @@ function denyCraft(studentId) {
 }
 function getPacingSettings() { return (_settings && _settings.pacing) || null; }
 function getBossOpenKeys() { return (_settings && _settings.bossOpenKeys) || []; }
+function logActivity(studentId, icon, message) {
+  const sid = String(studentId);
+  const entry = { icon, message, ts: new Date().toISOString() };
+  const logRef = push(ref(db, `activityLog/${sid}`));
+  set(logRef, entry).catch(console.error);
+  if (!_activityLog[sid]) _activityLog[sid] = {};
+  _activityLog[sid][logRef.key] = entry;
+  const keys = Object.keys(_activityLog[sid]).sort();
+  if (keys.length > 20) keys.slice(0, keys.length - 20).forEach(k => delete _activityLog[sid][k]);
+}
+function getActivityLog(studentId) {
+  const sid = String(studentId);
+  const log = _activityLog[sid] || {};
+  return Object.entries(log).sort(([a],[b]) => b.localeCompare(a)).slice(0, 20).map(([,v]) => v);
+}
 function setBossOpen(landId, tileId, open) {
   if (!_settings) _settings = {};
   const key = `${landId}-${tileId}`;
@@ -856,7 +874,9 @@ function completeSideQuest(student, key) {
     key, title: quest.title, type: entry.type, xp: quest.xp, completedAt: new Date().toISOString()
   }].slice(-20);
   saveStudentOverride(sid, { sideQuests: Object.keys(sq).length ? sq : null, completedQuests: history });
+  logActivity(sid, '✨', `Completed quest: ${quest.title} (+${quest.xp} XP)`);
   const { levelsGained, newLevel } = awardXP(student, quest.xp);
+  if (levelsGained > 0) logActivity(sid, '⬆️', `Reached Level ${newLevel}!`);
   showXPCelebration(quest.xp, levelsGained, newLevel, () => mount());
 }
 function getGuildCounts() {
@@ -1533,6 +1553,20 @@ function renderHub() {
         </div>`).join("")
     : `<p class="boss-empty">No bosses defeated yet — your quest awaits!</p>`;
 
+  const actEntries = getActivityLog(STATE.student.id);
+  const actFeedHTML = actEntries.length
+    ? actEntries.map(e => {
+        const d = new Date(e.ts);
+        const timeStr = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        const dateStr = d.toLocaleDateString([], {month:'short', day:'numeric'});
+        return `<div class="act-entry">
+          <span class="act-icon">${e.icon}</span>
+          <span class="act-msg">${e.message}</span>
+          <span class="act-time">${dateStr} ${timeStr}</span>
+        </div>`;
+      }).join('')
+    : `<p class="act-empty">No activity yet — start your quest!</p>`;
+
   return `
   <div class="screen hub-screen">
     ${starsHTML()}
@@ -1732,6 +1766,10 @@ function renderHub() {
         <div class="panel-title">🏆 Bosses Defeated</div>
         <div class="boss-list">${bossRows}</div>
       </div>
+      <div class="hub-panel act-feed-panel enter" style="animation-delay:.22s">
+        <div class="panel-title">📰 Activity Feed</div>
+        <div class="act-feed">${actFeedHTML}</div>
+      </div>
       <div class="hub-actions enter" style="animation-delay:.25s">
         <button class="btn btn-gold" id="continue-quest-btn">⚔️ Continue Quest</button>
         <button class="btn ${STATE.helpFlagged?"btn-red btn-red-dim":"btn-red"}" id="help-btn" ${STATE.helpFlagged?"disabled":""}>
@@ -1883,7 +1921,7 @@ function landTileSVG(tile, biome, state, board) {
     const npcName = npcData ? npcData.name : "???";
     const npcImg  = npcData ? npcData.image : "";
     const tc = NPC_TYPE_COLOR[npcType] || "#888";
-    const ts = LW.TILE, r = Math.round(ts * .14);
+    const ts = LW.NPTILE, r = Math.round(ts * .14);
     const tx = x - ts/2, ty = y - ts/2;
     const locked = state === "locked";
     const clipId = `npc-clip-${id}`;
@@ -1895,7 +1933,7 @@ function landTileSVG(tile, biome, state, board) {
       : `<rect width="${ts}" height="${ts}" rx="${r}" fill="#1a1235"/><text x="${ts/2}" y="${ts/2}" text-anchor="middle" dominant-baseline="central" font-size="28">👤</text>`;
     const overlay = locked
       ? `<rect width="${ts}" height="${ts}" rx="${r}" fill="rgba(0,0,0,.82)"/><text x="${ts/2}" y="${ts/2+1}" text-anchor="middle" dominant-baseline="central" font-size="20">🔒</text>`
-      : `<rect width="${ts}" height="${ts}" rx="${r}" fill="rgba(0,0,0,.22)"/>`;
+      : "";
     const typeTag = !locked ? (() => {
       const short = npcType === "EASTER EGG" ? "★" : npcType === "ENCOURAGEMENT" ? "★" : npcType === "HINT" ? "?" : "◆";
       return `<rect x="${ts-22}" y="4" width="18" height="16" rx="4" fill="${tc}" opacity="0.92"/>
@@ -1905,11 +1943,10 @@ function landTileSVG(tile, biome, state, board) {
     const nameFill = locked ? "#4B5563" : "rgba(255,255,255,.78)";
     const nameEl = `<text x="${x}" y="${nameY}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="${nameFill}" font-family="Arial">${npcName.split(" ")[0]}</text>`;
     const typeEl = !locked ? `<text x="${x}" y="${nameY+11}" text-anchor="middle" font-size="6.5" fill="${tc}" font-family="Arial" font-weight="900" letter-spacing=".8">${npcType}</text>` : "";
-    return `<g data-tid="${id}" data-npc="1" style="cursor:${locked?"default":"pointer"};opacity:0.6">
+    return `<g data-tid="${id}" data-npc="1" style="cursor:${locked?"default":"pointer"}">
       ${hoverGlow}
       <clipPath id="${clipId}"><rect x="0" y="0" width="${ts}" height="${ts}" rx="${r}"/></clipPath>
       <g clip-path="url(#${clipId})" transform="translate(${tx},${ty})">${portrait}${overlay}${typeTag}</g>
-      <rect x="${tx}" y="${ty}" width="${ts}" height="${ts}" rx="${r}" fill="none" stroke="${locked?"#2D3748":tc}" stroke-width="${locked?1.5:2}"/>
       ${nameEl}${typeEl}
     </g>`;
   }
@@ -3660,6 +3697,7 @@ function bindEvents() {
       slot.addEventListener("click", () => {
         const used = useHealthPotion(STATE.student);
         if (!used) return;
+        logActivity(STATE.student.id, '🧪', 'Used Health Potion (+2 HP)');
         // Flash animation before re-render
         const statsPanel = document.querySelector(".stats-panel-wrap");
         if (statsPanel) statsPanel.classList.add("hp-flash");
@@ -3680,6 +3718,7 @@ function bindEvents() {
         STATE.helpFlagged = true;
         STATE.helpModalOpen = false;
         setHelpFlag(STATE.student.id, msg);
+        logActivity(STATE.student.id, '🚩', msg ? `Flagged for help: ${msg.slice(0, 60)}` : 'Flagged for help');
         mount();
         const toast = document.createElement("div");
         toast.className = "toast"; toast.textContent = "🙋 Your teacher has been notified! Hang tight, hero.";
@@ -4205,6 +4244,7 @@ function bindEvents() {
       const completed = [...(pos.completed||[])];
       if (!completed.includes(tile.id)) completed.push(tile.id);
       saveStudentOverride(student.id, { completedTiles: completed });
+      logActivity(student.id, isDungeon ? '🏰' : '⚔️', `Defeated ${tile.name}!`);
       advanceStudentTile(student, land);
       // Determine companion to award
       let companionFile = null;
@@ -4247,6 +4287,8 @@ function bindEvents() {
       const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
       saveTileCompletion(STATE.student.id, tile.id, timeOnPage);
       const { levelsGained, newLevel } = awardXP(STATE.student, xpAmount);
+      logActivity(STATE.student.id, '📖', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xpAmount} XP)`);
+      if (levelsGained > 0) logActivity(STATE.student.id, '⬆️', `Reached Level ${newLevel}!`);
       const hasExitTicket = getExitTicketEnabled(tile.id);
       const isLesson = tile.type === 'lesson';
       const doAdvance = () => {
@@ -4287,7 +4329,10 @@ function bindEvents() {
         const idx  = parseInt(btn.dataset.sqIdx, 10);
         const type = btn.dataset.sqType;
         const tileId = parseInt(btn.dataset.sqTile, 10);
+        const pool = type === 'collab' ? COLLAB_QUESTS : SOLO_QUESTS;
+        const quest = pool[idx] || pool[0];
         acceptSideQuest(STATE.student.id, tileId, type, idx);
+        logActivity(STATE.student.id, type === 'collab' ? '🤝' : '📜', `Accepted quest: ${quest.title}`);
         mount();
       });
     });
@@ -4387,6 +4432,11 @@ function initFirebaseCache() {
       if (!stReady) { stReady = true; checkReady(); }
       else liveMount();
     }, reject);
+
+    onValue(ref(db, 'activityLog'), (snap) => {
+      _activityLog = snap.exists() ? snap.val() : {};
+      liveMount();
+    });
   });
 }
 

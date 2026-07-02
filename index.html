@@ -257,6 +257,13 @@ input  { font-family: var(--font-body); }
 .boss-nm   { flex: 1; font-size: 14px; font-weight: 800; color: var(--text-dark); }
 .boss-std  { font-size: 11px; font-weight: 900; color: white; background: var(--teal-dark); padding: 2px 8px; border-radius: 20px; flex-shrink: 0; }
 .boss-empty{ text-align:center; font-size:14px; font-weight:700; color:var(--text-light); font-style:italic; padding:12px 0; }
+/* Activity Feed */
+.act-feed { display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; }
+.act-entry { display:flex; align-items:flex-start; gap:8px; padding:6px 8px; background:rgba(255,255,255,.06); border-radius:8px; border-left:3px solid rgba(167,139,250,.4); }
+.act-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
+.act-msg  { flex:1; font-size:12px; font-weight:600; color:#E2E8F0; line-height:1.4; }
+.act-time { font-size:9.5px; color:#6B7280; white-space:nowrap; flex-shrink:0; margin-top:2px; }
+.act-empty{ text-align:center; font-size:13px; font-weight:700; color:var(--text-light); font-style:italic; padding:12px 0; }
 
 /* Loading dots */
 .loading-dots { display: flex; justify-content: center; gap: 8px; margin-top: 20px; }
@@ -519,12 +526,13 @@ input  { font-family: var(--font-body); }
 .tt-task-item.done .tt-check { color: #10B981; }
 
 @media (min-width:768px) {
-  .hub-wrap { display: grid; grid-template-columns: 1fr 1fr; grid-template-areas: "hdr hdr" "id stats" "inv bosses" "acts acts"; }
+  .hub-wrap { display: grid; grid-template-columns: 1fr 1fr; grid-template-areas: "hdr hdr" "id stats" "inv bosses" "feed feed" "acts acts"; }
   .hub-header      { grid-area: hdr; }
   .id-panel-wrap   { grid-area: id; }
   .stats-panel-wrap{ grid-area: stats; }
   .inv-panel-wrap  { grid-area: inv; }
   .boss-panel-wrap { grid-area: bosses; }
+  .act-feed-panel  { grid-area: feed; }
   .hub-actions     { grid-area: acts; }
 }
 
