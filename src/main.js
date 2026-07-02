@@ -1698,6 +1698,7 @@ function renderHub() {
           </div>
         </div>
       </div>
+      <div class="hub-inv-bosses">
       <div class="hub-panel inv-panel-wrap enter" style="animation-delay:.12s">
         <div class="panel-title">🎒 Inventory</div>
         <div class="inv-grid">${invSlots}</div>
@@ -1753,6 +1754,7 @@ function renderHub() {
       <div class="hub-panel boss-panel-wrap enter" style="animation-delay:.16s">
         <div class="panel-title">🏆 Bosses Defeated</div>
         <div class="boss-list">${bossRows}</div>
+      </div>
       </div>
       <div class="hub-actions enter" style="animation-delay:.2s">
         <button class="btn btn-gold" id="continue-quest-btn">⚔️ Continue Quest</button>
