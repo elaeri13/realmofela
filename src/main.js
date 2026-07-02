@@ -1921,32 +1921,37 @@ function landTileSVG(tile, biome, state, board) {
     const npcName = npcData ? npcData.name : "???";
     const npcImg  = npcData ? npcData.image : "";
     const tc = NPC_TYPE_COLOR[npcType] || "#888";
-    const ts = LW.NPTILE, r = Math.round(ts * .14);
+    const ts = LW.NPTILE;
     const tx = x - ts/2, ty = y - ts/2;
     const locked = state === "locked";
-    const clipId = `npc-clip-${id}`;
-    const hoverGlow = !locked && !board
-      ? `<rect x="${tx-4}" y="${ty-4}" width="${ts+8}" height="${ts+8}" rx="${r+3}" fill="none" stroke="${tc}" stroke-width="1.5" opacity="0.5"/>`
+    const filterId = `npc-f-${id}`;
+    // Soft aura glow beneath the character — no hard box
+    const aura = !locked
+      ? `<ellipse cx="${x}" cy="${y + ts*0.08}" rx="${ts*0.42}" ry="${ts*0.22}" fill="${tc}" opacity="0.22"/>
+         <ellipse cx="${x}" cy="${y + ts*0.08}" rx="${ts*0.3}" ry="${ts*0.14}" fill="${tc}" opacity="0.18"/>`
       : "";
     const portrait = npcImg
-      ? `<image href="${npcImg}" x="0" y="0" width="${ts}" height="${ts}" preserveAspectRatio="xMidYMid slice"/>`
-      : `<rect width="${ts}" height="${ts}" rx="${r}" fill="#1a1235"/><text x="${ts/2}" y="${ts/2}" text-anchor="middle" dominant-baseline="central" font-size="28">👤</text>`;
-    const overlay = locked
-      ? `<rect width="${ts}" height="${ts}" rx="${r}" fill="rgba(0,0,0,.82)"/><text x="${ts/2}" y="${ts/2+1}" text-anchor="middle" dominant-baseline="central" font-size="20">🔒</text>`
+      ? `<image href="${npcImg}" x="${tx}" y="${ty}" width="${ts}" height="${ts}" preserveAspectRatio="xMidYMid meet" filter="url(#${filterId})"/>`
+      : `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-size="40">👤</text>`;
+    const lockedOverlay = locked
+      ? `<rect x="${tx}" y="${ty}" width="${ts}" height="${ts}" fill="rgba(0,0,0,.72)"/>
+         <text x="${x}" y="${y+1}" text-anchor="middle" dominant-baseline="central" font-size="22">🔒</text>`
       : "";
-    const typeTag = !locked ? (() => {
-      const short = npcType === "EASTER EGG" ? "★" : npcType === "ENCOURAGEMENT" ? "★" : npcType === "HINT" ? "?" : "◆";
-      return `<rect x="${ts-22}" y="4" width="18" height="16" rx="4" fill="${tc}" opacity="0.92"/>
-        <text x="${ts-13}" y="12" text-anchor="middle" dominant-baseline="central" font-size="9" fill="white" font-weight="900" font-family="Arial">${short}</text>`;
-    })() : "";
-    const nameY = ty + ts + 14;
-    const nameFill = locked ? "#4B5563" : "rgba(255,255,255,.78)";
-    const nameEl = `<text x="${x}" y="${nameY}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="${nameFill}" font-family="Arial">${npcName.split(" ")[0]}</text>`;
-    const typeEl = !locked ? `<text x="${x}" y="${nameY+11}" text-anchor="middle" font-size="6.5" fill="${tc}" font-family="Arial" font-weight="900" letter-spacing=".8">${npcType}</text>` : "";
+    const short = npcType === "EASTER EGG" ? "★" : npcType === "ENCOURAGEMENT" ? "★" : npcType === "HINT" ? "?" : "◆";
+    const typeTag = !locked
+      ? `<rect x="${tx+ts-20}" y="${ty+4}" width="16" height="16" rx="8" fill="${tc}" opacity="0.95"/>
+         <text x="${tx+ts-12}" y="${ty+12}" text-anchor="middle" dominant-baseline="central" font-size="9" fill="white" font-weight="900" font-family="Arial">${short}</text>`
+      : "";
+    const nameY = ty + ts + 12;
+    const nameFill = locked ? "#4B5563" : "rgba(255,255,255,.88)";
+    const nameEl = `<text x="${x}" y="${nameY}" text-anchor="middle" font-size="8" font-weight="bold" fill="${nameFill}" font-family="Arial">${npcName.split(" ")[0]}</text>`;
+    const typeEl = !locked ? `<text x="${x}" y="${nameY+11}" text-anchor="middle" font-size="7" fill="${tc}" font-family="Arial" font-weight="900" letter-spacing=".8">${npcType}</text>` : "";
     return `<g data-tid="${id}" data-npc="1" style="cursor:${locked?"default":"pointer"}">
-      ${hoverGlow}
-      <clipPath id="${clipId}"><rect x="0" y="0" width="${ts}" height="${ts}" rx="${r}"/></clipPath>
-      <g clip-path="url(#${clipId})" transform="translate(${tx},${ty})">${portrait}${overlay}${typeTag}</g>
+      <defs><filter id="${filterId}" x="-10%" y="-10%" width="120%" height="120%">
+        <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="${tc}" flood-opacity="0.45"/>
+      </filter></defs>
+      ${aura}
+      ${portrait}${lockedOverlay}${typeTag}
       ${nameEl}${typeEl}
     </g>`;
   }
