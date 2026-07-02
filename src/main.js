@@ -1541,14 +1541,14 @@ function renderHub() {
     return calcPacedSP(STATE.student) !== null;
   })();
   const stats = [
-    ["hp", "❤️", "#EF4444", "#FEE2E2"],
-    ["mp", "💙", "#3B82F6", "#DBEAFE"],
-    ["sp", "💚", "#10B981", "#D1FAE5"],
-  ].map(([k,icon,color,bg]) => {
+    ["hp", "HP", "#EF4444", "#FEE2E2"],
+    ["mp", "MP", "#3B82F6", "#DBEAFE"],
+    ["sp", "SP", "#10B981", "#D1FAE5"],
+  ].map(([k,label,color,bg]) => {
     const val = k === 'sp' ? getEffectiveSP(STATE.student) : s[k];
     const isPaced = k === 'sp' && pacingActive;
     return `<div class="stat-row">
-      <span class="stat-icon">${icon}</span>
+      <span class="stat-lbl">${label}</span>
       <div class="stat-track" style="background:${bg}">
         <div class="stat-fill" style="background:${color}" data-w="${(val/10*100).toFixed(0)}"></div>
         ${isPaced ? '<span class="sp-auto-badge" style="position:absolute;right:6px;top:50%;transform:translateY(-50%)">auto</span>' : ''}
@@ -1634,51 +1634,51 @@ function renderHub() {
         if (!Object.keys(reminders).length) return '';
         return `<button class="grade-reminder-banner" id="grade-reminder-banner">⚠️ You have unlogged grades. Tap here to catch up.</button>`;
       })()}
-      <div class="hub-panel char-card-unified enter" style="animation-delay:.05s;position:relative">
-        <button class="id-cust-btn" id="cust-btn" title="Customize Character">
-          <img src="/icons/icon_pencil.png" alt="Customize" width="20" height="20"/>
-        </button>
+      <div class="hub-panel char-card-unified enter" style="animation-delay:.05s">
         <div class="char-card-cols">
-          <!-- Left: Identity -->
+          <!-- Left: Name, Avatar, Companion toolbar -->
           <div class="char-col-identity">
-            <div class="char-avatar-wrap" style="position:relative">
-              <div class="avatar-ring-xl" style="overflow:hidden;padding:0">
-                <img src="${avatarUrl}" class="hub-avatar-img" alt="Avatar" width="140" height="140"/>
-              </div>
-              ${(() => {
-                const _gOv = getOverrides().students[String(s.id)] || {};
-                const _gKey = _gOv.guild;
-                const _guilds = CLASS_DATA && CLASS_DATA.guilds;
-                if (!_gKey || !_guilds || !_guilds[_gKey]) return "";
-                const _g = _guilds[_gKey];
-                return `<img class="hub-guild-badge" src="${_g.crest}" alt="${_g.name}" width="32" height="32"
-                  style="border-color:${_g.color};top:-6px;right:-6px;bottom:auto" title="${_g.name}"
-                  onerror="this.style.display='none'"/>`;
-              })()}
+            <div class="char-name-row">
+              <div class="char-name">${s.displayName}</div>
+              <button class="id-cust-btn" id="cust-btn" title="Customize Character">
+                <img src="/icons/icon_pencil.png" alt="Customize" width="18" height="18"/>
+              </button>
             </div>
-            <div class="char-name">${s.displayName}</div>
             ${activeTitle ? `<div class="char-title-badge">👑 ${activeTitle}</div>` : ''}
-            <div class="char-companion-wrap">
-              ${activeCompanion ? (() => {
-                const comp = companionByFile(activeCompanion);
-                return `<div class="char-companion-slot">
-                  <img src="/companions/${activeCompanion}" alt="${comp.name}" width="52" height="52"/>
+            <div class="char-avatar-area">
+              <div class="char-avatar-wrap">
+                <div class="avatar-ring-xl" style="overflow:hidden;padding:0">
+                  <img src="${avatarUrl}" class="hub-avatar-img" alt="Avatar" width="250" height="250"/>
                 </div>
-                <span class="char-companion-name">${comp.name}</span>`;
-              })() : `<div class="char-companion-slot char-companion-empty">
-                <span style="font-size:22px;opacity:.35">🐾</span>
               </div>
-              <span class="char-companion-name" style="opacity:.45">Companion</span>`}
+              <div class="char-companion-slot${activeCompanion ? '' : ' char-companion-empty'}" title="${activeCompanion ? (() => { const c = companionByFile(activeCompanion); return c.name; })() : 'No companion'}">
+                ${activeCompanion ? `<img src="/companions/${activeCompanion}" alt="companion" width="65" height="65"/>` : `<span style="font-size:22px;opacity:.35">🐾</span>`}
+                <span class="char-companion-name">${activeCompanion ? companionByFile(activeCompanion).name : 'Companion'}</span>
+              </div>
             </div>
           </div>
           <!-- Middle: Equipment -->
           <div class="char-col-equip">
-            <div class="char-col-hdr">Equipment</div>
             <div class="equip-slot-col">${equipSlotsHTML}</div>
           </div>
           <!-- Right: Stats -->
           <div class="char-col-stats">
-            <div class="char-col-hdr">Battle Stats</div>
+            <div class="char-level-stat">⭐ Level ${s.level}</div>
+            ${(() => {
+              const _gOv = getOverrides().students[String(s.id)] || {};
+              const _gKey = _gOv.guild;
+              const _guilds = CLASS_DATA && CLASS_DATA.guilds;
+              if (!_gKey || !_guilds || !_guilds[_gKey]) return '';
+              const _g = _guilds[_gKey];
+              return `<div class="guild-banner" style="margin-top:8px;border-color:${_g.color};background:${_g.color}18">
+                <img class="guild-banner-crest" src="${_g.crest}" alt="${_g.name}" width="40" height="40" onerror="this.style.display='none'"/>
+                <div class="guild-banner-info">
+                  <span class="guild-banner-label">Guild</span>
+                  <span class="guild-banner-name" style="color:${_g.color}">${_g.name}</span>
+                </div>
+              </div>`;
+            })()}
+            <div class="char-col-hdr" style="margin-top:50px">Battle Stats</div>
             ${stats}
             <div class="xp-sect" style="margin-top:10px;padding-top:10px">
               <div class="xp-hdr"><span class="xp-lbl">✨ XP</span><span class="xp-nums">${s.xp} / ${s.xpNext}</span></div>
@@ -1687,21 +1687,6 @@ function renderHub() {
                 <span class="xp-pct">${xpPct}%</span>
               </div>
             </div>
-            <div class="char-level-stat">⭐ Level ${s.level}</div>
-            ${(() => {
-              const _gOv = getOverrides().students[String(s.id)] || {};
-              const _gKey = _gOv.guild;
-              const _guilds = CLASS_DATA && CLASS_DATA.guilds;
-              if (!_gKey || !_guilds || !_guilds[_gKey]) return '';
-              const _g = _guilds[_gKey];
-              return `<div class="guild-banner" style="border-color:${_g.color};background:${_g.color}18">
-                <img class="guild-banner-crest" src="${_g.crest}" alt="${_g.name}" width="40" height="40" onerror="this.style.display='none'"/>
-                <div class="guild-banner-info">
-                  <span class="guild-banner-label">Guild</span>
-                  <span class="guild-banner-name" style="color:${_g.color}">${_g.name}</span>
-                </div>
-              </div>`;
-            })()}
           </div>
         </div>
       </div>
