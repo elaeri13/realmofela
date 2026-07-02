@@ -952,14 +952,39 @@ input  { font-family: var(--font-body); }
 .btn-sq-accept:hover { background:#6D28D9; }
 .btn-sq-close { background:rgba(245,158,11,.15); border:1.5px solid #F59E0B; color:#FDE68A; border-radius:10px; padding:10px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; text-align:center; }
 .btn-sq-close:hover { background:rgba(245,158,11,.28); }
-/* Side Quest Hub Panel */
-.sq-hub-panel { display:flex; flex-direction:column; gap:10px; }
+/* Inline side quests in lesson modal */
+.ls-side-quests { display:flex; flex-direction:column; gap:10px; margin-bottom:4px; }
+.ls-sq-header { font-size:14px; font-weight:800; color:#FDE68A; display:flex; align-items:baseline; gap:8px; }
+.ls-sq-sub { font-size:11px; font-weight:500; color:#94A3B8; }
+.ls-sq-card { border-radius:12px; padding:12px 14px; display:flex; flex-direction:column; gap:6px; }
+.ls-sq-solo  { background:rgba(124,58,237,.15); border:1.5px solid rgba(124,58,237,.45); }
+.ls-sq-collab { background:rgba(16,185,129,.1); border:1.5px solid rgba(16,185,129,.35); }
+.ls-sq-type { font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; opacity:.8; }
+.ls-sq-solo .ls-sq-type { color:#A78BFA; }
+.ls-sq-collab .ls-sq-type { color:#6EE7B7; }
+.ls-sq-name { font-size:14px; font-weight:800; color:#EDE9FE; }
+.ls-sq-desc { font-size:12px; color:#C4B5FD; line-height:1.4; }
+.ls-sq-footer { display:flex; align-items:center; justify-content:space-between; margin-top:2px; }
+.ls-sq-xp { font-size:12px; font-weight:700; color:#FDE68A; }
+.ls-sq-accepted { font-size:12px; font-weight:700; color:#6EE7B7; }
+.ls-sq-accept-btn { background:#7C3AED; color:#fff; border:none; border-radius:8px; padding:5px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
+.ls-sq-accept-btn:hover { background:#6D28D9; }
+/* Quest Journal (hub) */
+.sq-hub-panel { display:flex; flex-direction:column; gap:0; }
+.qj-tabs { display:flex; gap:6px; margin:4px 0 12px; }
+.qj-tab { background:transparent; border:1px solid rgba(245,158,11,.25); color:#94A3B8; border-radius:8px; padding:5px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s,color .15s,border-color .15s; }
+.qj-tab.qj-tab-active { background:rgba(245,158,11,.18); border-color:#F59E0B; color:#FDE68A; }
+.qj-tab:hover:not(.qj-tab-active) { background:rgba(245,158,11,.08); color:#EDE9FE; }
+.qj-body { display:flex; flex-direction:column; gap:10px; }
 .sq-hub-card { background:rgba(245,158,11,.08); border:1.5px solid rgba(245,158,11,.3); border-radius:12px; padding:12px 14px; display:flex; flex-direction:column; gap:6px; }
+.sq-done-card { background:rgba(100,116,139,.08); border-color:rgba(100,116,139,.25); opacity:.8; }
 .sq-hub-type { font-size:10px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:#F59E0B; opacity:.8; }
 .sq-hub-name { font-size:14px; font-weight:800; color:#FDE68A; }
 .sq-hub-desc { font-size:12px; color:#C4B5FD; line-height:1.4; }
 .sq-hub-footer { display:flex; align-items:center; justify-content:space-between; margin-top:4px; }
 .sq-hub-xp { font-size:12px; font-weight:700; color:#FDE68A; }
+.sq-done-badge { font-size:11px; font-weight:700; color:#6EE7B7; }
+.sq-empty { font-size:12px; color:#64748B; font-style:italic; text-align:center; padding:12px 0; }
 .btn-sq-complete { background:#F59E0B; color:#1E1B4B; border:none; border-radius:8px; padding:6px 14px; font-size:12px; font-weight:800; cursor:pointer; font-family:inherit; }
 .btn-sq-complete:hover { background:#D97706; }
 /* Lesson Lore — parchment block */

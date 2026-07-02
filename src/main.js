@@ -843,11 +843,10 @@ function completeSideQuest(student, key) {
   const pool = entry.type === 'collab' ? COLLAB_QUESTS : SOLO_QUESTS;
   const quest = pool[entry.questIdx] || pool[0];
   delete sq[key];
-  if (Object.keys(sq).length === 0) {
-    saveStudentOverride(sid, { sideQuests: null });
-  } else {
-    saveStudentOverride(sid, { sideQuests: sq });
-  }
+  const history = [...(ov.completedQuests || []), {
+    key, title: quest.title, type: entry.type, xp: quest.xp, completedAt: new Date().toISOString()
+  }].slice(-20);
+  saveStudentOverride(sid, { sideQuests: Object.keys(sq).length ? sq : null, completedQuests: history });
   const { levelsGained, newLevel } = awardXP(student, quest.xp);
   showXPCelebration(quest.xp, levelsGained, newLevel, () => mount());
 }
@@ -1091,6 +1090,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               companionPickerOpen:false, companionPickerStudentId:null,
               mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
               sideQuestModalOpen:false, sideQuestTileId:null, sideQuestSoloIdx:0, sideQuestCollabIdx:0,
+              questJournalTab:'active',
               craftingOpen:false, craftingStep:1, craftingSelected:null,
               lessonOpenedAt:null,
               npcOpen:false, currentNpcKey:null,
@@ -1651,26 +1651,72 @@ function renderHub() {
         }
       })() : ''}
       ${(() => {
-        const sq = getActiveSideQuests(STATE.student);
-        const entries = Object.entries(sq);
-        if (!entries.length) return '';
-        const cards = entries.map(([key, e]) => {
-          const pool = e.type === 'collab' ? COLLAB_QUESTS : SOLO_QUESTS;
-          const q = pool[e.questIdx] || pool[0];
-          const typeIcon = e.type === 'collab' ? '🤝' : '🗡️';
-          return `<div class="sq-hub-card">
-            <div class="sq-hub-type">${typeIcon} ${e.type === 'collab' ? 'Collaborative' : 'Solo'}</div>
-            <div class="sq-hub-name">${q.title}</div>
-            <div class="sq-hub-desc">${q.desc}</div>
-            <div class="sq-hub-footer">
-              <span class="sq-hub-xp">+${q.xp} XP</span>
-              <button class="btn-sq-complete" data-sq-key="${key}">✓ Mark Complete</button>
-            </div>
-          </div>`;
-        }).join('');
+        const activeSQ = getActiveSideQuests(STATE.student);
+        const activeEntries = Object.entries(activeSQ);
+        const ov = _overrides[String(STATE.student.id)] || {};
+        const completedSQ = ov.completedQuests || [];
+        const pos = getLandPos(STATE.student);
+        const curLand = getLandData(pos.land);
+        const curTile = curLand.tiles.find(t => t.id === pos.tile);
+        const availQuests = [];
+        if (curTile && curTile.type === 'lesson') {
+          const soloIdx  = pickQuestIdx(SOLO_QUESTS,  curTile.id, 1);
+          const collabIdx = pickQuestIdx(COLLAB_QUESTS, curTile.id, 2);
+          const soloKey  = `${curTile.id}_solo`;
+          const collabKey = `${curTile.id}_collab`;
+          if (!activeSQ[soloKey])  availQuests.push({ key: soloKey,  q: SOLO_QUESTS[soloIdx],   type:'solo',  idx: soloIdx,  tileId: curTile.id });
+          if (!activeSQ[collabKey]) availQuests.push({ key: collabKey, q: COLLAB_QUESTS[collabIdx], type:'collab', idx: collabIdx, tileId: curTile.id });
+        }
+        const tab = STATE.questJournalTab || 'active';
+        const tabs = ['available','active','completed'].map(t =>
+          `<button class="qj-tab${tab===t?' qj-tab-active':''}" data-qj-tab="${t}">${t==='available'?'Available':t==='active'?'Active':'Completed'}</button>`
+        ).join('');
+        const activeContent = activeEntries.length
+          ? activeEntries.map(([key, e]) => {
+              const pool = e.type === 'collab' ? COLLAB_QUESTS : SOLO_QUESTS;
+              const q = pool[e.questIdx] || pool[0];
+              const typeIcon = e.type === 'collab' ? '🤝' : '🗡️';
+              return `<div class="sq-hub-card">
+                <div class="sq-hub-type">${typeIcon} ${e.type === 'collab' ? 'Collaborative' : 'Solo'}</div>
+                <div class="sq-hub-name">${q.title}</div>
+                <div class="sq-hub-desc">${q.desc}</div>
+                <div class="sq-hub-footer">
+                  <span class="sq-hub-xp">+${q.xp} XP</span>
+                  <button class="btn-sq-complete" data-sq-key="${key}">✓ Mark Complete</button>
+                </div>
+              </div>`;
+            }).join('')
+          : `<div class="sq-empty">No active quests — accept some from your current lesson!</div>`;
+        const availContent = availQuests.length
+          ? availQuests.map(({key, q, type, idx, tileId}) => {
+              const typeIcon = type === 'collab' ? '🤝' : '🗡️';
+              return `<div class="sq-hub-card">
+                <div class="sq-hub-type">${typeIcon} ${type === 'collab' ? 'Collaborative' : 'Solo'}</div>
+                <div class="sq-hub-name">${q.title}</div>
+                <div class="sq-hub-desc">${q.desc}</div>
+                <div class="sq-hub-footer">
+                  <span class="sq-hub-xp">+${q.xp} XP</span>
+                  <button class="ls-sq-accept-btn" data-sq-key="${key}" data-sq-idx="${idx}" data-sq-type="${type}" data-sq-tile="${tileId}">Accept</button>
+                </div>
+              </div>`;
+            }).join('')
+          : `<div class="sq-empty">No quests available right now — complete your current tile first!</div>`;
+        const completedContent = completedSQ.length
+          ? [...completedSQ].reverse().map(c => {
+              const typeIcon = c.type === 'collab' ? '🤝' : '🗡️';
+              return `<div class="sq-hub-card sq-done-card">
+                <div class="sq-hub-type">${typeIcon} ${c.type === 'collab' ? 'Collaborative' : 'Solo'}</div>
+                <div class="sq-hub-name">${c.title}</div>
+                <div class="sq-hub-footer"><span class="sq-hub-xp">+${c.xp} XP</span><span class="sq-done-badge">✓ Done</span></div>
+              </div>`;
+            }).join('')
+          : `<div class="sq-empty">No completed quests yet — keep adventuring!</div>`;
         return `<div class="hub-panel sq-hub-panel enter" style="animation-delay:.16s">
-          <div class="panel-title">📜 Active Side Quests</div>
-          ${cards}
+          <div class="panel-title">📜 Quest Journal</div>
+          <div class="qj-tabs">${tabs}</div>
+          <div class="qj-body">
+            ${tab === 'available' ? availContent : tab === 'active' ? activeContent : completedContent}
+          </div>
         </div>`;
       })()}
       <div class="hub-panel boss-panel-wrap enter" style="animation-delay:.2s">
@@ -2149,12 +2195,47 @@ function renderLessonStop() {
         </div>`;
       })()}
       <div class="ls-tiers enter" style="animation-delay:.12s">
-        ${tierHTML(mustDo,   "mustDo",   "ls-tier-must",   "🔴", "Must Do")}
-        ${tierHTML(shouldDo, "shouldDo", "ls-tier-should", "🟡", "Should Do")}
-        ${tierHTML(aspireTo, "aspireTo", "ls-tier-aspire", "🟢", "Aspire To")}
+        ${tierHTML(mustDo, "mustDo", "ls-tier-must", "🔴", "Must Do")}
       </div>
 
-      <button class="ls-submit-btn enter" id="ls-submit" ${(!isActionable || !mustAllDone) ? "disabled" : ""} data-completed="${!isActionable}" style="animation-delay:.16s">
+      ${tile.type === 'lesson' ? (() => {
+        const soloIdx  = pickQuestIdx(SOLO_QUESTS,  tile.id, 1);
+        const collabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
+        const solo  = SOLO_QUESTS[soloIdx];
+        const collab = COLLAB_QUESTS[collabIdx];
+        const activeSQ = student ? getActiveSideQuests(student) : {};
+        const soloKey  = `${tile.id}_solo`;
+        const collabKey = `${tile.id}_collab`;
+        const soloAccepted  = !!activeSQ[soloKey];
+        const collabAccepted = !!activeSQ[collabKey];
+        return `<div class="ls-side-quests enter" style="animation-delay:.14s">
+          <div class="ls-sq-header">⚔️ Side Quests <span class="ls-sq-sub">Optional — earn bonus XP</span></div>
+          <div class="ls-sq-card ls-sq-solo">
+            <div class="ls-sq-type">🗡️ Solo Quest</div>
+            <div class="ls-sq-name">${solo.title}</div>
+            <div class="ls-sq-desc">${solo.desc}</div>
+            <div class="ls-sq-footer">
+              <span class="ls-sq-xp">+${solo.xp} XP</span>
+              ${soloAccepted
+                ? `<span class="ls-sq-accepted">✓ Accepted</span>`
+                : `<button class="ls-sq-accept-btn" data-sq-key="${soloKey}" data-sq-idx="${soloIdx}" data-sq-type="solo" data-sq-tile="${tile.id}">Accept</button>`}
+            </div>
+          </div>
+          <div class="ls-sq-card ls-sq-collab">
+            <div class="ls-sq-type">🤝 Collaborative</div>
+            <div class="ls-sq-name">${collab.title}</div>
+            <div class="ls-sq-desc">${collab.desc}</div>
+            <div class="ls-sq-footer">
+              <span class="ls-sq-xp">+${collab.xp} XP</span>
+              ${collabAccepted
+                ? `<span class="ls-sq-accepted">✓ Accepted</span>`
+                : `<button class="ls-sq-accept-btn" data-sq-key="${collabKey}" data-sq-idx="${collabIdx}" data-sq-type="collab" data-sq-tile="${tile.id}">Accept</button>`}
+            </div>
+          </div>
+        </div>`;
+      })() : ''}
+
+      <button class="ls-submit-btn enter" id="ls-submit" ${(!isActionable || !mustAllDone) ? "disabled" : ""} data-completed="${!isActionable}" style="animation-delay:.18s">
         ${!isActionable ? "Quest Complete ✓" : mustAllDone ? "✅ I'm Ready!" : "🔒 Complete Must Do tasks to continue"}
       </button>
 
@@ -3465,6 +3546,10 @@ function bindEvents() {
       });
     });
 
+    // Quest journal tabs
+    document.querySelectorAll(".qj-tab").forEach(tab => {
+      tab.addEventListener("click", () => { STATE.questJournalTab = tab.dataset.qjTab; mount(); });
+    });
     // Side quest complete buttons
     document.querySelectorAll(".btn-sq-complete").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -4093,11 +4178,7 @@ function bindEvents() {
       );
       if (!isActionable) return;
       const prog = getTaskProgress(STATE.student.id, tile.id);
-      const aspireItems = tile.aspireTo || [];
-      const aspireAllDone = aspireItems.length > 0 && aspireItems.every((_, i) => (prog.aspireTo || [])[i]);
-      const shouldBonus = (tile.shouldDo || []).length > 0 && (tile.shouldDo || []).every((_, i) => (prog.shouldDo || [])[i]) ? 5 : 0;
-      const aspireBonus = aspireAllDone ? 5 : 0;
-      const xpAmount = tileXP(tile) + shouldBonus + aspireBonus;
+      const xpAmount = tileXP(tile);
       const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
       saveTileCompletion(STATE.student.id, tile.id, timeOnPage);
       const { levelsGained, newLevel } = awardXP(STATE.student, xpAmount);
@@ -4115,28 +4196,8 @@ function bindEvents() {
         STATE.gradeModalLessonId = tile.id;
         mount();
       };
-      const doAdvanceWithSideQuest = () => {
-        if (isBranchTile) completeBranchTile(STATE.student, tile.id);
-        else advanceStudentTile(STATE.student, land);
-        STATE.sideQuestModalOpen = true;
-        STATE.sideQuestTileId = tile.id;
-        STATE.sideQuestSoloIdx  = pickQuestIdx(SOLO_QUESTS, tile.id, 1);
-        STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
-        mount();
-      };
-      const finalCallback = hasExitTicket ? doAdvanceWithGrade : isLesson ? doAdvanceWithSideQuest : doAdvance;
-      showXPCelebration(xpAmount, levelsGained, newLevel, () => {
-        // Aspire To companion drop
-        if (aspireAllDone) {
-          const pos2 = getLandPos(STATE.student);
-          const rarity = landToRarity(pos2.land);
-          const companionFile = randFrom(companionsByRarity(rarity)).file;
-          awardCompanion(STATE.student, companionFile);
-          showCompanionReveal(companionFile, finalCallback);
-        } else {
-          finalCallback();
-        }
-      });
+      const finalCallback = hasExitTicket ? doAdvanceWithGrade : doAdvance;
+      showXPCelebration(xpAmount, levelsGained, newLevel, finalCallback);
     });
     document.querySelectorAll(".ls-check").forEach(cb => {
       cb.addEventListener("change", () => {
@@ -4154,23 +4215,17 @@ function bindEvents() {
       });
     });
 
-    // Side quest modal handlers
-    if (STATE.sideQuestModalOpen) {
-      const sqClose = () => { STATE.sideQuestModalOpen = false; STATE.sideQuestTileId = null; STATE.screen = "quest-map"; mount(); };
-      $("sq-close") && $("sq-close").addEventListener("click", sqClose);
-      document.querySelectorAll(".btn-sq-accept").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const key  = btn.dataset.sqKey;
-          const idx  = parseInt(btn.dataset.sqIdx, 10);
-          const type = btn.dataset.sqType;
-          acceptSideQuest(STATE.student.id, STATE.sideQuestTileId, type, idx);
-          mount(); // re-render to show "✓ Accepted"
-          // re-bind close so it still works after re-render
-          const newClose = document.getElementById("sq-close");
-          if (newClose) newClose.addEventListener("click", sqClose);
-        });
+    // Inline side quest accept buttons (in lesson modal)
+    document.querySelectorAll(".ls-sq-accept-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key  = btn.dataset.sqKey;
+        const idx  = parseInt(btn.dataset.sqIdx, 10);
+        const type = btn.dataset.sqType;
+        const tileId = parseInt(btn.dataset.sqTile, 10);
+        acceptSideQuest(STATE.student.id, tileId, type, idx);
+        mount();
       });
-    }
+    });
 
     // Grade modal handlers (shown after S6 completion)
     if (STATE.gradeModalOpen) {
