@@ -1791,14 +1791,20 @@ function renderHub() {
           const pos = getLandPos(STATE.student);
           const curLand = getLandData(pos.land);
           const curTile = curLand.tiles.find(t => t.id === pos.tile);
+          const completedIds = pos.completed || [];
+          const lastCompletedLesson = [...completedIds].reverse()
+            .map(id => curLand.tiles.find(t => t.id === id))
+            .find(t => t && t.type === 'lesson');
+          const questTile = (curTile && curTile.type === 'lesson') ? curTile : lastCompletedLesson;
+          const completedKeys = new Set((completedSQ || []).map(c => c.key));
           const availQuests = [];
-          if (curTile && curTile.type === 'lesson') {
-            const soloIdx  = pickQuestIdx(SOLO_QUESTS,  curTile.id, 1);
-            const collabIdx = pickQuestIdx(COLLAB_QUESTS, curTile.id, 2);
-            const soloKey  = `${curTile.id}_solo`;
-            const collabKey = `${curTile.id}_collab`;
-            if (!activeSQ[soloKey])  availQuests.push({ key: soloKey,  q: SOLO_QUESTS[soloIdx],   type:'solo',  idx: soloIdx,  tileId: curTile.id });
-            if (!activeSQ[collabKey]) availQuests.push({ key: collabKey, q: COLLAB_QUESTS[collabIdx], type:'collab', idx: collabIdx, tileId: curTile.id });
+          if (questTile) {
+            const soloIdx  = pickQuestIdx(SOLO_QUESTS,  questTile.id, 1);
+            const collabIdx = pickQuestIdx(COLLAB_QUESTS, questTile.id, 2);
+            const soloKey  = `${questTile.id}_solo`;
+            const collabKey = `${questTile.id}_collab`;
+            if (!activeSQ[soloKey]  && !completedKeys.has(soloKey))  availQuests.push({ key: soloKey,  q: SOLO_QUESTS[soloIdx],   type:'solo',  idx: soloIdx,  tileId: questTile.id });
+            if (!activeSQ[collabKey] && !completedKeys.has(collabKey)) availQuests.push({ key: collabKey, q: COLLAB_QUESTS[collabIdx], type:'collab', idx: collabIdx, tileId: questTile.id });
           }
           const tab = STATE.questJournalTab || 'active';
           const tabs = ['available','active','completed'].map(t =>
@@ -2856,6 +2862,7 @@ function renderQuestMap() {
       <span class="sq-board-banner-sub">View available side quests for this land</span>
     </button>` : ''}
     ${sqBoardHTML}
+    ${renderPartnerPickerModal()}
     ${renderNpcModal()}
     ${renderSg0Modal()}
     ${renderGuildReveal()}
@@ -4370,6 +4377,26 @@ function bindEvents() {
         }
       });
     });
+    // Partner picker (for collab quests from sq-board)
+    if (STATE.sqPartnerPickOpen) {
+      $("partner-pick-cancel") && $("partner-pick-cancel").addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.sqPartnerPickSelected = null; mount(); });
+      $("partner-pick-overlay") && $("partner-pick-overlay").addEventListener("click", e => {
+        if (e.target === $("partner-pick-overlay")) { STATE.sqPartnerPickOpen = false; STATE.sqPartnerPickSelected = null; mount(); }
+      });
+      document.querySelectorAll(".partner-row").forEach(row => {
+        row.addEventListener("click", () => { STATE.sqPartnerPickSelected = parseInt(row.dataset.partnerId, 10); mount(); });
+      });
+      $("partner-pick-send") && $("partner-pick-send").addEventListener("click", () => {
+        const { sqPartnerPickKey: key, sqPartnerPickIdx: idx, sqPartnerPickTile: tileId, sqPartnerPickSelected: recipientId } = STATE;
+        if (!recipientId) return;
+        const quest = COLLAB_QUESTS[idx] || COLLAB_QUESTS[0];
+        acceptSideQuest(STATE.student.id, tileId, 'collab', idx);
+        logActivity(STATE.student.id, '🤝', `Accepted quest: ${quest.title} — awaiting partner`);
+        sendQuestInvite(getMergedStudent(STATE.student), recipientId, key, quest.title, tileId, 'collab', idx);
+        STATE.sqPartnerPickOpen = false; STATE.sqPartnerPickSelected = null;
+        mount();
+      });
+    }
     const qmSvg = document.querySelector(".lm-svg-wrap svg");
     qmSvg && qmSvg.addEventListener("click", e => {
       const g = e.target.closest("[data-tid]");
