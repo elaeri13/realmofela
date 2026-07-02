@@ -749,6 +749,15 @@ function denyCraft(studentId) {
   set(ref(db, `craftRequests/${sid}`), null).catch(console.error);
 }
 function getPacingSettings() { return (_settings && _settings.pacing) || null; }
+function getBossOpenKeys() { return (_settings && _settings.bossOpenKeys) || []; }
+function setBossOpen(landId, tileId, open) {
+  if (!_settings) _settings = {};
+  const key = `${landId}-${tileId}`;
+  const curr = getBossOpenKeys();
+  const next = open ? (curr.includes(key) ? curr : [...curr, key]) : curr.filter(k => k !== key);
+  _settings.bossOpenKeys = next;
+  set(ref(db, 'settings/bossOpenKeys'), next.length ? next : null).catch(console.error);
+}
 function getExitTicketEnabled(tileId) {
   return !!((_settings.sessions || {})[String(tileId)] || {}).hasExitTicket;
 }
@@ -1788,11 +1797,15 @@ function getLandPos(student) {
   };
 }
 
-function tileState(tile, pos, board) {
+function tileState(tile, pos, board, land) {
   const id = typeof tile === "object" ? tile.id : tile;
   if (board) return "board";
   if (typeof tile === "object" && tile.type === "npc") {
     return pos.land >= tile.landId ? "open" : "locked";
+  }
+  if (typeof tile === "object" && tile.type === "boss") {
+    const bossKey = land ? `${land.id}-${id}` : String(id);
+    if (!pos.completed.includes(id) && !getBossOpenKeys().includes(bossKey)) return "locked";
   }
   if (id === pos.tile) return "here";
   if (pos.completed.includes(id)) return "done";
@@ -2016,8 +2029,27 @@ function buildLandSVG(land, pos, board, extraSVG) {
 
   const mainPaths   = land.mainPaths   || LAND_MAIN_PATHS;
   const branchPaths = land.branchPaths || LAND_LOOT_PATHS;
-  const tiles = land.tiles.map(t => landTileSVG(t, biome, tileState(t, pos, board), board)).join("");
+  const tiles = land.tiles.map(t => landTileSVG(t, biome, tileState(t, pos, board, land), board)).join("");
   const decors = (land.decorations||[]).map(d => decorationSVG(d.name, d.x, d.y)).join("");
+
+  const getHalf = t => t.type==='dungeon'?LW.DTILE/2:t.type==='boss'?LW.BTILE/2:t.type==='event'?LW.ETILE/2:t.type==='loot'?LW.LTILE/2:LW.TILE/2;
+  const coverSeg = (tA, tB, y) => {
+    const [lT,rT] = tA.x <= tB.x ? [tA,tB] : [tB,tA];
+    const x1 = lT.x + getHalf(lT), x2 = rT.x - getHalf(rT);
+    if (x2 <= x1) return '';
+    return `<rect x="${x1}" y="${y-9}" width="${x2-x1}" height="18" fill="#08080F"/><text x="${(x1+x2)/2}" y="${y+4}" text-anchor="middle" font-size="11" fill="#374151" font-family="Arial">⛓</text>`;
+  };
+  const bossOpenKeys = getBossOpenKeys();
+  const tileById = Object.fromEntries(land.tiles.map(t => [t.id, t]));
+  const pathOrder = land.pathOrder || [];
+  const bossBlockers = board ? '' : land.tiles
+    .filter(t => t.type==='boss' && !pos.completed.includes(t.id) && !bossOpenKeys.includes(`${land.id}-${t.id}`))
+    .map(t => {
+      const idx = pathOrder.indexOf(t.id);
+      const prev = idx > 0 ? tileById[pathOrder[idx-1]] : null;
+      const next = idx < pathOrder.length-1 ? tileById[pathOrder[idx+1]] : null;
+      return (prev ? coverSeg(prev, t, t.y) : '') + (next ? coverSeg(t, next, t.y) : '');
+    }).join('');
 
   return `<defs>
     <linearGradient id="epicGradFill" x1="0" y1="0" x2="1" y2="1">
@@ -2027,6 +2059,7 @@ function buildLandSVG(land, pos, board, extraSVG) {
   ${decors}
   ${road(branchPaths,"#064E3B","#34D399",9,true)}
   ${road(mainPaths,"#78350F","#FDE68A",13,false)}
+  ${bossBlockers}
   ${tiles}
   ${extraSVG||""}`;
 }
@@ -2989,6 +3022,28 @@ function renderTeacherDashboard() {
           }).join('')}
         </div>
       </details>
+      <details class="pacing-panel boss-fight-panel">
+        <summary class="pacing-summary">⚔️ Boss Fights <span class="pacing-off-badge">Locked by default</span></summary>
+        <div class="session-settings-body">
+          ${LANDS.map(land => {
+            const bossTiles = land.tiles.filter(t => t.type === 'boss');
+            if (!bossTiles.length) return '';
+            return `<div class="ss-land">
+              <div class="ss-land-name">${land.name}</div>
+              ${bossTiles.map(t => {
+                const bossKey = `${land.id}-${t.id}`;
+                const open = getBossOpenKeys().includes(bossKey);
+                return `<div class="ss-row">
+                  <span class="ss-tile-name">⚔ ${t.name}${t.skill ? ` <span class="ss-skill-tag">${t.skill}</span>` : ''}</span>
+                  <button class="ss-toggle ${open ? 'ss-on' : 'ss-off'} boss-fight-toggle" data-boss-land="${land.id}" data-boss-tile="${t.id}" data-boss-open="${open ? '1' : '0'}">
+                    ${open ? '🔓 Boss Fight OPEN' : '🔒 Boss Fight LOCKED'}
+                  </button>
+                </div>`;
+              }).join('')}
+            </div>`;
+          }).join('')}
+        </div>
+      </details>
       ${flagCount > 0 ? `
         <div class="help-alert">
           <div class="help-alert-count">${flagCount}</div>
@@ -3739,6 +3794,16 @@ function bindEvents() {
       });
     });
 
+    document.querySelectorAll("[data-boss-tile]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const landId = Number(btn.dataset.bossLand);
+        const tileId = Number(btn.dataset.bossTile);
+        const currentlyOpen = btn.dataset.bossOpen === '1';
+        setBossOpen(landId, tileId, !currentlyOpen);
+        mount();
+      });
+    });
+
     // Pacing settings
     $("pacing-save") && $("pacing-save").addEventListener("click", () => {
       const d = $("pacing-start");
@@ -3961,7 +4026,7 @@ function bindEvents() {
       const land = getLandData(pos.land);
       const tile = land.tiles.find(t => t.id === tid);
       if (!tile) return;
-      if (tileState(tile, pos, false) === "locked") return;
+      if (tileState(tile, pos, false, land) === "locked") return;
       if (tile.type === "sg") {
         // Tile 3: Guild Hall — trigger reveal animation for first-timers
         if (tile.id === 3) {
