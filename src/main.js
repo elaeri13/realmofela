@@ -34,7 +34,12 @@ const ITEMS = {
   badge:            { i:"🏅", img:null,                    n:"Honor Badge",     desc:"Awarded for excellence" },
   crown:            { i:"👑", img:null,                    n:"Crown",           desc:"Symbol of legendary status" },
 };
-const EQUIPPABLE = new Set(['sword']);
+const EQUIPPABLE = new Set(['sword', 'shield', 'amulet']);
+const EQUIP_SLOTS = [
+  { label: '⚔️ Weapon',    key: 'weapon',    itemKey: 'sword'  },
+  { label: '🛡️ Shield',    key: 'shield',    itemKey: 'shield' },
+  { label: '💎 Accessory', key: 'accessory', itemKey: 'amulet' },
+];
 const BOSS_ICON = {
   "Aldric the Unyielding":  "⚔️",
   "Seraphine of the Veil":  "🌙",
@@ -697,6 +702,7 @@ let _helpflags = {};       // { studentId: { flaggedAt, message } }
 let _craftRequests = {};   // { studentId: { requestedAt } } — pending potion requests
 let _settings = {};        // { pacing: { startDate, targetDate, targetCount } }
 let _activityLog = {};     // { studentId: { pushKey: { type, message, icon, ts } } }
+let _sqInvites = {};       // { studentId: { questKey: { fromStudentId, fromStudentName, questKey, questName, tileId, type, idx, timestamp, status } } }
 
 function getOverrides() {
   return { students: _overrides };
@@ -727,6 +733,23 @@ function saveGradeLog(studentId, lessonId, rawGrade, convertedHP) {
   const sid = String(studentId);
   const entry = { rawGrade, convertedHP, timestamp: new Date().toISOString() };
   set(ref(db, `gradeLog/${sid}/${lessonId}`), entry).catch(console.error);
+}
+function saveGradeReminder(studentId, lessonId) {
+  const sid = String(studentId);
+  if (!_overrides[sid]) _overrides[sid] = {};
+  if (!_overrides[sid].gradeReminders) _overrides[sid].gradeReminders = {};
+  _overrides[sid].gradeReminders[String(lessonId)] = true;
+  set(ref(db, `overrides/${sid}/gradeReminders/${lessonId}`), true).catch(console.error);
+}
+function clearGradeReminder(studentId, lessonId) {
+  const sid = String(studentId);
+  if (_overrides[sid] && _overrides[sid].gradeReminders) {
+    delete _overrides[sid].gradeReminders[String(lessonId)];
+  }
+  set(ref(db, `overrides/${sid}/gradeReminders/${lessonId}`), null).catch(console.error);
+}
+function getGradeReminders(studentId) {
+  return (_overrides[String(studentId)] || {}).gradeReminders || {};
 }
 function getCraftRequests() { return Object.assign({}, _craftRequests); }
 function requestCraft(studentId, itemKey) {
@@ -767,6 +790,31 @@ function getActivityLog(studentId) {
   const sid = String(studentId);
   const log = _activityLog[sid] || {};
   return Object.entries(log).sort(([a],[b]) => b.localeCompare(a)).slice(0, 20).map(([,v]) => v);
+}
+function getSQInvites(studentId) {
+  return _sqInvites[String(studentId)] || {};
+}
+function sendQuestInvite(fromStudent, recipientId, questKey, questName, tileId, type, idx) {
+  const invite = {
+    fromStudentId: fromStudent.id,
+    fromStudentName: fromStudent.displayName || fromStudent.name || 'A classmate',
+    questKey,
+    questName,
+    tileId,
+    type,
+    idx,
+    timestamp: new Date().toISOString(),
+    status: 'pending'
+  };
+  const sid = String(recipientId);
+  if (!_sqInvites[sid]) _sqInvites[sid] = {};
+  _sqInvites[sid][questKey] = invite;
+  set(ref(db, `sideQuestInvites/${sid}/${questKey}`), invite).catch(console.error);
+}
+function clearQuestInvite(studentId, questKey) {
+  const sid = String(studentId);
+  if (_sqInvites[sid]) delete _sqInvites[sid][questKey];
+  set(ref(db, `sideQuestInvites/${sid}/${questKey}`), null).catch(console.error);
 }
 function setBossOpen(landId, tileId, open) {
   if (!_settings) _settings = {};
@@ -829,13 +877,16 @@ function getEffectiveSP(student) {
   return getMergedStudent(student).sp;
 }
 function useHealthPotion(student) {
+  return useStatPotion(student, 'health_potion', 'hp', 2);
+}
+function useStatPotion(student, itemKey, stat, amount) {
   const s = getMergedStudent(student);
   const items = [...(s.items || [])];
-  const idx = items.indexOf('health_potion');
+  const idx = items.indexOf(itemKey);
   if (idx === -1) return false;
   items.splice(idx, 1);
-  const newHP = Math.min(10, (s.hp || 0) + 2);
-  saveStudentOverride(student.id, { items, hp: newHP });
+  const newVal = Math.min(10, (s[stat] || 0) + amount);
+  saveStudentOverride(student.id, { items, [stat]: newVal });
   return true;
 }
 function getEquipped(student) {
@@ -1119,6 +1170,9 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               companionPickerOpen:false, companionPickerStudentId:null,
               mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
               sideQuestModalOpen:false, sideQuestTileId:null, sideQuestSoloIdx:0, sideQuestCollabIdx:0,
+              justCompletedTileId:null, sqBoardOpen:false, sqBoardLandId:null,
+              sqPartnerPickOpen:false, sqPartnerPickKey:null, sqPartnerPickIdx:0, sqPartnerPickType:null, sqPartnerPickTile:null, sqPartnerPickSelected:null,
+              sqInviteNotifOpen:false,
               questJournalTab:'active',
               craftingOpen:false, craftingStep:1, craftingSelected:null,
               lessonOpenedAt:null,
@@ -1508,7 +1562,7 @@ function renderHub() {
     .map((it, idx) => {
       if (!it) return `<div class="item-slot empty"></div>`;
       const def = ITEMS[it] || { i:"❓", n: it };
-      const usable = it === 'health_potion';
+      const usable = ['health_potion', 'behavior_potion', 'stamina_potion'].includes(it);
       const equippable = EQUIPPABLE.has(it);
       const isEquipped = equippable && !!equipped[it];
       const imgTag = def.img
@@ -1524,24 +1578,22 @@ function renderHub() {
       </div>`;
     }).join("");
 
-  const equippedWeapon = equipped['sword'] ? 'sword' : null;
-  const weaponSlotHTML = (() => {
-    if (equippedWeapon) {
-      const def = ITEMS[equippedWeapon];
-      return `<div class="weapon-slot weapon-slot-equipped" data-unequip-item="${equippedWeapon}" title="⚔️ ${def.n} — tap to unequip">
-        <span class="weapon-slot-icon">${def.i}</span>
-      </div>`;
-    }
-    const hasSword = s.items.includes('sword');
-    if (hasSword) {
-      return `<div class="weapon-slot weapon-slot-available" data-equip-item="sword" title="Tap to equip Sword">
-        <span class="weapon-slot-icon weapon-slot-empty-icon">⚔️</span>
-      </div>`;
-    }
-    return `<div class="weapon-slot weapon-slot-empty" title="No weapon">
-      <span class="weapon-slot-icon weapon-slot-empty-icon">·</span>
+  const equipSlotsHTML = EQUIP_SLOTS.map(({ label, itemKey }) => {
+    const owned = s.items.includes(itemKey);
+    const def = ITEMS[itemKey] || {};
+    const isEquipped = owned && !!equipped[itemKey];
+    const imgEl = owned && def.img
+      ? `<img src="/icons/${def.img}" alt="${def.n}" width="52" height="52" style="object-fit:contain" onerror="this.style.display='none'"/>`
+      : owned
+      ? `<span style="font-size:28px;line-height:1">${def.i}</span>`
+      : `<span class="equip-slot-ph">${label.split(' ')[0]}</span>`;
+    return `<div class="equip-slot${isEquipped ? ' equip-slot-on' : owned ? ' equip-slot-off' : ' equip-slot-empty'}"
+      ${owned ? `data-equip-item="${itemKey}"` : ''}>
+      <div class="equip-slot-img">${imgEl}</div>
+      <span class="equip-slot-lbl">${label}</span>
+      <span class="equip-slot-sub">${isEquipped ? '✓ Equipped' : owned ? 'Tap to Equip' : 'Empty'}</span>
     </div>`;
-  })();
+  }).join('');
 
   const bossRows = s.bosses.length
     ? s.bosses.map(b => `
@@ -1575,65 +1627,72 @@ function renderHub() {
         <button class="btn-back" id="hub-logout">🚪 Log Out</button>
         <div class="hub-badge">⚔️ The Realm of ELA</div>
       </div>
-      <div class="hub-panel id-panel-wrap enter" style="animation-delay:.05s">
-        <div class="id-panel">
-          <div class="id-avatar" style="flex-shrink:0;position:relative">
-            ${weaponSlotHTML}
-            <div class="avatar-ring-xl" style="overflow:hidden;padding:0"><img src="${avatarUrl}" class="hub-avatar-img" alt="Avatar" width="272" height="272"/></div>
+      ${(() => {
+        const reminders = getGradeReminders(STATE.student.id);
+        if (!Object.keys(reminders).length) return '';
+        return `<button class="grade-reminder-banner" id="grade-reminder-banner">⚠️ You have unlogged grades. Tap here to catch up.</button>`;
+      })()}
+      <div class="hub-panel char-card-unified enter" style="animation-delay:.05s;position:relative">
+        <button class="id-cust-btn" id="cust-btn" title="Customize Character">
+          <img src="/icons/icon_pencil.png" alt="Customize" width="20" height="20"/>
+        </button>
+        <div class="char-card-cols">
+          <!-- Left: Identity -->
+          <div class="char-col-identity">
+            <div class="char-avatar-wrap" style="position:relative">
+              <div class="avatar-ring-xl" style="overflow:hidden;padding:0">
+                <img src="${avatarUrl}" class="hub-avatar-img" alt="Avatar" width="140" height="140"/>
+              </div>
+              ${(() => {
+                const _gOv = getOverrides().students[String(s.id)] || {};
+                const _gKey = _gOv.guild;
+                const _guilds = CLASS_DATA && CLASS_DATA.guilds;
+                if (!_gKey || !_guilds || !_guilds[_gKey]) return "";
+                const _g = _guilds[_gKey];
+                return `<img class="hub-guild-badge" src="${_g.crest}" alt="${_g.name}" width="32" height="32"
+                  style="border-color:${_g.color};top:-6px;right:-6px;bottom:auto" title="${_g.name}"
+                  onerror="this.style.display='none'"/>`;
+              })()}
+            </div>
+            <div class="char-name">${s.displayName}</div>
+            <div class="char-lvl-badge">⭐ Lv.${s.level} — 👑 ${activeTitle}</div>
             ${(() => {
               const _gOv = getOverrides().students[String(s.id)] || {};
               const _gKey = _gOv.guild;
               const _guilds = CLASS_DATA && CLASS_DATA.guilds;
               if (!_gKey || !_guilds || !_guilds[_gKey]) return "";
               const _g = _guilds[_gKey];
-              return `<img class="hub-guild-badge" src="${_g.crest}" alt="${_g.name}" width="36" height="36"
-                style="border-color:${_g.color}" title="${_g.name}"
-                onerror="this.style.display='none'"/>`;
+              return `<div class="char-guild-label" style="color:${_g.color}">${_g.name}</div>`;
             })()}
+            <div class="char-companion-wrap">
+              ${activeCompanion ? (() => {
+                const comp = companionByFile(activeCompanion);
+                return `<div class="char-companion-slot">
+                  <img src="/companions/${activeCompanion}" alt="${comp.name}" width="52" height="52"/>
+                </div>
+                <span class="char-companion-name">${comp.name}</span>`;
+              })() : `<div class="char-companion-slot char-companion-empty">
+                <span style="font-size:22px;opacity:.35">🐾</span>
+              </div>
+              <span class="char-companion-name" style="opacity:.45">Companion</span>`}
+            </div>
           </div>
-          <div class="id-info" style="justify-content:center">
-            <div class="id-lvl">⭐ Level ${s.level}</div>
-            <div class="id-name">${s.displayName}</div>
-            <div class="id-title">👑 ${activeTitle}</div>
+          <!-- Middle: Equipment -->
+          <div class="char-col-equip">
+            <div class="char-col-hdr">Equipment</div>
+            <div class="equip-slot-col">${equipSlotsHTML}</div>
           </div>
-          ${activeCompanion ? (() => {
-            const comp = companionByFile(activeCompanion);
-            return `<div class="companion-card-slot">
-              <img src="/companions/${activeCompanion}" alt="${comp.name}" width="64" height="64"/>
-              <span class="companion-card-name">${comp.name}</span>
-            </div>`;
-          })() : `<div class="companion-card-slot companion-card-empty">
-            <span class="companion-card-empty-icon">🐾</span>
-            <span class="companion-card-name">No Companion</span>
-          </div>`}
-        </div>
-        <button class="id-cust-btn" id="cust-btn" title="Customize Character">
-          <img src="/icons/icon_pencil.png" alt="Customize" width="20" height="20"/>
-        </button>
-      </div>
-      ${(() => {
-        const gOv = getOverrides().students[String(s.id)] || {};
-        const gKey = gOv.guild;
-        const guilds = CLASS_DATA && CLASS_DATA.guilds;
-        if (!gKey || !guilds || !guilds[gKey]) return "";
-        const guild = guilds[gKey];
-        return `<div class="hub-panel hub-guild-panel enter" style="border-color:${guild.color};animation-delay:.07s">
-          <img class="hub-guild-crest" src="${guild.crest}" alt="${guild.name}" width="52" height="52"
-            onerror="this.style.fontSize='32px';this.style.lineHeight='1'"/>
-          <div>
-            <div class="hub-guild-name" style="color:${guild.color}">${guild.name}</div>
-            <div class="hub-guild-motto">"${guild.motto}"</div>
-          </div>
-        </div>`;
-      })()}
-      <div class="hub-panel stats-panel-wrap enter" style="animation-delay:.1s">
-        <div class="panel-title">⚡ Battle Stats</div>
-        ${stats}
-        <div class="xp-sect">
-          <div class="xp-hdr"><span class="xp-lbl">✨ Experience</span><span class="xp-nums">${s.xp} / ${s.xpNext} XP</span></div>
-          <div class="xp-track">
-            <div class="xp-fill" data-w="${xpPct}"></div>
-            <span class="xp-pct">${xpPct}%</span>
+          <!-- Right: Stats -->
+          <div class="char-col-stats">
+            <div class="char-col-hdr">Battle Stats</div>
+            ${stats}
+            <div class="xp-sect" style="margin-top:10px;padding-top:10px">
+              <div class="xp-hdr"><span class="xp-lbl">✨ XP</span><span class="xp-nums">${s.xp} / ${s.xpNext}</span></div>
+              <div class="xp-track">
+                <div class="xp-fill" data-w="${xpPct}"></div>
+                <span class="xp-pct">${xpPct}%</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1654,21 +1713,17 @@ function renderHub() {
               <div class="crafting-title">⚗️ Crafting Station</div>
               <div class="crafting-subtitle">What would you like to craft?</div>
               <div class="crafting-cards">
-                <div class="crafting-card" data-craft-pick="health_potion">
-                  <span class="crafting-card-icon">❤️</span>
-                  <span class="crafting-card-name">Health Potion</span>
-                  <span class="crafting-card-desc">Restore 2 HP</span>
-                </div>
-                <div class="crafting-card" data-craft-pick="behavior_potion">
-                  <span class="crafting-card-icon">💙</span>
-                  <span class="crafting-card-name">Mana Potion</span>
-                  <span class="crafting-card-desc">Restore 2 MP</span>
-                </div>
-                <div class="crafting-card" data-craft-pick="stamina_potion">
-                  <span class="crafting-card-icon">💚</span>
-                  <span class="crafting-card-name">Focus Potion</span>
-                  <span class="crafting-card-desc">Restore 2 SP</span>
-                </div>
+                ${['health_potion','behavior_potion','stamina_potion'].map(key => {
+                  const def = ITEMS[key];
+                  const imgTag = def.img
+                    ? `<img class="crafting-card-img item-img" src="/icons/${def.img}" alt="${def.n}" width="64" height="64" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:32px">${def.i}</span>`
+                    : `<span style="font-size:32px">${def.i}</span>`;
+                  return `<div class="crafting-card" data-craft-pick="${key}">
+                  <div class="crafting-card-img-wrap">${imgTag}</div>
+                  <span class="crafting-card-name">${def.n}</span>
+                  <span class="crafting-card-desc">${def.desc}</span>
+                </div>`;
+                }).join('')}
               </div>
             </div>
           </div>`;
@@ -1775,9 +1830,16 @@ function renderHub() {
         <button class="btn ${STATE.helpFlagged?"btn-red btn-red-dim":"btn-red"}" id="help-btn" ${STATE.helpFlagged?"disabled":""}>
           ${STATE.helpFlagged?"🙋 Help Requested!":"🚩 Flag for Help"}
         </button>
+        ${(() => {
+          const invites = getSQInvites(STATE.student.id);
+          const pendingCount = Object.values(invites).filter(i => i.status === 'pending').length;
+          if (!pendingCount) return '';
+          return `<button class="btn sq-invite-badge" id="sq-invite-badge">📨 Quest Invite (${pendingCount})</button>`;
+        })()}
       </div>
     </div>
     ${custHTML}
+    ${STATE.sqInviteNotifOpen ? renderInviteNotifModal() : ''}
     ${STATE.helpModalOpen ? `
     <div class="help-modal-overlay" id="help-modal-overlay">
       <div class="help-modal">
@@ -2194,6 +2256,53 @@ function renderBossScreen() {
   </div>`;
 }
 
+function renderPartnerPickerModal() {
+  if (!STATE.sqPartnerPickOpen) return '';
+  const period = STATE.currentPeriod;
+  if (!period) return '';
+  const peers = period.students.filter(s => s.id !== STATE.student.id);
+  const pool = COLLAB_QUESTS;
+  const quest = pool[STATE.sqPartnerPickIdx] || pool[0];
+  return `<div class="grade-modal-overlay" id="partner-pick-overlay">
+    <div class="grade-modal" style="max-width:400px">
+      <div class="grade-modal-title">🤝 Invite a Partner</div>
+      <p class="grade-modal-sub" style="margin:0">${quest.title}</p>
+      <div class="partner-list">
+        ${peers.length ? peers.map(p => {
+          const m = getMergedStudent(p);
+          const sel = STATE.sqPartnerPickSelected === p.id;
+          return `<button class="partner-row${sel ? ' partner-row-sel' : ''}" data-partner-id="${p.id}">
+            <span class="partner-name">${m.displayName || p.name}</span>
+            ${sel ? '<span class="partner-check">✓</span>' : ''}
+          </button>`;
+        }).join('') : '<p style="color:#94A3B8;text-align:center;font-size:13px">No classmates found.</p>'}
+      </div>
+      <div class="grade-modal-btns">
+        <button class="btn btn-outline-sm" id="partner-pick-cancel">Cancel</button>
+        <button class="btn btn-purple" id="partner-pick-send" ${!STATE.sqPartnerPickSelected ? 'disabled' : ''}>📨 Send Invite</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderInviteNotifModal() {
+  if (!STATE.sqInviteNotifOpen || !STATE.student) return '';
+  const invites = getSQInvites(STATE.student.id);
+  const pending = Object.values(invites).filter(i => i.status === 'pending');
+  if (!pending.length) return '';
+  const inv = pending[0];
+  return `<div class="grade-modal-overlay" id="invite-notif-overlay">
+    <div class="grade-modal" style="max-width:380px">
+      <div class="grade-modal-title">📨 Quest Invite</div>
+      <p class="grade-modal-sub"><strong>${inv.fromStudentName}</strong> wants to work on <strong>"${inv.questName || inv.questKey}"</strong> with you!</p>
+      <div class="grade-modal-btns">
+        <button class="btn btn-outline-sm" id="invite-decline">Decline</button>
+        <button class="btn btn-purple" id="invite-accept">⚔️ Accept</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderLessonStop() {
   const tile     = STATE.lessonTile || {};
   const land     = STATE.lessonLand || LANDS[0];
@@ -2273,7 +2382,7 @@ function renderLessonStop() {
         ${tierHTML(mustDo, "mustDo", "ls-tier-must", "🔴", "Must Do")}
       </div>
 
-      ${tile.type === 'lesson' ? (() => {
+      ${(tile.type === 'lesson' && isCompleted) ? (() => {
         const soloIdx  = pickQuestIdx(SOLO_QUESTS,  tile.id, 1);
         const collabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
         const solo  = SOLO_QUESTS[soloIdx];
@@ -2283,8 +2392,9 @@ function renderLessonStop() {
         const collabKey = `${tile.id}_collab`;
         const soloAccepted  = !!activeSQ[soloKey];
         const collabAccepted = !!activeSQ[collabKey];
-        return `<div class="ls-side-quests enter" style="animation-delay:.14s">
-          <div class="ls-sq-header">⚔️ Side Quests <span class="ls-sq-sub">Optional — earn bonus XP</span></div>
+        const isJustDone = STATE.justCompletedTileId === tile.id;
+        return `<div class="ls-side-quests${isJustDone ? ' sq-slide-in' : ' enter'}" ${isJustDone ? '' : 'style="animation-delay:.14s"'}>
+          <div class="ls-sq-unlock-hdr">⚔️ Side Quests Unlocked!</div>
           <div class="ls-sq-card ls-sq-solo">
             <div class="ls-sq-type">🗡️ Solo Quest</div>
             <div class="ls-sq-name">${solo.title}</div>
@@ -2313,6 +2423,8 @@ function renderLessonStop() {
       <button class="ls-submit-btn enter" id="ls-submit" ${(!isActionable || !mustAllDone) ? "disabled" : ""} data-completed="${!isActionable}" style="animation-delay:.18s">
         ${!isActionable ? "Quest Complete ✓" : mustAllDone ? "✅ I'm Ready!" : "🔒 Complete Must Do tasks to continue"}
       </button>
+
+      ${STATE.justCompletedTileId === tile.id ? `<button class="btn btn-gold sq-back-to-map" id="sq-back-to-map" style="width:100%;margin-top:10px;animation:slideInUp .4s ease-out 2s both;">🗺️ Back to Quest Map</button>` : ''}
 
       ${wbRef ? `<div class="ls-workbook enter" style="animation-delay:.20s">${wbRef}</div>` : ""}
     </div>
@@ -2358,16 +2470,16 @@ function renderLessonStop() {
     ${STATE.gradeModalOpen ? `
     <div class="grade-modal-overlay" id="grade-modal-overlay">
       <div class="grade-modal">
-        <div class="grade-modal-title">📊 Log Your Grade</div>
-        <p class="grade-modal-sub">Enter your grade for this lesson — it sets your HP for next session!</p>
+        <div class="grade-modal-title">📊 Log Your Progress</div>
+        <p class="grade-modal-sub">Enter the grade you received on this lesson's assignment. This keeps your stats current.</p>
         <input type="number" class="grade-modal-input" id="grade-modal-input" min="0" max="100" placeholder="0 – 100" />
-        <div class="grade-modal-preview" id="grade-modal-preview">HP: —</div>
         <div class="grade-modal-btns">
-          <button class="btn btn-outline-sm" id="grade-modal-skip">Skip for now</button>
+          <button class="btn btn-outline-sm" id="grade-modal-skip">Remind Me Later</button>
           <button class="btn btn-purple" id="grade-modal-submit">✅ Save Grade</button>
         </div>
       </div>
     </div>` : ''}
+    ${renderPartnerPickerModal()}
   </div>`;
 }
 
@@ -2658,12 +2770,61 @@ function renderQuestMap() {
     return `<div class="lm-dot ${cls}" title="${l.name}">${LAND_EMOJIS[l.id-1]}</div>`;
   }).join("");
 
+  const completedInLand = (pos.completed || []).some(tid =>
+    land.tiles.some(t => t.id === tid && t.type === 'lesson')
+  );
+  const sqBoardHTML = STATE.sqBoardOpen && STATE.sqBoardLandId === land.id ? (() => {
+    const completed = pos.completed || [];
+    const activeSQ = getActiveSideQuests(STATE.student);
+    const completedSQ = (getOverrides().students[String(STATE.student.id)] || {}).completedQuests || [];
+    const rows = land.tiles.filter(t => t.type === 'lesson').map(t => {
+      const soloIdx   = pickQuestIdx(SOLO_QUESTS,  t.id, 1);
+      const collabIdx = pickQuestIdx(COLLAB_QUESTS, t.id, 2);
+      const lessonDone = completed.includes(t.id);
+      return [
+        { q: SOLO_QUESTS[soloIdx],   type:'solo',  idx:soloIdx,   key:`${t.id}_solo`,  tileId:t.id, lessonDone },
+        { q: COLLAB_QUESTS[collabIdx], type:'collab', idx:collabIdx, key:`${t.id}_collab`, tileId:t.id, lessonDone },
+      ];
+    }).flat();
+    return `<div class="sq-board-overlay" id="sq-board-overlay">
+      <div class="sq-board-modal">
+        <button class="crafting-close" id="sq-board-close">✕</button>
+        <div class="sq-board-title">📜 Side Quest Board</div>
+        <div class="sq-board-subtitle">${land.name}</div>
+        <div class="sq-board-list">
+          ${rows.map(({ q, type, idx, key, tileId, lessonDone }) => {
+            const isActive    = !!activeSQ[key];
+            const isDone      = completedSQ.some(c => c.key === key);
+            const locked      = !lessonDone;
+            const typeIcon    = type === 'collab' ? '🤝' : '🗡️';
+            const statusBadge = isDone ? `<span class="sq-board-badge sq-board-done">✓ Done</span>`
+              : isActive ? `<span class="sq-board-badge sq-board-active">⚡ Active</span>`
+              : locked   ? `<span class="sq-board-badge sq-board-locked">🔒 Locked</span>`
+              :            `<span class="sq-board-badge sq-board-avail">Available</span>`;
+            return `<div class="sq-board-row${locked ? ' sq-board-row-locked' : ''}">
+              <div class="sq-board-row-info">
+                <span class="sq-board-row-type">${typeIcon} ${type === 'collab' ? 'Collab' : 'Solo'}</span>
+                <span class="sq-board-row-name">${q.title}</span>
+                <span class="sq-board-row-xp">+${q.xp} XP</span>
+              </div>
+              <div class="sq-board-row-right">
+                ${statusBadge}
+                ${!locked && !isDone && !isActive ? `<button class="ls-sq-accept-btn sq-board-accept" data-sq-key="${key}" data-sq-idx="${idx}" data-sq-type="${type}" data-sq-tile="${tileId}">Accept</button>` : ''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`;
+  })() : '';
+
   return `<div class="screen land-map-screen">
     <div class="lm-header">
       <button class="btn btn-outline-sm" id="qm-back">← Hub</button>
       <span class="lm-title">🗺 ${land.name}</span>
       <div class="lm-lands">${landDots}</div>
       <span style="font-size:12px;font-weight:800;color:rgba(255,255,255,.55)">Lv.${student.level}</span>
+      ${completedInLand ? `<button class="sq-board-btn" id="sq-board-btn" title="Side Quest Board">📜</button>` : ''}
     </div>
     <div class="lm-svg-wrap">
       <div class="lm-map-bg" ${land.bgImage ? `style="background-image:url('${land.bgImage}')"` : ""}></div>
@@ -2671,6 +2832,7 @@ function renderQuestMap() {
         ${buildLandSVG(land,pos,false,"")}
       </svg>
     </div>
+    ${sqBoardHTML}
     ${renderNpcModal()}
     ${renderSg0Modal()}
     ${renderGuildReveal()}
@@ -3570,6 +3732,49 @@ function bindEvents() {
   if (STATE.screen === "hub") {
     $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; mount(); });
     $("continue-quest-btn") && $("continue-quest-btn").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
+    $("grade-reminder-banner") && $("grade-reminder-banner").addEventListener("click", () => {
+      const reminders = getGradeReminders(STATE.student.id);
+      const keys = Object.keys(reminders).sort((a, b) => Number(a) - Number(b));
+      if (!keys.length) return;
+      STATE.gradeModalOpen = true;
+      STATE.gradeModalLessonId = Number(keys[0]);
+      STATE.screen = "quest-map";
+      mount();
+    });
+    $("sq-invite-badge") && $("sq-invite-badge").addEventListener("click", () => {
+      STATE.sqInviteNotifOpen = true; mount();
+    });
+    // Invite modal handlers
+    if (STATE.sqInviteNotifOpen) {
+      const invites = getSQInvites(STATE.student.id);
+      const pending = Object.values(invites).filter(i => i.status === 'pending');
+      const inv = pending[0];
+      $("invite-notif-overlay") && $("invite-notif-overlay").addEventListener("click", e => {
+        if (e.target === $("invite-notif-overlay")) { STATE.sqInviteNotifOpen = false; mount(); }
+      });
+      $("invite-decline") && $("invite-decline").addEventListener("click", () => {
+        if (inv) {
+          clearQuestInvite(STATE.student.id, inv.questKey);
+          // Revert sender's quest to available
+          const sOv = _overrides[String(inv.fromStudentId)] || {};
+          const sq = Object.assign({}, sOv.sideQuests || {});
+          delete sq[inv.questKey];
+          if (_overrides[String(inv.fromStudentId)]) {
+            _overrides[String(inv.fromStudentId)].sideQuests = Object.keys(sq).length ? sq : null;
+          }
+          set(ref(db, `overrides/${inv.fromStudentId}/sideQuests/${inv.questKey}`), null).catch(console.error);
+        }
+        STATE.sqInviteNotifOpen = false; mount();
+      });
+      $("invite-accept") && $("invite-accept").addEventListener("click", () => {
+        if (inv) {
+          acceptSideQuest(STATE.student.id, inv.tileId, inv.type, inv.idx);
+          logActivity(STATE.student.id, '🤝', `Accepted collaborative quest with ${inv.fromStudentName}: ${inv.questName || inv.questKey}`);
+          clearQuestInvite(STATE.student.id, inv.questKey);
+        }
+        STATE.sqInviteNotifOpen = false; mount();
+      });
+    }
     // Customize button — opens full customize overlay
     $("cust-btn") && $("cust-btn").addEventListener("click", () => {
       STATE.customizeOpen = true; STATE.avStep = 1; STATE.pendingTitle = null; STATE.custTab = "avatar"; mount();
@@ -3698,17 +3903,26 @@ function bindEvents() {
     });
 
     // Use health potion from inventory
-    document.querySelectorAll("[data-use-item='health_potion']").forEach(slot => {
+    const POTION_CONFIG = {
+      health_potion:   { stat:'hp', amount:3, icon:'❤️', label:'HP', color:'#EF4444' },
+      behavior_potion: { stat:'mp', amount:3, icon:'💙', label:'MP', color:'#3B82F6' },
+      stamina_potion:  { stat:'sp', amount:3, icon:'💚', label:'SP', color:'#10B981' },
+    };
+    document.querySelectorAll("[data-use-item]").forEach(slot => {
+      const itemKey = slot.dataset.useItem;
+      const cfg = POTION_CONFIG[itemKey];
+      if (!cfg) return;
       slot.addEventListener("click", () => {
-        const used = useHealthPotion(STATE.student);
+        const used = useStatPotion(STATE.student, itemKey, cfg.stat, cfg.amount);
         if (!used) return;
-        logActivity(STATE.student.id, '🧪', 'Used Health Potion (+2 HP)');
-        // Flash animation before re-render
-        const statsPanel = document.querySelector(".stats-panel-wrap");
-        if (statsPanel) statsPanel.classList.add("hp-flash");
+        logActivity(STATE.student.id, cfg.icon, `Used ${ITEMS[itemKey].n} (+${cfg.amount} ${cfg.label})`);
+        const panel = document.querySelector(".char-col-stats") || document.querySelector(".stats-panel-wrap");
+        if (panel) panel.classList.add("hp-flash");
         const floater = document.createElement("div");
-        floater.className = "hp-floater"; floater.textContent = "+2 HP ❤️";
-        statsPanel ? statsPanel.appendChild(floater) : document.body.appendChild(floater);
+        floater.className = "hp-floater";
+        floater.style.color = cfg.color;
+        floater.textContent = `+${cfg.amount} ${cfg.label} ${cfg.icon}`;
+        (panel || document.body).appendChild(floater);
         setTimeout(() => { floater.remove(); mount(); }, 900);
       });
     });
@@ -4061,6 +4275,26 @@ function bindEvents() {
   /* QUEST MAP */
   if (STATE.screen === "quest-map") {
     $("qm-back") && $("qm-back").addEventListener("click", () => { STATE.screen = "hub"; mount(); });
+    $("sq-board-btn") && $("sq-board-btn").addEventListener("click", () => {
+      const pos = getLandPos(STATE.student);
+      const land = getLandData(pos.land);
+      STATE.sqBoardOpen = true; STATE.sqBoardLandId = land.id; mount();
+    });
+    $("sq-board-close") && $("sq-board-close").addEventListener("click", () => { STATE.sqBoardOpen = false; mount(); });
+    $("sq-board-overlay") && $("sq-board-overlay").addEventListener("click", e => { if (e.target === $("sq-board-overlay")) { STATE.sqBoardOpen = false; mount(); } });
+    document.querySelectorAll(".sq-board-accept").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.sqKey;
+        const idx = parseInt(btn.dataset.sqIdx, 10);
+        const type = btn.dataset.sqType;
+        const tileId = parseInt(btn.dataset.sqTile, 10);
+        const pool = type === 'collab' ? COLLAB_QUESTS : SOLO_QUESTS;
+        const quest = pool[idx] || pool[0];
+        acceptSideQuest(STATE.student.id, tileId, type, idx);
+        logActivity(STATE.student.id, type === 'collab' ? '🤝' : '📜', `Accepted quest: ${quest.title}`);
+        mount();
+      });
+    });
     const qmSvg = document.querySelector(".lm-svg-wrap svg");
     qmSvg && qmSvg.addEventListener("click", e => {
       const g = e.target.closest("[data-tid]");
@@ -4268,7 +4502,33 @@ function bindEvents() {
   }
 
   if (STATE.screen === "lesson-stop") {
-    $("ls-back") && $("ls-back").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
+    $("ls-back") && $("ls-back").addEventListener("click", () => { STATE.justCompletedTileId = null; STATE.sqPartnerPickOpen = false; STATE.screen = "quest-map"; mount(); });
+    $("sq-back-to-map") && $("sq-back-to-map").addEventListener("click", () => { STATE.justCompletedTileId = null; STATE.screen = "quest-map"; mount(); });
+    // Partner picker modal
+    if (STATE.sqPartnerPickOpen) {
+      $("partner-pick-cancel") && $("partner-pick-cancel").addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.sqPartnerPickSelected = null; mount(); });
+      $("partner-pick-overlay") && $("partner-pick-overlay").addEventListener("click", e => {
+        if (e.target === $("partner-pick-overlay")) { STATE.sqPartnerPickOpen = false; STATE.sqPartnerPickSelected = null; mount(); }
+      });
+      document.querySelectorAll(".partner-row").forEach(row => {
+        row.addEventListener("click", () => {
+          STATE.sqPartnerPickSelected = parseInt(row.dataset.partnerId, 10);
+          mount();
+        });
+      });
+      $("partner-pick-send") && $("partner-pick-send").addEventListener("click", () => {
+        const { sqPartnerPickKey: key, sqPartnerPickIdx: idx, sqPartnerPickTile: tileId, sqPartnerPickSelected: recipientId } = STATE;
+        if (!recipientId) return;
+        const quest = COLLAB_QUESTS[idx] || COLLAB_QUESTS[0];
+        // Sender's quest becomes Active
+        acceptSideQuest(STATE.student.id, tileId, 'collab', idx);
+        logActivity(STATE.student.id, '🤝', `Accepted quest: ${quest.title} — awaiting partner`);
+        // Send invite to recipient
+        sendQuestInvite(getMergedStudent(STATE.student), recipientId, key, quest.title, tileId, 'collab', idx);
+        STATE.sqPartnerPickOpen = false; STATE.sqPartnerPickSelected = null;
+        mount();
+      });
+    }
     $("ls-video-btn") && $("ls-video-btn").addEventListener("click", () => {
       const url = STATE.lessonTile?.video || "https://edpuzzle.com";
       window.open(url, "_blank", "noopener");
@@ -4299,7 +4559,12 @@ function bindEvents() {
       const doAdvance = () => {
         if (isBranchTile) completeBranchTile(STATE.student, tile.id);
         else advanceStudentTile(STATE.student, land);
-        STATE.screen = "quest-map"; mount();
+        if (tile.type === 'lesson') {
+          STATE.justCompletedTileId = tile.id;
+          mount();
+        } else {
+          STATE.screen = "quest-map"; mount();
+        }
       };
       const doAdvanceWithGrade = () => {
         if (isBranchTile) completeBranchTile(STATE.student, tile.id);
@@ -4327,43 +4592,45 @@ function bindEvents() {
       });
     });
 
-    // Inline side quest accept buttons (in lesson modal)
+    // Inline side quest accept buttons (in lesson modal or sq-board)
     document.querySelectorAll(".ls-sq-accept-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const key  = btn.dataset.sqKey;
         const idx  = parseInt(btn.dataset.sqIdx, 10);
         const type = btn.dataset.sqType;
         const tileId = parseInt(btn.dataset.sqTile, 10);
-        const pool = type === 'collab' ? COLLAB_QUESTS : SOLO_QUESTS;
-        const quest = pool[idx] || pool[0];
-        acceptSideQuest(STATE.student.id, tileId, type, idx);
-        logActivity(STATE.student.id, type === 'collab' ? '🤝' : '📜', `Accepted quest: ${quest.title}`);
-        mount();
+        if (type === 'collab') {
+          // Show partner picker instead of immediately accepting
+          STATE.sqPartnerPickOpen = true;
+          STATE.sqPartnerPickKey = key;
+          STATE.sqPartnerPickIdx = idx;
+          STATE.sqPartnerPickType = type;
+          STATE.sqPartnerPickTile = tileId;
+          STATE.sqPartnerPickSelected = null;
+          mount();
+        } else {
+          const quest = SOLO_QUESTS[idx] || SOLO_QUESTS[0];
+          acceptSideQuest(STATE.student.id, tileId, type, idx);
+          logActivity(STATE.student.id, '📜', `Accepted quest: ${quest.title}`);
+          mount();
+        }
       });
     });
 
     // Grade modal handlers (shown after S6 completion)
     if (STATE.gradeModalOpen) {
       const gradeInput = $("grade-modal-input");
-      const gradePreview = $("grade-modal-preview");
       const gradeClose = () => {
         STATE.gradeModalOpen = false;
         STATE.gradeModalLessonId = null;
         STATE.screen = "quest-map";
         mount();
       };
-      gradeInput && gradeInput.addEventListener("input", () => {
-        const val = parseInt(gradeInput.value);
-        if (!isNaN(val) && val >= 0 && val <= 100) {
-          const hp = gradeToHP(val);
-          gradePreview.textContent = `HP: ${hp} / 10`;
-          gradePreview.style.color = "#A5F3FC";
-        } else {
-          gradePreview.textContent = "HP: —";
-          gradePreview.style.color = "";
-        }
+      $("grade-modal-skip") && $("grade-modal-skip").addEventListener("click", () => {
+        const lessonId = STATE.gradeModalLessonId;
+        if (lessonId != null) saveGradeReminder(STATE.student.id, lessonId);
+        gradeClose();
       });
-      $("grade-modal-skip") && $("grade-modal-skip").addEventListener("click", gradeClose);
       $("grade-modal-submit") && $("grade-modal-submit").addEventListener("click", () => {
         const val = parseInt(gradeInput ? gradeInput.value : "");
         if (isNaN(val) || val < 0 || val > 100) { gradeClose(); return; }
@@ -4371,6 +4638,7 @@ function bindEvents() {
         const lessonId = STATE.gradeModalLessonId;
         saveStudentOverride(STATE.student.id, { hp });
         saveGradeLog(STATE.student.id, lessonId, val, hp);
+        if (lessonId != null) clearGradeReminder(STATE.student.id, lessonId);
         gradeClose();
       });
       gradeInput && setTimeout(() => gradeInput.focus(), 50);
@@ -4440,6 +4708,10 @@ function initFirebaseCache() {
 
     onValue(ref(db, 'activityLog'), (snap) => {
       _activityLog = snap.exists() ? snap.val() : {};
+      liveMount();
+    });
+    onValue(ref(db, 'sideQuestInvites'), (snap) => {
+      _sqInvites = snap.exists() ? snap.val() : {};
       liveMount();
     });
   });
