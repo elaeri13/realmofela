@@ -550,18 +550,20 @@ input  { font-family: var(--font-body); }
 .char-companion-name { font-size:10px; font-weight:700; color:var(--text-mid); }
 .char-col-hdr { font-size:11px; font-weight:900; color:var(--purple-dark); letter-spacing:.6px; text-transform:uppercase; margin-bottom:10px; padding-bottom:6px; border-bottom:1.5px solid #EDE9FE; }
 .char-col-equip { display:flex; flex-direction:column; }
-.equip-slot-col { display:flex; flex-direction:column; gap:8px; }
-.equip-slot { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.5); border:1.5px solid rgba(196,181,253,.4); border-radius:10px; padding:8px 10px; cursor:pointer; transition:background .15s,border-color .15s; }
+.equip-slot-col { display:flex; flex-direction:row; gap:10px; flex-wrap:wrap; justify-content:center; }
+.equip-slot { display:flex; flex-direction:column; align-items:center; gap:6px; background:rgba(255,255,255,.5); border:1.5px solid rgba(196,181,253,.4); border-radius:12px; padding:10px 8px; cursor:pointer; transition:background .15s,border-color .15s; width:120px; }
 .equip-slot-empty { cursor:default; opacity:.55; border-style:dashed; }
 .equip-slot-on { background:rgba(251,191,36,.1); border-color:rgba(251,191,36,.6); }
 .equip-slot-off:hover { background:rgba(167,139,250,.12); border-color:rgba(167,139,250,.5); }
-.equip-slot-img { width:52px; height:52px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.equip-slot-ph { font-size:24px; opacity:.35; }
-.equip-slot-lbl { font-size:11px; font-weight:900; color:var(--text-dark); display:block; }
-.equip-slot-sub { font-size:10px; color:var(--text-mid); display:block; }
+.equip-slot-img { width:120px; height:120px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.equip-slot-ph { font-size:40px; opacity:.35; }
+.equip-slot-lbl { font-size:11px; font-weight:900; color:var(--text-dark); display:block; text-align:center; }
+.equip-slot-sub { font-size:10px; color:var(--text-mid); display:block; text-align:center; }
+.hub-2col-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 .char-col-stats { display:flex; flex-direction:column; }
 @media (max-width:600px) {
   .char-card-cols { grid-template-columns:1fr; }
+  .hub-2col-row { grid-template-columns:1fr; }
 }
 
 /* ════════════════════════════════════════
