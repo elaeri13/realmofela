@@ -2971,7 +2971,11 @@ function renderTeacherDashboard() {
       ? allStudents
       : allStudents.filter(s => s.periodName === STATE.mpBulkPeriod);
     const withMP = filtered.map(s => ({ s, mp: getMergedStudent(s).mp }));
-    withMP.sort((a, b) => STATE.mpBulkSort === 'asc' ? a.mp - b.mp : b.mp - a.mp);
+    if (STATE.mpBulkSort === 'name') {
+      withMP.sort((a, b) => (getMergedStudent(a.s).displayName || '').localeCompare(getMergedStudent(b.s).displayName || ''));
+    } else {
+      withMP.sort((a, b) => STATE.mpBulkSort === 'asc' ? a.mp - b.mp : b.mp - a.mp);
+    }
     const periodTabs = ['all', ...periods.map(p => p.periodName)].map(p =>
       `<button class="mp-period-tab${STATE.mpBulkPeriod===p?' active':''}" data-mp-period="${p}">${p === 'all' ? 'All' : p}</button>`
     ).join('');
@@ -2998,7 +3002,8 @@ function renderTeacherDashboard() {
         <div class="mp-hdr">
           <span class="mp-title">💙 MP Bulk Edit</span>
           <div style="display:flex;gap:8px;align-items:center">
-            <button class="mp-sort-btn" id="mp-sort-btn">${STATE.mpBulkSort==='asc'?'↑ Low→High':'↓ High→Low'}</button>
+            <button class="mp-sort-btn${STATE.mpBulkSort!=='name'?' mp-sort-active':''}" id="mp-sort-mp">${STATE.mpBulkSort==='desc'?'↓ MP High→Low':'↑ MP Low→High'}</button>
+            <button class="mp-sort-btn${STATE.mpBulkSort==='name'?' mp-sort-active':''}" id="mp-sort-name">A-Z Name</button>
             <button class="mp-close-btn" id="mp-close">✕</button>
           </div>
         </div>
@@ -3605,8 +3610,11 @@ function bindEvents() {
       $("mp-overlay") && $("mp-overlay").addEventListener("click", e => {
         if (e.target === $("mp-overlay")) { STATE.mpBulkOpen = false; mount(); }
       });
-      $("mp-sort-btn") && $("mp-sort-btn").addEventListener("click", () => {
+      $("mp-sort-mp") && $("mp-sort-mp").addEventListener("click", () => {
         STATE.mpBulkSort = STATE.mpBulkSort === 'asc' ? 'desc' : 'asc'; mount();
+      });
+      $("mp-sort-name") && $("mp-sort-name").addEventListener("click", () => {
+        STATE.mpBulkSort = 'name'; mount();
       });
       document.querySelectorAll(".mp-period-tab").forEach(btn => {
         btn.addEventListener("click", () => { STATE.mpBulkPeriod = btn.dataset.mpPeriod; mount(); });

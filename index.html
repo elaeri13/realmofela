@@ -896,7 +896,9 @@ input  { font-family: var(--font-body); }
 .mp-modal { background:#1E1B4B; border-top:2px solid #3B82F6; border-radius:20px 20px 0 0; width:100%; max-width:600px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; }
 .mp-hdr { display:flex; align-items:center; justify-content:space-between; padding:16px 20px 12px; flex-shrink:0; }
 .mp-title { font-family:var(--font-display); font-size:18px; font-weight:900; color:#93C5FD; }
-.mp-sort-btn { background:rgba(59,130,246,.15); border:1px solid rgba(59,130,246,.4); color:#93C5FD; border-radius:8px; padding:5px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
+.mp-sort-btn { background:rgba(59,130,246,.08); border:1px solid rgba(59,130,246,.3); color:#94A3B8; border-radius:8px; padding:5px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s,border-color .15s,color .15s; }
+.mp-sort-btn.mp-sort-active { background:rgba(59,130,246,.22); border-color:#3B82F6; color:#93C5FD; }
+.mp-sort-btn:hover { background:rgba(59,130,246,.18); color:#BFDBFE; }
 .mp-close-btn { background:transparent; border:none; color:#94A3B8; font-size:20px; cursor:pointer; line-height:1; padding:0 2px; }
 .mp-period-tabs { display:flex; gap:6px; padding:0 20px 12px; flex-shrink:0; overflow-x:auto; }
 .mp-period-tab { background:transparent; border:1px solid rgba(59,130,246,.3); color:#94A3B8; border-radius:8px; padding:4px 12px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap; }
