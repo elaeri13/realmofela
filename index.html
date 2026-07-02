@@ -227,10 +227,10 @@ input  { font-family: var(--font-body); }
 .id-title{ display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--teal-dark); font-style: italic; background: #E0F7FF; padding: 6px 12px; border-radius: 10px; }
 
 /* Stats */
-.stat-row  { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.stat-row  { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .stat-icon { font-size: 18px; flex-shrink: 0; }
 .stat-lbl  { width: 28px; font-size: 13px; font-weight: 900; color: var(--text-dark); flex-shrink: 0; }
-.stat-track{ flex: 1; height: 16px; border-radius: 8px; overflow: hidden; border: 2px solid rgba(0,0,0,.07); }
+.stat-track{ flex: 1; height: 22px; border-radius: 11px; overflow: hidden; border: 2px solid rgba(0,0,0,.07); position:relative; }
 .stat-fill { height: 100%; border-radius: 6px; transition: width .9s cubic-bezier(.34,1.56,.64,1); }
 .stat-val  { width: 40px; text-align: right; font-size: 13px; font-weight: 900; color: var(--text-mid); flex-shrink: 0; }
 .xp-sect  { margin-top: 16px; padding-top: 14px; border-top: 1.5px solid #EDE9FE; }
@@ -538,6 +538,8 @@ input  { font-family: var(--font-body); }
 .char-avatar-wrap { position:relative; }
 .char-name { font-family:var(--font-display); font-size:18px; font-weight:900; color:var(--text-dark); text-align:center; line-height:1.1; margin-top:4px; }
 .char-lvl-badge { font-size:11px; font-weight:700; color:var(--text-mid); text-align:center; }
+.char-title-badge { font-size:12px; font-weight:700; color:var(--text-mid); text-align:center; }
+.char-level-stat { font-size:13px; font-weight:900; color:var(--text-dark); margin-top:10px; padding-top:10px; border-top:1.5px solid #EDE9FE; }
 .char-guild-label { font-size:11px; font-weight:800; text-align:center; letter-spacing:.4px; }
 .char-companion-wrap { display:flex; flex-direction:column; align-items:center; gap:3px; margin-top:4px; }
 .char-companion-slot { width:60px; height:60px; border-radius:10px; background:rgba(0,0,0,.05); border:1.5px solid rgba(99,102,241,.2); display:flex; align-items:center; justify-content:center; overflow:hidden; }

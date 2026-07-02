@@ -1549,9 +1549,9 @@ function renderHub() {
     const isPaced = k === 'sp' && pacingActive;
     return `<div class="stat-row">
       <span class="stat-icon">${icon}</span>
-      <span class="stat-lbl">${k.toUpperCase()}${isPaced ? ' <span class="sp-auto-badge">auto</span>' : ''}</span>
       <div class="stat-track" style="background:${bg}">
         <div class="stat-fill" style="background:${color}" data-w="${(val/10*100).toFixed(0)}"></div>
+        ${isPaced ? '<span class="sp-auto-badge" style="position:absolute;right:6px;top:50%;transform:translateY(-50%)">auto</span>' : ''}
       </div>
       <span class="stat-val">${val}/10</span>
     </div>`;
@@ -1657,15 +1657,7 @@ function renderHub() {
               })()}
             </div>
             <div class="char-name">${s.displayName}</div>
-            <div class="char-lvl-badge">⭐ Lv.${s.level} — 👑 ${activeTitle}</div>
-            ${(() => {
-              const _gOv = getOverrides().students[String(s.id)] || {};
-              const _gKey = _gOv.guild;
-              const _guilds = CLASS_DATA && CLASS_DATA.guilds;
-              if (!_gKey || !_guilds || !_guilds[_gKey]) return "";
-              const _g = _guilds[_gKey];
-              return `<div class="char-guild-label" style="color:${_g.color}">${_g.name}</div>`;
-            })()}
+            ${activeTitle ? `<div class="char-title-badge">👑 ${activeTitle}</div>` : ''}
             <div class="char-companion-wrap">
               ${activeCompanion ? (() => {
                 const comp = companionByFile(activeCompanion);
@@ -1695,6 +1687,7 @@ function renderHub() {
                 <span class="xp-pct">${xpPct}%</span>
               </div>
             </div>
+            <div class="char-level-stat">⭐ Level ${s.level}</div>
             ${(() => {
               const _gOv = getOverrides().students[String(s.id)] || {};
               const _gKey = _gOv.guild;
