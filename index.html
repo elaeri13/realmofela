@@ -969,13 +969,15 @@ input  { font-family: var(--font-body); }
 .ls-lore-icon { font-size:20px; flex-shrink:0; margin-top:1px; filter:drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
 .ls-lore-text { margin:0; font-size:13px; line-height:1.65; color:#D4A84B; font-style:italic; letter-spacing:.2px; text-shadow:0 1px 3px rgba(0,0,0,.5); }
 /* Equipment panel */
-.equip-panel { display:flex; flex-direction:column; gap:10px; }
-.equip-slots { display:flex; gap:10px; flex-wrap:wrap; }
-.equip-slot { display:flex; flex-direction:column; align-items:center; gap:4px; background:rgba(251,191,36,.08); border:1.5px solid rgba(251,191,36,.5); border-radius:12px; padding:10px 12px; cursor:pointer; position:relative; min-width:72px; transition:background .15s; }
-.equip-slot:hover { background:rgba(251,191,36,.18); }
-.equip-slot-name { font-size:10px; font-weight:700; color:#FDE68A; text-align:center; }
-.equip-slot-remove { position:absolute; top:4px; right:6px; font-size:10px; color:#94A3B8; opacity:0; transition:opacity .15s; }
-.equip-slot:hover .equip-slot-remove { opacity:1; }
+/* Weapon slot next to avatar portrait */
+.weapon-slot { position:absolute; bottom:6px; right:-14px; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:5; transition:transform .15s,box-shadow .15s; }
+.weapon-slot-equipped { background:rgba(251,191,36,.2); border:2px solid #FBBF24; box-shadow:0 0 10px rgba(251,191,36,.5); cursor:pointer; }
+.weapon-slot-equipped:hover { transform:scale(1.12); box-shadow:0 0 16px rgba(251,191,36,.7); }
+.weapon-slot-available { background:rgba(255,255,255,.06); border:2px dashed rgba(251,191,36,.4); cursor:pointer; }
+.weapon-slot-available:hover { background:rgba(251,191,36,.1); border-color:#FBBF24; }
+.weapon-slot-empty { background:rgba(255,255,255,.04); border:2px dashed rgba(255,255,255,.1); pointer-events:none; }
+.weapon-slot-icon { font-size:20px; line-height:1; }
+.weapon-slot-empty-icon { opacity:.35; font-size:16px; }
 /* Equipped item glow in inventory */
 .item-equipped { border-color:#FBBF24 !important; background:rgba(251,191,36,.12) !important; box-shadow:0 0 8px rgba(251,191,36,.3); }
 .item-equip-lbl { display:block; font-size:9px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; margin-top:2px; }

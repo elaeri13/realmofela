@@ -34,7 +34,7 @@ const ITEMS = {
   badge:            { i:"🏅", img:null,                    n:"Honor Badge",     desc:"Awarded for excellence" },
   crown:            { i:"👑", img:null,                    n:"Crown",           desc:"Symbol of legendary status" },
 };
-const EQUIPPABLE = new Set(['sword','shield','scroll','amulet','badge','crown']);
+const EQUIPPABLE = new Set(['sword']);
 const BOSS_ICON = {
   "Aldric the Unyielding":  "⚔️",
   "Seraphine of the Veil":  "🌙",
@@ -1495,23 +1495,24 @@ function renderHub() {
       </div>`;
     }).join("");
 
-  const equippedKeys = Object.keys(equipped).filter(k => EQUIPPABLE.has(k));
-  const equipPanelHTML = equippedKeys.length ? `
-    <div class="hub-panel equip-panel enter" style="animation-delay:.11s">
-      <div class="panel-title">⚔️ Equipment</div>
-      <div class="equip-slots">
-        ${equippedKeys.map(k => {
-          const def = ITEMS[k] || { i:'❓', n: k };
-          return `<div class="equip-slot" data-unequip-item="${k}" title="${def.n} — tap to unequip">
-            ${def.img
-              ? `<img src="/icons/${def.img}" alt="${def.n}" width="40" height="40" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:22px">${def.i}</span>`
-              : `<span style="font-size:26px">${def.i}</span>`}
-            <span class="equip-slot-name">${def.n}</span>
-            <span class="equip-slot-remove">✕</span>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>` : '';
+  const equippedWeapon = equipped['sword'] ? 'sword' : null;
+  const weaponSlotHTML = (() => {
+    if (equippedWeapon) {
+      const def = ITEMS[equippedWeapon];
+      return `<div class="weapon-slot weapon-slot-equipped" data-unequip-item="${equippedWeapon}" title="⚔️ ${def.n} — tap to unequip">
+        <span class="weapon-slot-icon">${def.i}</span>
+      </div>`;
+    }
+    const hasSword = s.items.includes('sword');
+    if (hasSword) {
+      return `<div class="weapon-slot weapon-slot-available" data-equip-item="sword" title="Tap to equip Sword">
+        <span class="weapon-slot-icon weapon-slot-empty-icon">⚔️</span>
+      </div>`;
+    }
+    return `<div class="weapon-slot weapon-slot-empty" title="No weapon">
+      <span class="weapon-slot-icon weapon-slot-empty-icon">·</span>
+    </div>`;
+  })();
 
   const bossRows = s.bosses.length
     ? s.bosses.map(b => `
@@ -1534,6 +1535,7 @@ function renderHub() {
       <div class="hub-panel id-panel-wrap enter" style="animation-delay:.05s">
         <div class="id-panel">
           <div class="id-avatar" style="flex-shrink:0;position:relative">
+            ${weaponSlotHTML}
             <div class="avatar-ring-xl" style="overflow:hidden;padding:0"><img src="${avatarUrl}" class="hub-avatar-img" alt="Avatar" width="272" height="272"/></div>
             ${(() => {
               const _gOv = getOverrides().students[String(s.id)] || {};
@@ -1592,7 +1594,6 @@ function renderHub() {
           </div>
         </div>
       </div>
-      ${equipPanelHTML}
       <div class="hub-panel inv-panel-wrap enter" style="animation-delay:.12s">
         <div class="panel-title">🎒 Inventory</div>
         <div class="inv-grid">${invSlots}</div>
