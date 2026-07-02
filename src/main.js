@@ -695,7 +695,7 @@ const AVATAR = {
 let _overrides = {};       // { studentId: { hp, xp, ... } } — in-memory cache
 let _helpflags = {};       // { studentId: { flaggedAt, message } }
 let _craftRequests = {};   // { studentId: { requestedAt } } — pending potion requests
-let _settings = {};        // { pacing: { startDate, sessionsPerWeek } }
+let _settings = {};        // { pacing: { startDate, targetDate, targetCount } }
 
 function getOverrides() {
   return { students: _overrides };
@@ -758,9 +758,9 @@ function setExitTicket(tileId, enabled) {
   _settings.sessions[String(tileId)].hasExitTicket = enabled || null;
   set(ref(db, `settings/sessions/${tileId}/hasExitTicket`), enabled || null).catch(console.error);
 }
-function savePacingSettings(startDate, sessionsPerWeek) {
+function savePacingSettings(startDate, targetDate, targetCount) {
   if (!_settings) _settings = {};
-  _settings.pacing = { startDate, sessionsPerWeek: Number(sessionsPerWeek) };
+  _settings.pacing = { startDate, targetDate, targetCount: Number(targetCount) };
   set(ref(db, 'settings/pacing'), _settings.pacing).catch(console.error);
 }
 function countCompletedSessions(student) {
@@ -776,18 +776,29 @@ function countCompletedSessions(student) {
 }
 function calcPacedSP(student) {
   const pacing = getPacingSettings();
-  if (!pacing || !pacing.startDate) return null;
-  const start = new Date(pacing.startDate);
-  const spw = Number(pacing.sessionsPerWeek) || 3;
-  const weeksElapsed = Math.max(0, (Date.now() - start.getTime()) / (7 * 24 * 60 * 60 * 1000));
-  const expected = weeksElapsed * spw;
+  if (!pacing || !pacing.startDate || !pacing.targetDate || !pacing.targetCount) return null;
+  const start = new Date(pacing.startDate).getTime();
+  const target = new Date(pacing.targetDate).getTime();
+  const now = Date.now();
+  const totalMs = target - start;
+  if (totalMs <= 0) return null;
+  const fraction = Math.max(0, Math.min(1, (now - start) / totalMs));
+  const expected = fraction * Number(pacing.targetCount);
   if (expected <= 0) return 10;
   const actual = countCompletedSessions(student);
   return Math.max(1, Math.min(10, Math.round((actual / expected) * 10)));
 }
 function getEffectiveSP(student) {
-  const paced = calcPacedSP(student);
-  if (paced !== null) return paced;
+  const pacing = getPacingSettings();
+  if (pacing) {
+    const ov = _overrides[String(student.id)] || {};
+    if (ov.spOverrideAt) {
+      const age = Date.now() - new Date(ov.spOverrideAt).getTime();
+      if (age < 24 * 60 * 60 * 1000) return getMergedStudent(student).sp;
+    }
+    const paced = calcPacedSP(student);
+    if (paced !== null) return paced;
+  }
   return getMergedStudent(student).sp;
 }
 function useHealthPotion(student) {
@@ -1437,7 +1448,13 @@ function renderHub() {
       </div>
     </div>` : "";
 
-  const pacingActive = getPacingSettings() !== null;
+  const pacingActive = (() => {
+    const p = getPacingSettings();
+    if (!p) return false;
+    const ov = _overrides[String(STATE.student.id)] || {};
+    if (ov.spOverrideAt && (Date.now() - new Date(ov.spOverrideAt).getTime()) < 24*60*60*1000) return false;
+    return calcPacedSP(STATE.student) !== null;
+  })();
   const stats = [
     ["hp", "❤️", "#EF4444", "#FEE2E2"],
     ["mp", "💙", "#3B82F6", "#DBEAFE"],
@@ -2775,9 +2792,13 @@ function renderTeacherDashboard() {
   const flagCount = Object.keys(flags).length;
   const pacing = getPacingSettings();
   const pacingExpected = (() => {
-    if (!pacing || !pacing.startDate) return null;
-    const weeks = Math.max(0, (Date.now() - new Date(pacing.startDate).getTime()) / (7*24*60*60*1000));
-    return Math.round(weeks * (pacing.sessionsPerWeek || 3));
+    if (!pacing || !pacing.startDate || !pacing.targetDate || !pacing.targetCount) return null;
+    const start = new Date(pacing.startDate).getTime();
+    const target = new Date(pacing.targetDate).getTime();
+    const totalMs = target - start;
+    if (totalMs <= 0) return null;
+    const fraction = Math.max(0, Math.min(1, (Date.now() - start) / totalMs));
+    return Math.round(fraction * Number(pacing.targetCount));
   })();
   const craftReqs = getCraftRequests();
   const pendingPotions = Object.entries(craftReqs)
@@ -2849,13 +2870,16 @@ function renderTeacherDashboard() {
       </div>
       <div class="period-tabs">${tabs}</div>
       <details class="pacing-panel" ${pacing ? 'open' : ''}>
-        <summary class="pacing-summary">📈 SP Pacing ${pacing ? `<span class="pacing-on-badge">ON — expect ${pacingExpected} sessions by today</span>` : '<span class="pacing-off-badge">OFF</span>'}</summary>
+        <summary class="pacing-summary">📈 SP Pacing ${pacing ? `<span class="pacing-on-badge">ON — expect ${pacingExpected ?? '?'} sessions by today</span>` : '<span class="pacing-off-badge">OFF</span>'}</summary>
         <div class="pacing-form">
-          <label class="pacing-lbl">School Start Date
+          <label class="pacing-lbl">Class Start Date
             <input type="date" id="pacing-start" value="${pacing ? pacing.startDate : ''}" class="pacing-input"/>
           </label>
-          <label class="pacing-lbl">Sessions per Week
-            <input type="number" id="pacing-spw" min="1" max="30" value="${pacing ? pacing.sessionsPerWeek : 3}" class="pacing-input pacing-input-sm"/>
+          <label class="pacing-lbl">Target Date
+            <input type="date" id="pacing-target-date" value="${pacing ? (pacing.targetDate || '') : ''}" class="pacing-input"/>
+          </label>
+          <label class="pacing-lbl">Sessions by Target Date
+            <input type="number" id="pacing-target-count" min="1" max="200" value="${pacing ? (pacing.targetCount || '') : ''}" class="pacing-input pacing-input-sm" placeholder="e.g. 24"/>
           </label>
           <button class="btn-pacing-save" id="pacing-save">Save</button>
           ${pacing ? `<button class="btn-pacing-off" id="pacing-off">Turn Off</button>` : ''}
@@ -3623,9 +3647,11 @@ function bindEvents() {
 
     // Pacing settings
     $("pacing-save") && $("pacing-save").addEventListener("click", () => {
-      const d = $("pacing-start"); const w = $("pacing-spw");
-      if (!d || !d.value) return;
-      savePacingSettings(d.value, Number(w ? w.value : 3) || 3);
+      const d = $("pacing-start");
+      const td = $("pacing-target-date");
+      const tc = $("pacing-target-count");
+      if (!d || !d.value || !td || !td.value || !tc || !tc.value) return;
+      savePacingSettings(d.value, td.value, Number(tc.value) || 1);
       mount();
     });
     $("pacing-off") && $("pacing-off").addEventListener("click", () => {
@@ -3784,6 +3810,7 @@ function bindEvents() {
         hp: STATE.teacherEdit.hp,
         mp: STATE.teacherEdit.mp,
         sp: STATE.teacherEdit.sp,
+        spOverrideAt: getPacingSettings() ? new Date().toISOString() : null,
         xp: xpVal, xpNext: xpNVal,
         items: STATE.teacherEdit.items,
         bosses: STATE.teacherEdit.bosses,
