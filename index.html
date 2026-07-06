@@ -575,10 +575,54 @@ input  { font-family: var(--font-body); }
 .guild-banner-info { display:flex; flex-direction:column; gap:1px; }
 .guild-banner-label { font-size:9px; font-weight:900; color:var(--text-light); text-transform:uppercase; letter-spacing:.6px; }
 .guild-banner-name { font-size:13px; font-weight:900; font-family:var(--font-display); }
-@media (max-width:600px) {
-  .char-card-cols { grid-template-columns:1fr; }
+/* Below the hub's own max-width, the container shrinks and the fixed-width
+   avatar area + negative-margin equip column would overlap — restack cleanly. */
+@media (max-width:860px) {
+  /* Both grid rows collapse to single column */
   .hub-inv-bosses { grid-template-columns:1fr; }
-  .hub-2col-row { grid-template-columns:1fr; }
+  .hub-2col-row   { grid-template-columns:1fr; }
+
+  /* Top card: single column — identity above, equip below */
+  .char-card-cols { grid-template-columns:1fr; }
+
+  /* Avatar area: drop fixed size + negative margin; switch to flex row so
+     avatar and companion sit side-by-side and never overflow the card */
+  .char-avatar-area {
+    width:100%;
+    height:auto;
+    margin-left:0;
+    padding-bottom:24px; /* room for companion name label (absolute bottom:-18px) */
+    display:flex;
+    flex-direction:row;
+    align-items:flex-end;
+    justify-content:center;
+    gap:12px;
+  }
+  /* Avatar wrap: un-absolute so it flows in the flex container */
+  .char-avatar-wrap { position:static; }
+  /* Companion slot: un-absolute, keep position:relative so its own
+     bottom:-18px name label still renders correctly */
+  .char-companion-slot {
+    position:relative;
+    left:auto;
+    top:auto;
+    flex-shrink:0;
+  }
+
+  /* Equipment: remove pull-left, lay slots out in a horizontal row */
+  .char-col-equip { margin-left:0; }
+  .equip-slot-col { flex-direction:row; justify-content:center; flex-wrap:wrap; gap:8px; }
+  .equip-slot     { width:90px; height:90px; }
+}
+
+/* At very narrow widths, scale avatar and equip slots down to prevent overflow */
+@media (max-width:420px) {
+  .hub-avatar-img { width:160px; height:160px; }
+  .char-companion-slot { width:55px; height:55px; }
+  .char-companion-slot img { width:45px; height:45px; }
+  .equip-slot { width:78px; height:78px; }
+  .equip-slot-ph { font-size:28px; }
+  .equip-slot-img img { width:52px; height:52px; }
 }
 
 /* ════════════════════════════════════════
