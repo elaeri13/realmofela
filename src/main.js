@@ -1045,6 +1045,15 @@ function getTaskProgress(studentId, tileId) {
   const ov = getOverrides().students[String(studentId)] || {};
   return (ov.taskProgress || {})[String(tileId)] || {};
 }
+function saveVideoOpened(studentId, tileId) {
+  const ov = getOverrides();
+  const st = ov.students[String(studentId)] || {};
+  const tp = Object.assign({}, st.taskProgress || {});
+  const td = Object.assign({}, tp[String(tileId)] || {});
+  td.videoOpened = true;
+  tp[String(tileId)] = td;
+  saveStudentOverride(studentId, { taskProgress: tp });
+}
 function saveTaskCheck(studentId, tileId, tier, idx, checked) {
   const ov = getOverrides();
   const st = ov.students[String(studentId)] || {};
@@ -2399,6 +2408,7 @@ function renderLessonStop() {
   const aspireTo = tile.aspireTo || [];
   const wbRef    = tile.workbookRef || "";
   const progress = student ? getTaskProgress(student.id, tile.id) : {};
+  const videoOpened = !!progress.videoOpened;
   const mustAllDone = mustDo.length === 0 || mustDo.every((_, i) => (progress.mustDo || [])[i]);
   const pos = student ? getLandPos(student) : {};
   const isCompleted  = (pos.completed || []).includes(tile.id);
@@ -2416,8 +2426,8 @@ function renderLessonStop() {
     const prog = progress[tier] || [];
     const rows = tasks.map((t, i) => {
       const checked = prog[i] || false;
-      return `<label class="ls-task${checked ? " ls-task-done" : ""}">
-        <input type="checkbox" class="ls-check" data-tier="${tier}" data-idx="${i}" ${checked ? "checked" : ""}/>
+      return `<label class="ls-task${checked ? " ls-task-done" : ""}${!videoOpened ? " ls-task-locked" : ""}">
+        <input type="checkbox" class="ls-check" data-tier="${tier}" data-idx="${i}" ${checked ? "checked" : ""} ${!videoOpened ? "disabled" : ""}/>
         <span>${t}</span>
       </label>`;
     }).join("");
@@ -2459,6 +2469,7 @@ function renderLessonStop() {
         <span>Open Video Lesson</span>
       </button>
       <div class="ls-tiers enter" style="animation-delay:.12s">
+        ${!videoOpened ? `<div class="ls-video-lock-hint">🔒 Watch the video first to unlock this checklist.</div>` : ''}
         ${tierHTML(mustDo, "mustDo", "ls-tier-must", "🔴", "Must Do")}
       </div>
 
@@ -4716,6 +4727,10 @@ function bindEvents() {
     $("ls-video-btn") && $("ls-video-btn").addEventListener("click", () => {
       const url = STATE.lessonTile?.video || "https://edpuzzle.com";
       window.open(url, "_blank", "noopener");
+      if (STATE.lessonTile && STATE.student) {
+        saveVideoOpened(STATE.student.id, STATE.lessonTile.id);
+        mount();
+      }
     });
     $("ls-submit") && $("ls-submit").addEventListener("click", () => {
       const btn = $("ls-submit");
