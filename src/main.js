@@ -2708,7 +2708,8 @@ function renderSg0Modal() {
         <thead><tr><th>Score</th><th>Status</th></tr></thead>
         <tbody>${tableRows}</tbody>
       </table>
-      <div class="sg-armory-footer-note">You can check your stats anytime from your Character Hub.</div>`;
+      <div class="sg-armory-footer-note">You can check your stats anytime from your Character Hub.</div>
+      <div class="sg-armory-pace-note">Every hero levels at their own pace in the Realm. Some heroes are quick with a blade, some take their time mastering old magic — both end up just as strong. Watch your own stats grow. Your journey isn't a race against anyone else's.</div>`;
     const armoryFooter = isDone
       ? `<div style="color:#10B981;font-weight:700;font-size:14px">✓ Completed</div>`
       : isCurrent
