@@ -12,15 +12,18 @@ let CLASS_DATA = null;
 
 /* ─── CONSTANTS ─── */
 const CLS_COLOR = {
-  warrior:"#7C3AED", archer:"#059669", fairy:"#EC4899", wizard:"#0891B2",
-  mage:"#0891B2", ranger:"#059669", healer:"#EC4899", rogue:"#7C3AED"
+  warrior:"#7C3AED", archer:"#059669", elf:"#16A34A", wizard:"#0891B2",
+  fairy:"#EC4899", // legacy fallback
+  mage:"#0891B2", ranger:"#059669", healer:"#16A34A", rogue:"#7C3AED"
 };
 const CLS_LABEL = {
-  warrior:"Warrior", archer:"Archer", fairy:"Fairy", wizard:"Wizard",
-  mage:"Wizard", ranger:"Archer", healer:"Fairy", rogue:"Warrior"
+  warrior:"Warrior", archer:"Archer", elf:"Elf", wizard:"Wizard",
+  fairy:"Elf", // legacy fallback
+  mage:"Wizard", ranger:"Archer", healer:"Elf", rogue:"Warrior"
 };
 function clsKey(student, merged) {
-  return merged.character || student.avatarClass || "warrior";
+  const raw = merged.avatarClass || merged.character || student.avatarClass || "warrior";
+  return raw === "fairy" ? "elf" : raw; // migrate legacy "fairy" to "elf"
 }
 const ITEMS = {
   health_potion:    { i:"🧪", img:"icon_potion_red.png",  n:"Health Potion",   desc:"Restore 2 HP" },
@@ -965,14 +968,39 @@ function assignGuild(studentId) {
   saveStudentOverride(studentId, { guild: chosen });
   return chosen;
 }
+const GUILD_BLURBS = {
+  crimson: "The Crimson Guild charges where others falter. They are the bold ones — relentless, fearless, first through every door. To wear their crest is to carry their courage and their fire.",
+  storm:   "The Storm Guild moves faster than doubt can catch them. They are the quick ones — adaptable, clever, always three steps ahead. To wear their crest is to carry their speed and their wit.",
+  ember:   "The Ember Guild never lets its fire go out. They are the passionate ones — determined, warm-hearted, impossible to discourage. To wear their crest is to carry their heart and their hunger.",
+  shadow:  "The Shadow Guild moves where others hesitate. They are the quiet ones — watching, waiting, striking only when it matters most. To wear their crest is to carry their patience and their nerve.",
+};
+
 function renderGuildReveal() {
+  const step = STATE.sg0GuildReveal;
+
+  if (step === "intro") {
+    return `<div class="guild-reveal-overlay" id="guild-intro-overlay">
+      <div class="guild-reveal-inner guild-intro-inner">
+        <div class="guild-intro-modal">
+          <div class="guild-intro-header">⚔️ Your Guild</div>
+          <div class="guild-intro-body">
+            <p>Every hero belongs somewhere. In the Realm, that place is your guild — the people who'll stand with you through every trial, every tile, every boss fight. Guilds aren't about being better than anyone else. They're about being part of something bigger than yourself.</p>
+            <p>Crimson. Storm. Ember. Shadow. Four guilds, one Realm. Yours is waiting to meet you.</p>
+          </div>
+          <div class="guild-intro-footer">
+            <button class="btn btn-gold" id="guild-intro-btn">I'm Ready to Join →</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
   const ov = getOverrides().students[String(STATE.student.id)] || {};
   const guildKey = ov.guild;
   const guilds = CLASS_DATA && CLASS_DATA.guilds;
   if (!guilds || !guildKey || !guilds[guildKey]) return "";
   const guild = guilds[guildKey];
   const allKeys = Object.keys(guilds);
-  const step = STATE.sg0GuildReveal;
 
   if (step === "spinning") {
     const crests = allKeys.map(k =>
@@ -988,7 +1016,16 @@ function renderGuildReveal() {
     </div>`;
   }
 
+  if (step === "watching") {
+    return `<div class="guild-reveal-overlay">
+      <div class="guild-reveal-inner">
+        <div class="guild-watching-text">The Realm has been watching you since you arrived.<br>Now, it has made its choice.</div>
+      </div>
+    </div>`;
+  }
+
   if (step === "chosen") {
+    const blurb = GUILD_BLURBS[guild.name.toLowerCase()] || "";
     return `<div class="guild-reveal-overlay">
       <div class="guild-color-flash" style="background:${guild.color}"></div>
       <div class="guild-reveal-inner">
@@ -998,8 +1035,9 @@ function renderGuildReveal() {
           onerror="this.style.fontSize='80px';this.style.lineHeight='1'"/>
         <div class="guild-chosen-name" style="color:${guild.color}">${guild.name.toUpperCase()}</div>
         <div class="guild-chosen-motto">"${guild.motto}"</div>
+        ${blurb ? `<div class="guild-chosen-blurb">${blurb}</div>` : ''}
         <button class="guild-continue-btn" id="guild-continue-btn"
-          style="background:${guild.color};color:#fff">Continue Your Quest →</button>
+          style="background:${guild.color};color:#fff;animation-delay:.9s">Continue Your Quest →</button>
       </div>
     </div>`;
   }
@@ -1186,7 +1224,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               teacherPeriodIdx:0, teacherStudent:null, teacherEdit:null, boardLand:1,
               lessonTile:null, lessonLand:null, teacherTile:null, teacherTileLand:null,
               bossTile:null, bossLand:null, arrivalTile:null, arrivalLand:null,
-              avStep:0, avClass:null, avVariant:null, avTone:null,
+              avStep:0, avGender:null, avClass:null, avVariant:null, avTone:null,
               customizeOpen:false, pendingTitle:null, pendingCompanion:undefined, custTab:"avatar",
               companionPickerOpen:false, companionPickerStudentId:null,
               mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
@@ -1401,7 +1439,7 @@ function renderPin() {
 const AV_CLASSES = [
   { key:"archer",  icon:"🏹", label:"Archer"  },
   { key:"warrior", icon:"⚔️", label:"Warrior" },
-  { key:"fairy",   icon:"🧚", label:"Fairy"   },
+  { key:"elf",     icon:"🧝", label:"Elf"     },
   { key:"wizard",  icon:"🔮", label:"Wizard"  },
 ];
 const AV_TONES = [
@@ -1410,8 +1448,12 @@ const AV_TONES = [
   { key:"medium", hex:"#8D5524", label:"Medium" },
   { key:"dark",   hex:"#3D1C02", label:"Dark"   },
 ];
-function buildAvatarFile(char, variant, tone) {
-  return `avatar_${char}_${variant}_${tone}.png`;
+const AV_GENDERS = [
+  { key:"female", icon:"🌸", label:"Female" },
+  { key:"male",   icon:"🛡️", label:"Male"   },
+];
+function buildAvatarFile(gender, char, variant, tone) {
+  return `avatar_${char}_${variant}_${tone}_${gender}.png`;
 }
 
 function renderCatchUpModal() {
@@ -1459,41 +1501,59 @@ function renderHub() {
 
   // Init picker from saved data on first visit
   if (STATE.avClass === null) {
-    STATE.avClass   = s.character || "warrior";
-    STATE.avVariant = s.variant   || "01";
-    STATE.avTone    = s.skinTone  || "light";
+    const rawClass = s.avatarClass || s.character || "warrior";
+    STATE.avGender  = s.avatarGender || "female";
+    STATE.avClass   = rawClass === "fairy" ? "elf" : rawClass;
+    STATE.avVariant = s.avatarStyle  || s.variant  || "01";
+    STATE.avTone    = s.avatarSkinTone || s.skinTone || "light";
   }
   const avStep    = STATE.avStep;
-  const avClass   = STATE.avClass;
-  const avVariant = STATE.avVariant;
-  const avTone    = STATE.avTone;
+  const avGender  = STATE.avGender || "female";
+  const avClass   = STATE.avClass  || "warrior";
+  const avVariant = STATE.avVariant || "01";
+  const avTone    = STATE.avTone   || "light";
 
   // Live preview uses in-progress picker state
-  const previewFile = buildAvatarFile(avClass, avVariant, avTone);
-  const savedHasNewFormat = s.character && s.variant && s.skinTone;
+  const previewFile = buildAvatarFile(avGender, avClass, avVariant, avTone);
+  // Resolve saved avatar — new fields take priority over legacy fields
+  const savedClass  = (() => { const r = s.avatarClass || s.character || ""; return r === "fairy" ? "elf" : r; })();
+  const savedStyle  = s.avatarStyle  || s.variant  || "";
+  const savedTone   = s.avatarSkinTone || s.skinTone || "";
+  const savedGender = s.avatarGender || "female";
+  const savedHasNewFormat = savedClass && savedStyle && savedTone;
   const avatarFile = s.avatar || "avatar_blankchibi.png";
-  const avatarUrl  = `/avatars/${savedHasNewFormat ? buildAvatarFile(s.character, s.variant, s.skinTone) : avatarFile}`;
+  const avatarUrl  = `/avatars/${savedHasNewFormat ? buildAvatarFile(savedGender, savedClass, savedStyle, savedTone) : avatarFile}`;
   const xpPct = Math.round((s.xp / s.xpNext) * 100);
 
   // Step breadcrumb
-  const stepLabels = ["Class","Style","Skin Tone"];
+  const stepLabels = ["Gender","Class","Style","Skin Tone"];
   const stepsHTML = stepLabels.map((lbl, i) => {
     const n = i + 1;
     const cls = n < avStep ? "av-step-done" : n === avStep ? "av-step-cur" : "";
     return `${i>0?'<span class="av-step-sep">›</span>':''}<span class="av-step-label ${cls}">${n}. ${lbl}</span>`;
   }).join("");
 
-  // Live preview block
+  // Live preview block — fallback chain: new {class}_{style}_{tone}_{gender} → old no-gender → legacy no-tone
   const previewHTML = `
     <div class="av-live-preview">
       <img class="av-live-img" src="/avatars/${previewFile}"
-        onerror="this.src='/avatars/avatar_${avClass}_${avVariant}.png';this.onerror=null"
+        onerror="this.src='/avatars/avatar_${avClass}_${avVariant}_${avTone}.png';this.onerror=function(){this.src='/avatars/avatar_${avClass}_${avVariant}.png';this.onerror=null;}"
         alt="Preview" width="168" height="168"/>
       <span class="av-live-label">Preview</span>
     </div>`;
 
-  // Step bodies (no inline nav — nav is in the modal header)
+  // Step 1 — Gender
   const step1Body = `
+    <div class="av-gender-grid">
+      ${AV_GENDERS.map(g => `
+        <button class="av-gender-card${avGender===g.key?" av-sel":""}" data-avgender="${g.key}">
+          <span class="av-gender-icon">${g.icon}</span>
+          <span class="av-class-name">${g.label}</span>
+        </button>`).join("")}
+    </div>`;
+
+  // Step 2 — Class
+  const step2Body = `
     <div class="av-class-grid">
       ${AV_CLASSES.map(c => `
         <button class="av-class-card${avClass===c.key?" av-sel":""}" data-avclass="${c.key}">
@@ -1506,18 +1566,20 @@ function renderHub() {
         </button>`).join("")}
     </div>`;
 
-  const step2Body = `
+  // Step 3 — Style (2 variants per gender+class combination)
+  const step3Body = `
     <div class="av-variant-grid">
-      ${["01","02","03"].map(v => `
+      ${["01","02"].map(v => `
         <button class="av-variant-btn${avVariant===v?" av-sel":""}" data-avvariant="${v}">
-          <img src="/avatars/avatar_${avClass}_${v}_light.png"
-            onerror="this.src='/avatars/avatar_${avClass}_${v}.png';this.onerror=null"
+          <img src="/avatars/avatar_${avClass}_${v}_light_${avGender}.png"
+            onerror="this.src='/avatars/avatar_${avClass}_${v}_light.png';this.onerror=function(){this.src='/avatars/avatar_${avClass}_${v}.png';this.onerror=null;}"
             alt="Style ${parseInt(v)}" width="100" height="100" loading="lazy"/>
           <span>Style ${parseInt(v)}</span>
         </button>`).join("")}
     </div>`;
 
-  const step3Body = `
+  // Step 4 — Skin Tone
+  const step4Body = `
     <div class="av-tone-row">
       ${AV_TONES.map(t => `
         <button class="av-tone-btn${avTone===t.key?" av-sel":""}" data-avtone="${t.key}">
@@ -1526,7 +1588,7 @@ function renderHub() {
         </button>`).join("")}
     </div>`;
 
-  const stepBody = avStep===1 ? step1Body : avStep===2 ? step2Body : step3Body;
+  const stepBody = avStep===1 ? step1Body : avStep===2 ? step2Body : avStep===3 ? step3Body : step4Body;
 
   // Customize overlay — tabbed: avatar / title / companions
   const activeTitle = STATE.pendingTitle || s.title;
@@ -1946,10 +2008,20 @@ function renderHub() {
 
 /* ─── AVATARS ─── */
 const STARTER_AVATARS = [
+  // Canonical: avatar_{class}_{style}_{tone}_{gender}.png
+  "avatar_archer_01_light_female.png",  "avatar_archer_01_light_male.png",
+  "avatar_archer_02_light_female.png",  "avatar_archer_02_light_male.png",
+  "avatar_elf_01_light_female.png",     "avatar_elf_01_light_male.png",
+  "avatar_elf_02_light_female.png",     "avatar_elf_02_light_male.png",
+  "avatar_warrior_01_light_male.png",   "avatar_warrior_02_light_female.png",
+  "avatar_warrior_02_light_male.png",
+  "avatar_wizard_01_light_female.png",  "avatar_wizard_01_light_male.png",
+  "avatar_wizard_02_light_female.png",  "avatar_wizard_02_light_male.png",
+  // Legacy filenames — still resolve for students who haven't re-customised
   "avatar_warrior_01.png","avatar_warrior_02.png","avatar_warrior_03.png",
-  "avatar_archer_01.png", "avatar_archer_02.png", "avatar_archer_03.png",
-  "avatar_wizard_01.png", "avatar_wizard_02.png", "avatar_wizard_03.png",
-  "avatar_fairy_01.png",  "avatar_fairy_02.png",  "avatar_fairy_03.png",
+  "avatar_archer_01.png", "avatar_archer_02.png",
+  "avatar_wizard_01.png", "avatar_wizard_02.png",
+  "avatar_fairy_01.png",  "avatar_fairy_02.png",
 ];
 
 /* ─── QUEST BOARD ─── */
@@ -3888,7 +3960,7 @@ function bindEvents() {
       // Close without saving
       $("cust-close") && $("cust-close").addEventListener("click", () => {
         STATE.customizeOpen = false; STATE.avStep = 0;
-        STATE.pendingTitle = null; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null;
+        STATE.pendingTitle = null; STATE.avGender = null; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null;
         if (getLandPos(STATE.student).land === 0) {
           STATE.screen = "quest-map";
           if (STATE._sg0ReturnTile) { STATE.sg0Open = true; STATE.sg0Tile = STATE._sg0ReturnTile; STATE._sg0ReturnTile = null; }
@@ -3898,8 +3970,14 @@ function bindEvents() {
       // Save — commit avatar + title + active companion
       $("cust-save") && $("cust-save").addEventListener("click", () => {
         const overrides = {
+          // Canonical new fields
+          avatarGender: STATE.avGender,
+          avatarClass: STATE.avClass,
+          avatarStyle: STATE.avVariant,
+          avatarSkinTone: STATE.avTone,
+          // Legacy fields kept for backward compat with teacher view / existing code
           character: STATE.avClass, variant: STATE.avVariant, skinTone: STATE.avTone,
-          avatar: buildAvatarFile(STATE.avClass, STATE.avVariant, STATE.avTone),
+          avatar: buildAvatarFile(STATE.avGender, STATE.avClass, STATE.avVariant, STATE.avTone),
         };
         if (STATE.pendingTitle) overrides.title = STATE.pendingTitle;
         if (STATE.pendingCompanion !== undefined) overrides.activeCompanion = STATE.pendingCompanion;
@@ -3911,15 +3989,19 @@ function bindEvents() {
         }
         mount();
       });
-      // Avatar step nav
+      // Avatar step nav — step 1: gender, step 2: class, step 3: style, step 4: tone
+      document.querySelectorAll(".av-gender-card").forEach(btn => {
+        btn.addEventListener("click", () => { STATE.avGender = btn.dataset.avgender; STATE.avStep = 2; mount(); });
+      });
       document.querySelectorAll(".av-class-card").forEach(btn => {
-        btn.addEventListener("click", () => { STATE.avClass = btn.dataset.avclass; STATE.avStep = 2; mount(); });
+        btn.addEventListener("click", () => { STATE.avClass = btn.dataset.avclass; STATE.avStep = 3; mount(); });
       });
       $("av-back-2") && $("av-back-2").addEventListener("click", () => { STATE.avStep = 1; mount(); });
       document.querySelectorAll(".av-variant-btn").forEach(btn => {
-        btn.addEventListener("click", () => { STATE.avVariant = btn.dataset.avvariant; STATE.avStep = 3; mount(); });
+        btn.addEventListener("click", () => { STATE.avVariant = btn.dataset.avvariant; STATE.avStep = 4; mount(); });
       });
       $("av-back-3") && $("av-back-3").addEventListener("click", () => { STATE.avStep = 2; mount(); });
+      $("av-back-4") && $("av-back-4").addEventListener("click", () => { STATE.avStep = 3; mount(); });
       document.querySelectorAll(".av-tone-btn").forEach(btn => {
         btn.addEventListener("click", () => { STATE.avTone = btn.dataset.avtone; mount(); });
       });
@@ -4508,16 +4590,9 @@ function bindEvents() {
         if (tile.id === 3) {
           const _gOv = getOverrides().students[String(STATE.student.id)] || {};
           if (!_gOv.guild) {
-            assignGuild(STATE.student.id);
-            STATE.sg0GuildReveal = "spinning";
+            STATE.sg0GuildReveal = "intro";
             STATE.sg0Tile = tile;
             mount();
-            setTimeout(() => {
-              if (STATE.sg0GuildReveal === "spinning") {
-                STATE.sg0GuildReveal = "chosen";
-                mount();
-              }
-            }, 2500);
             return;
           }
         }
@@ -4557,6 +4632,24 @@ function bindEvents() {
     $("npc-close")     && $("npc-close").addEventListener("click", closeNpc);
     $("npc-close-btn") && $("npc-close-btn").addEventListener("click", closeNpc);
     $("npc-overlay")   && $("npc-overlay").addEventListener("click", e => { if (e.target === $("npc-overlay")) closeNpc(); });
+    // Guild intro — "I'm Ready to Join" triggers the sorting animation
+    $("guild-intro-btn") && $("guild-intro-btn").addEventListener("click", () => {
+      assignGuild(STATE.student.id);
+      STATE.sg0GuildReveal = "spinning";
+      mount();
+      setTimeout(() => {
+        if (STATE.sg0GuildReveal === "spinning") {
+          STATE.sg0GuildReveal = "watching";
+          mount();
+          setTimeout(() => {
+            if (STATE.sg0GuildReveal === "watching") {
+              STATE.sg0GuildReveal = "chosen";
+              mount();
+            }
+          }, 900);
+        }
+      }, 2500);
+    });
     // Guild reveal — continue button advances tile 3
     $("guild-continue-btn") && $("guild-continue-btn").addEventListener("click", () => {
       const tile = STATE.sg0Tile;
