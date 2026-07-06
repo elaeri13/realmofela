@@ -646,7 +646,8 @@ const LAND0 = {
   decorations:[],
   tiles:[
     { id:1, type:"sg", name:"The Notice Board",      x:195, y:350,
-      flavor:"Adventurer! A fresh notice has appeared on the board. Your journey begins here — read what awaits you in the Realm of ELA and take the first step toward legend." },
+      flavor:"Adventurer! A fresh notice has appeared on the board. Your journey begins here! Read what awaits you in the Realm of ELA and take the first step toward legend.",
+      flavorDramatic:"✦ The Hall of Heroes is already expecting you. ✦" },
     { id:2, type:"sg", name:"The Hall of Heroes",    x:455, y:350, sgModal:"avatar",
       flavor:"Every legend begins with a face and a name. Step into the Hall of Heroes to choose your class and forge the hero you will become. Your look, your story." },
     { id:3, type:"sg", name:"The Guild Hall",         x:715, y:350,
@@ -2724,7 +2725,7 @@ function renderSg0Modal() {
     </div>`;
   }
 
-  let body = `<p class="sg-modal-flavor">"${tile.flavor}"</p>`;
+  let body = `<p class="sg-modal-flavor">"${tile.flavor}"</p>${tile.flavorDramatic ? `<p class="sg-modal-flavor-dramatic">${tile.flavorDramatic}</p>` : ''}`;
 
   if (tile.sgModal === "avatar") {
     body += `<div class="sg-modal-avatar-hint">
@@ -3248,7 +3249,7 @@ function renderTeacherDashboard() {
         </div>
       </div>
       <div class="period-tabs">${tabs}</div>
-      <details class="pacing-panel" ${pacing ? 'open' : ''}>
+      <details class="pacing-panel">
         <summary class="pacing-summary">📈 SP Pacing ${pacing ? `<span class="pacing-on-badge">ON — expect ${pacingExpected ?? '?'} sessions by today</span>` : '<span class="pacing-off-badge">OFF</span>'}</summary>
         <div class="pacing-form">
           <label class="pacing-lbl">Class Start Date
