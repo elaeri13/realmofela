@@ -1093,13 +1093,14 @@ function getActivityLog(studentId) {
 function getSQInvites(studentId) {
   return _sqInvites[String(studentId)] || {};
 }
-function sendQuestInvite(fromStudent, recipientId, questKey, questName, tileId, type, idx) {
+function sendQuestInvite(fromStudent, recipientId, questKey, questName, tileId, type, idx, landId = null) {
   const invite = {
     fromStudentId: fromStudent.id,
     fromStudentName: fromStudent.displayName || fromStudent.name || 'A classmate',
     questKey,
     questName,
     tileId,
+    landId,
     type,
     idx,
     timestamp: new Date().toISOString(),
@@ -1204,11 +1205,11 @@ function getActiveSideQuests(student) {
   const ov = _overrides[String(student.id)] || {};
   return ov.sideQuests || {};
 }
-function acceptSideQuest(studentId, tileId, type, questIdx) {
+function acceptSideQuest(studentId, tileId, type, questIdx, landId = null) {
   const sid = String(studentId);
   const ov = _overrides[sid] || {};
   const sq = Object.assign({}, ov.sideQuests || {});
-  sq[`${tileId}_${type}`] = { questIdx, tileId, type, acceptedAt: new Date().toISOString() };
+  sq[`${tileId}_${type}`] = { questIdx, tileId, landId, type, acceptedAt: new Date().toISOString() };
   saveStudentOverride(sid, { sideQuests: sq });
 }
 function completeSideQuest(student, key) {
@@ -1222,14 +1223,16 @@ function completeSideQuest(student, key) {
     : (SOLO_QUESTS[entry.questIdx] || SOLO_QUESTS[0]);
   delete sq[key];
   const history = [...(ov.completedQuests || []), {
-    key, title: quest.title, type: entry.type, xp: quest.xp, completedAt: new Date().toISOString()
+    key, title: quest.title, type: entry.type, xp: quest.xp, landId: entry.landId || null, completedAt: new Date().toISOString()
   }].slice(-20);
   saveStudentOverride(sid, { sideQuests: Object.keys(sq).length ? sq : null, completedQuests: history });
   logActivity(sid, '✨', `Completed quest: ${quest.title} (+${quest.xp} XP)`);
   const { levelsGained, newLevel } = awardXP(student, quest.xp);
   if (levelsGained > 0) logActivity(sid, '⬆️', `Reached Level ${newLevel}!`);
   // Rare drop for side quest completion
-  const _sqLand = findLandByTileId(entry.tileId);
+  const _sqLand = entry.landId
+    ? LANDS.find(l => l.id === entry.landId) || findLandByTileId(entry.tileId)
+    : findLandByTileId(entry.tileId);
   if (_sqLand) awardFromPool(student, _sqLand.name, 'rare');
   if (Math.random() < 0.5) awardSeasonalBadge(student);
   showXPCelebration(quest.xp, levelsGained, newLevel, () => mount());
@@ -1562,7 +1565,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
               sideQuestModalOpen:false, sideQuestTileId:null, sideQuestSoloIdx:0, sideQuestCollabIdx:0,
               pendingSQAfterGrade:null, sqBoardOpen:false, sqBoardLandId:null,
-              sqPartnerPickOpen:false, sqPartnerPickKey:null, sqPartnerPickIdx:0, sqPartnerPickType:null, sqPartnerPickTile:null, sqPartnerPickSelected:null,
+              sqPartnerPickOpen:false, sqPartnerPickKey:null, sqPartnerPickIdx:0, sqPartnerPickType:null, sqPartnerPickTile:null, sqPartnerPickLand:null, sqPartnerPickSelected:null,
               sqInviteNotifOpen:false,
               questJournalTab:'active',
               craftingOpen:false, craftingStep:1, craftingSelected:null,
@@ -2215,7 +2218,7 @@ function renderHub() {
           if (questTile) {
             const collabKey = `${questTile.id}_collab`;
             if (!activeSQ[collabKey] && !completedKeys.has(collabKey))
-              availQuests.push({ key: collabKey, q: resolveCollabQuest(questTile.id, questTile), type:'collab', tileId: questTile.id });
+              availQuests.push({ key: collabKey, q: resolveCollabQuest(questTile.id, questTile), type:'collab', tileId: questTile.id, landId: curLand.id });
           }
           const tab = STATE.questJournalTab || 'active';
           const tabs = ['available','active','completed'].map(t =>
@@ -2234,22 +2237,22 @@ function renderHub() {
                   <div class="sq-hub-desc">${q.desc}</div>
                   <div class="sq-hub-footer">
                     <span class="sq-hub-xp">+${q.xp} XP</span>
-                    <button class="sq-view-lesson-btn" data-sq-tile="${activeTileId}">📖 View Lesson</button>
+                    <button class="sq-view-lesson-btn" data-sq-tile="${activeTileId}" data-sq-land="${e.landId || ''}">📖 View Lesson</button>
                     <button class="btn-sq-complete" data-sq-key="${key}">✓ Mark Complete</button>
                   </div>
                 </div>`;
               }).join('')
             : `<div class="sq-empty">No active quests — accept some from your current lesson!</div>`;
           const availContent = availQuests.length
-            ? availQuests.map(({key, q, type, tileId}) => {
+            ? availQuests.map(({key, q, type, tileId, landId}) => {
                 return `<div class="sq-hub-card">
                   <div class="sq-hub-type">🤝 Collaborative</div>
                   <div class="sq-hub-name">${q.title}</div>
                   <div class="sq-hub-desc">${q.desc}</div>
                   <div class="sq-hub-footer">
                     <span class="sq-hub-xp">+${q.xp} XP</span>
-                    <button class="sq-view-lesson-btn" data-sq-tile="${tileId}">📖 View Lesson</button>
-                    <button class="ls-sq-accept-btn" data-sq-key="${key}" data-sq-idx="0" data-sq-type="${type}" data-sq-tile="${tileId}">Accept</button>
+                    <button class="sq-view-lesson-btn" data-sq-tile="${tileId}" data-sq-land="${landId || ''}">📖 View Lesson</button>
+                    <button class="ls-sq-accept-btn" data-sq-key="${key}" data-sq-idx="0" data-sq-type="${type}" data-sq-tile="${tileId}" data-sq-land="${landId || ''}">Accept</button>
                   </div>
                 </div>`;
               }).join('')
@@ -2263,7 +2266,7 @@ function renderHub() {
                   <div class="sq-hub-name">${c.title}</div>
                   <div class="sq-hub-footer">
                     <span class="sq-hub-xp">+${c.xp} XP</span>
-                    ${doneTileId ? `<button class="sq-view-lesson-btn" data-sq-tile="${doneTileId}">📖 View Lesson</button>` : ''}
+                    ${doneTileId ? `<button class="sq-view-lesson-btn" data-sq-tile="${doneTileId}" data-sq-land="${c.landId || ''}">📖 View Lesson</button>` : ''}
                     <span class="sq-done-badge">✓ Done</span>
                   </div>
                 </div>`;
@@ -3554,7 +3557,7 @@ function renderQuestMap() {
             const statusBadge = isDone ? `<span class="sq-board-badge sq-board-done">✓ Done</span>`
               : isActive ? `<span class="sq-board-badge sq-board-active">⚡ Active</span>`
               : locked   ? `<span class="sq-board-badge sq-board-locked">🔒 Locked</span>`
-              :            `<button class="ls-sq-accept-btn sq-board-accept sq-board-badge sq-board-accept-badge" data-sq-key="${key}" data-sq-idx="0" data-sq-type="${type}" data-sq-tile="${tileId}">Accept</button>`;
+              :            `<button class="ls-sq-accept-btn sq-board-accept sq-board-badge sq-board-accept-badge" data-sq-key="${key}" data-sq-idx="0" data-sq-type="${type}" data-sq-tile="${tileId}" data-sq-land="${land.id}">Accept</button>`;
             return `<div class="sq-board-row${locked ? ' sq-board-row-locked' : ''}">
               <div class="sq-board-row-info">
                 <span class="sq-board-row-type">🤝 Collab</span>
@@ -3563,7 +3566,7 @@ function renderQuestMap() {
               </div>
               <div class="sq-board-row-right">
                 ${statusBadge}
-                <button class="sq-view-lesson-btn" data-sq-tile="${tileId}">📖 Lesson${tileName ? ` · ${tileName}` : ''}</button>
+                <button class="sq-view-lesson-btn" data-sq-tile="${tileId}" data-sq-land="${land.id}">📖 Lesson${tileName ? ` · ${tileName}` : ''}</button>
               </div>
             </div>`;
           }).join('')}
@@ -4593,7 +4596,7 @@ function bindEvents() {
       });
       $("invite-accept") && $("invite-accept").addEventListener("click", () => {
         if (inv) {
-          acceptSideQuest(STATE.student.id, inv.tileId, inv.type, inv.idx);
+          acceptSideQuest(STATE.student.id, inv.tileId, inv.type, inv.idx, inv.landId || null);
           logActivity(STATE.student.id, '🤝', `Accepted collaborative quest with ${inv.fromStudentName}: ${inv.questName || inv.questKey}`);
           clearQuestInvite(STATE.student.id, inv.questKey);
         }
@@ -4803,7 +4806,10 @@ function bindEvents() {
     document.querySelectorAll(".sq-view-lesson-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const tileId = parseInt(btn.dataset.sqTile);
-        const found = findTileById(tileId);
+        const sqLandId = btn.dataset.sqLand ? parseInt(btn.dataset.sqLand) : null;
+        const land = sqLandId ? LANDS.find(l => l.id === sqLandId) : null;
+        const tile = land ? land.tiles.find(t => t.id === tileId) : null;
+        const found = (land && tile) ? { tile, land } : LANDS.reduce((acc, l) => acc || (l.tiles.find(t => t.id === tileId) ? { tile: l.tiles.find(t => t.id === tileId), land: l } : null), null);
         if (!found) return;
         STATE.lessonTile = found.tile;
         STATE.lessonLand = found.land;
@@ -4818,17 +4824,19 @@ function bindEvents() {
         const idx  = parseInt(btn.dataset.sqIdx, 10);
         const type = btn.dataset.sqType;
         const tileId = parseInt(btn.dataset.sqTile, 10);
+        const landId = btn.dataset.sqLand ? parseInt(btn.dataset.sqLand) : null;
         if (type === 'collab') {
           STATE.sqPartnerPickOpen = true;
           STATE.sqPartnerPickKey = key;
           STATE.sqPartnerPickIdx = idx;
           STATE.sqPartnerPickType = type;
           STATE.sqPartnerPickTile = tileId;
+          STATE.sqPartnerPickLand = landId;
           STATE.sqPartnerPickSelected = null;
           mount();
         } else {
           const quest = SOLO_QUESTS[idx] || SOLO_QUESTS[0];
-          acceptSideQuest(STATE.student.id, tileId, type, idx);
+          acceptSideQuest(STATE.student.id, tileId, type, idx, landId);
           logActivity(STATE.student.id, '📜', `Accepted quest: ${quest.title}`);
           mount();
         }
@@ -4844,12 +4852,12 @@ function bindEvents() {
         row.addEventListener("click", () => { STATE.sqPartnerPickSelected = parseInt(row.dataset.partnerId, 10); mount(); });
       });
       $("partner-pick-send") && $("partner-pick-send").addEventListener("click", () => {
-        const { sqPartnerPickKey: key, sqPartnerPickIdx: idx, sqPartnerPickTile: tileId, sqPartnerPickSelected: recipientId } = STATE;
+        const { sqPartnerPickKey: key, sqPartnerPickIdx: idx, sqPartnerPickTile: tileId, sqPartnerPickLand: landId, sqPartnerPickSelected: recipientId } = STATE;
         if (!recipientId) return;
         const quest = COLLAB_QUESTS[idx] || COLLAB_QUESTS[0];
-        acceptSideQuest(STATE.student.id, tileId, 'collab', idx);
+        acceptSideQuest(STATE.student.id, tileId, 'collab', idx, landId);
         logActivity(STATE.student.id, '🤝', `Accepted quest: ${quest.title} — awaiting partner`);
-        sendQuestInvite(getMergedStudent(STATE.student), recipientId, key, quest.title, tileId, 'collab', idx);
+        sendQuestInvite(getMergedStudent(STATE.student), recipientId, key, quest.title, tileId, 'collab', idx, landId);
         STATE.sqPartnerPickOpen = false; STATE.sqPartnerPickSelected = null;
         mount();
       });
@@ -5331,7 +5339,10 @@ function bindEvents() {
     document.querySelectorAll(".sq-view-lesson-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         const tileId = parseInt(btn.dataset.sqTile);
-        const found = findTileById(tileId);
+        const sqLandId = btn.dataset.sqLand ? parseInt(btn.dataset.sqLand) : null;
+        const land = sqLandId ? LANDS.find(l => l.id === sqLandId) : null;
+        const tile = land ? land.tiles.find(t => t.id === tileId) : null;
+        const found = (land && tile) ? { tile, land } : LANDS.reduce((acc, l) => acc || (l.tiles.find(t => t.id === tileId) ? { tile: l.tiles.find(t => t.id === tileId), land: l } : null), null);
         if (!found) return;
         STATE.sqBoardOpen = false;
         STATE.lessonTile = found.tile;
@@ -5346,17 +5357,19 @@ function bindEvents() {
         const idx = parseInt(btn.dataset.sqIdx, 10);
         const type = btn.dataset.sqType;
         const tileId = parseInt(btn.dataset.sqTile, 10);
+        const landId = btn.dataset.sqLand ? parseInt(btn.dataset.sqLand) : null;
         if (type === 'collab') {
           STATE.sqPartnerPickOpen = true;
           STATE.sqPartnerPickKey = key;
           STATE.sqPartnerPickIdx = idx;
           STATE.sqPartnerPickType = type;
           STATE.sqPartnerPickTile = tileId;
+          STATE.sqPartnerPickLand = landId;
           STATE.sqPartnerPickSelected = null;
           mount();
         } else {
           const quest = SOLO_QUESTS[idx] || SOLO_QUESTS[0];
-          acceptSideQuest(STATE.student.id, tileId, type, idx);
+          acceptSideQuest(STATE.student.id, tileId, type, idx, landId);
           logActivity(STATE.student.id, '📜', `Accepted quest: ${quest.title}`);
           mount();
         }
@@ -5372,12 +5385,12 @@ function bindEvents() {
         row.addEventListener("click", () => { STATE.sqPartnerPickSelected = parseInt(row.dataset.partnerId, 10); mount(); });
       });
       $("partner-pick-send") && $("partner-pick-send").addEventListener("click", () => {
-        const { sqPartnerPickKey: key, sqPartnerPickIdx: idx, sqPartnerPickTile: tileId, sqPartnerPickSelected: recipientId } = STATE;
+        const { sqPartnerPickKey: key, sqPartnerPickIdx: idx, sqPartnerPickTile: tileId, sqPartnerPickLand: landId, sqPartnerPickSelected: recipientId } = STATE;
         if (!recipientId) return;
         const quest = COLLAB_QUESTS[idx] || COLLAB_QUESTS[0];
-        acceptSideQuest(STATE.student.id, tileId, 'collab', idx);
+        acceptSideQuest(STATE.student.id, tileId, 'collab', idx, landId);
         logActivity(STATE.student.id, '🤝', `Accepted quest: ${quest.title} — awaiting partner`);
-        sendQuestInvite(getMergedStudent(STATE.student), recipientId, key, quest.title, tileId, 'collab', idx);
+        sendQuestInvite(getMergedStudent(STATE.student), recipientId, key, quest.title, tileId, 'collab', idx, landId);
         STATE.sqPartnerPickOpen = false; STATE.sqPartnerPickSelected = null;
         mount();
       });
@@ -5664,14 +5677,14 @@ function bindEvents() {
         });
       });
       $("partner-pick-send") && $("partner-pick-send").addEventListener("click", () => {
-        const { sqPartnerPickKey: key, sqPartnerPickIdx: idx, sqPartnerPickTile: tileId, sqPartnerPickSelected: recipientId } = STATE;
+        const { sqPartnerPickKey: key, sqPartnerPickIdx: idx, sqPartnerPickTile: tileId, sqPartnerPickLand: landId, sqPartnerPickSelected: recipientId } = STATE;
         if (!recipientId) return;
         const quest = COLLAB_QUESTS[idx] || COLLAB_QUESTS[0];
         // Sender's quest becomes Active
-        acceptSideQuest(STATE.student.id, tileId, 'collab', idx);
+        acceptSideQuest(STATE.student.id, tileId, 'collab', idx, landId);
         logActivity(STATE.student.id, '🤝', `Accepted quest: ${quest.title} — awaiting partner`);
         // Send invite to recipient
-        sendQuestInvite(getMergedStudent(STATE.student), recipientId, key, quest.title, tileId, 'collab', idx);
+        sendQuestInvite(getMergedStudent(STATE.student), recipientId, key, quest.title, tileId, 'collab', idx, landId);
         STATE.sqPartnerPickOpen = false; STATE.sqPartnerPickSelected = null;
         mount();
       });
@@ -5801,6 +5814,7 @@ function bindEvents() {
         const idx  = parseInt(btn.dataset.sqIdx, 10);
         const type = btn.dataset.sqType;
         const tileId = parseInt(btn.dataset.sqTile, 10);
+        const landId = btn.dataset.sqLand ? parseInt(btn.dataset.sqLand) : (STATE.lessonLand?.id || null);
         if (type === 'collab') {
           // Show partner picker instead of immediately accepting
           STATE.sqPartnerPickOpen = true;
@@ -5808,11 +5822,12 @@ function bindEvents() {
           STATE.sqPartnerPickIdx = idx;
           STATE.sqPartnerPickType = type;
           STATE.sqPartnerPickTile = tileId;
+          STATE.sqPartnerPickLand = landId;
           STATE.sqPartnerPickSelected = null;
           mount();
         } else {
           const quest = SOLO_QUESTS[idx] || SOLO_QUESTS[0];
-          acceptSideQuest(STATE.student.id, tileId, type, idx);
+          acceptSideQuest(STATE.student.id, tileId, type, idx, landId);
           logActivity(STATE.student.id, '📜', `Accepted quest: ${quest.title}`);
           mount();
         }
@@ -5833,17 +5848,19 @@ function bindEvents() {
           const idx  = parseInt(btn.dataset.sqIdx, 10);
           const type = btn.dataset.sqType;
           const tid  = STATE.sideQuestTileId;
+          const landId = STATE.lessonLand?.id || null;
           if (type === 'collab') {
             STATE.sqPartnerPickOpen = true;
             STATE.sqPartnerPickKey = key;
             STATE.sqPartnerPickIdx = idx;
             STATE.sqPartnerPickType = type;
             STATE.sqPartnerPickTile = tid;
+            STATE.sqPartnerPickLand = landId;
             STATE.sqPartnerPickSelected = null;
             mount();
           } else {
             const quest = SOLO_QUESTS[idx] || SOLO_QUESTS[0];
-            acceptSideQuest(STATE.student.id, tid, type, idx);
+            acceptSideQuest(STATE.student.id, tid, type, idx, landId);
             logActivity(STATE.student.id, '📜', `Accepted quest: ${quest.title}`);
             mount();
           }

@@ -603,7 +603,6 @@ input  { font-family: var(--font-body); }
 @media (max-width:860px) {
   /* Both grid rows collapse to single column */
   .hub-inv-bosses { grid-template-columns:1fr; }
-  .character-hub-two-col-row { grid-template-columns:1fr; }
 
   /* Top card: single column — identity above, equip below */
   .char-card-cols { grid-template-columns:1fr; }
@@ -866,6 +865,9 @@ input  { font-family: var(--font-body); }
 
 /* Character Hub — shared two-column row */
 .character-hub-two-col-row { display:grid; grid-template-columns:1fr 1fr; gap:24px; width:100%; }
+@media (max-width:600px) {
+  .character-hub-two-col-row { grid-template-columns:1fr; }
+}
 
 /* Training Grounds NPC tutorial */
 .tg-intro-card { background:rgba(255,255,255,.85); border:1.5px solid #C4B5FD; border-radius:14px; padding:22px 24px; font-size:15px; color:#1E1B4B; line-height:1.75; }
