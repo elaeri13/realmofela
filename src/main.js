@@ -43,6 +43,24 @@ const EQUIP_SLOTS = [
   { label: 'Shield',    icon: '🛡️', key: 'shield',    itemKey: 'shield' },
   { label: 'Accessory', icon: '💎', key: 'accessory', itemKey: 'amulet' },
 ];
+const EQUIP_TIER_COLOR  = { common:"#9CA3AF", rare:"#3B82F6", epic:"#8B5CF6", legendary:"#F59E0B" };
+const EQUIP_TYPE_ICON   = { weapon:"⚔️", shield:"🛡️", accessory:"💎" };
+const EQUIP_LINE_NAMES  = {
+  valeblade:"Vale Blade", valefang:"Vale Fang",
+  valeguard:"Vale Guard", valecharm:"Vale Charm",
+};
+const EQUIP_LEGENDARY_NAMES = {
+  "weapon_valeblade_legendary":    "Seraphine's Thorn",
+  "shield_valeguard_legendary":    "Seraphine's Ward",
+  "accessory_valecharm_legendary": "Seraphine's Blessing",
+};
+const EQUIP_POOLS = {
+  "The Verdant Vale": {
+    weapon:    { common:["weapon_valeblade_common","weapon_valefang_common"], rare:["weapon_valeblade_rare","weapon_valefang_rare"], epic:["weapon_valeblade_epic","weapon_valefang_epic"], legendary:"weapon_valeblade_legendary" },
+    shield:    { common:["shield_valeguard_common"], rare:["shield_valeguard_rare"], epic:["shield_valeguard_epic"], legendary:"shield_valeguard_legendary" },
+    accessory: { common:["accessory_valecharm_common"], rare:["accessory_valecharm_rare"], epic:["accessory_valecharm_epic"], legendary:"accessory_valecharm_legendary" },
+  }
+};
 const BOSS_ICON = {
   "Aldric the Unyielding":  "⚔️",
   "Seraphine of the Veil":  "🌙",
@@ -177,6 +195,53 @@ function awardCompanion(student, file) {
   const companions = [...new Set([...(ov.companions||[]), file])];
   saveStudentOverride(student.id, {companions});
   return file;
+}
+function getEquipItemDef(id) {
+  if (EQUIP_LEGENDARY_NAMES[id]) {
+    const type = id.split('_')[0];
+    return { id, type, tier:'legendary', tierColor:EQUIP_TIER_COLOR.legendary, icon:EQUIP_TYPE_ICON[type]||'📦', img:`/equip/${id}.png`, n:EQUIP_LEGENDARY_NAMES[id], slotKey:type };
+  }
+  const parts = id.split('_'); // e.g. ["weapon","valeblade","common"]
+  const type = parts[0];
+  const tier = parts[parts.length - 1];
+  const lineKey = parts.slice(1, -1).join('_');
+  const lineName = EQUIP_LINE_NAMES[lineKey] || lineKey;
+  const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
+  return { id, type, tier, tierColor:EQUIP_TIER_COLOR[tier]||"#9CA3AF", icon:EQUIP_TYPE_ICON[type]||'📦', img:`/equip/${id}.png`, n:`${lineName} (${tierLabel})`, slotKey:type };
+}
+function pickEquipItem(landName, slotKey, tier) {
+  const pool = EQUIP_POOLS[landName];
+  if (!pool || !pool[slotKey]) return null;
+  const slotPool = pool[slotKey];
+  if (tier === 'legendary') return slotPool.legendary || null;
+  const arr = slotPool[tier] || [];
+  return arr.length ? randFrom(arr) : null;
+}
+function awardEquipItem(student, itemId) {
+  if (!itemId) return;
+  const ov = getOverrides().students[String(student.id)] || {};
+  const inv = [...new Set([...(ov.equipInventory || []), itemId])];
+  saveStudentOverride(student.id, { equipInventory: inv });
+  const def = getEquipItemDef(itemId);
+  logActivity(student.id, def.icon, `Found ${def.n}!`);
+}
+function getEquipInventory(student) {
+  return (_overrides[String(student.id)] || {}).equipInventory || [];
+}
+function getEquippedSlots(student) {
+  return (_overrides[String(student.id)] || {}).equippedSlots || {};
+}
+function equipSlotItem(student, slotKey, itemId) {
+  const slots = Object.assign({}, getEquippedSlots(student), { [slotKey]: itemId });
+  saveStudentOverride(student.id, { equippedSlots: slots });
+}
+function unequipSlotItem(student, slotKey) {
+  const slots = Object.assign({}, getEquippedSlots(student));
+  delete slots[slotKey];
+  saveStudentOverride(student.id, { equippedSlots: Object.keys(slots).length ? slots : null });
+}
+function findLandByTileId(tileId) {
+  return LANDS.find(l => l.tiles.some(t => t.id === tileId)) || null;
 }
 function hasCompletedAnyBoss(student) {
   const ov = getOverrides().students[String(student.id)] || {};
@@ -954,6 +1019,12 @@ function completeSideQuest(student, key) {
   logActivity(sid, '✨', `Completed quest: ${quest.title} (+${quest.xp} XP)`);
   const { levelsGained, newLevel } = awardXP(student, quest.xp);
   if (levelsGained > 0) logActivity(sid, '⬆️', `Reached Level ${newLevel}!`);
+  // Rare equipment drop for side quest completion
+  const _sqLand = findLandByTileId(entry.tileId);
+  if (_sqLand) {
+    const _sqSlot = randFrom(['weapon','shield','accessory']);
+    awardEquipItem(student, pickEquipItem(_sqLand.name, _sqSlot, 'rare'));
+  }
   showXPCelebration(quest.xp, levelsGained, newLevel, () => mount());
 }
 function getGuildCounts() {
@@ -1695,6 +1766,8 @@ function renderHub() {
   const craftReqs = getCraftRequests();
   const hasPendingPotion = !!craftReqs[String(s.id)];
   const equipped = getEquipped(STATE.student);
+  const equippedSlots = getEquippedSlots(STATE.student);
+  const equipInventory = getEquipInventory(STATE.student);
   const invSlots = [...s.items, ...Array(Math.max(0,8-s.items.length)).fill(null)]
     .map((it, idx) => {
       if (!it) return `<div class="item-slot empty"></div>`;
@@ -1715,21 +1788,31 @@ function renderHub() {
       </div>`;
     }).join("");
 
-  const equipSlotsHTML = EQUIP_SLOTS.map(({ label, icon, itemKey }) => {
+  const equipSlotsHTML = EQUIP_SLOTS.map(({ label, icon, key, itemKey }) => {
+    const newItemId = equippedSlots[key];
+    if (newItemId) {
+      const def = getEquipItemDef(newItemId);
+      return `<div class="equip-slot equip-slot-on equip-slot-new" style="--tier-color:${def.tierColor}" data-unequip-slot="${key}">
+        <div class="equip-slot-img">
+          <img src="${def.img}" alt="${def.n}" width="120" height="120" style="object-fit:contain" onerror="this.style.display='none';this.nextSibling.style.display='block'"/>
+          <span style="display:none;font-size:48px;line-height:1">${def.icon}</span>
+        </div>
+        <span class="equip-slot-lbl">${label}</span>
+        <span class="equip-slot-sub">✓ Equipped</span>
+      </div>`;
+    }
     const owned = s.items.includes(itemKey);
     const def = ITEMS[itemKey] || {};
     const isEquipped = owned && !!equipped[itemKey];
     const imgEl = owned && def.img
       ? `<img src="/icons/${def.img}" alt="${def.n}" width="120" height="120" style="object-fit:contain" onerror="this.style.display='none'"/>`
-      : owned
-      ? `<span style="font-size:48px;line-height:1">${def.i}</span>`
+      : owned ? `<span style="font-size:48px;line-height:1">${def.i}</span>`
       : `<span class="equip-slot-ph">${icon}</span>`;
-    return `<div class="equip-slot${isEquipped ? ' equip-slot-on' : owned ? ' equip-slot-off' : ' equip-slot-empty'}"
-      ${owned ? `data-equip-item="${itemKey}"` : ''}>
-      <div class="equip-slot-img">${imgEl}</div>
-      <span class="equip-slot-lbl">${label}</span>
-      <span class="equip-slot-sub">${isEquipped ? '✓ Equipped' : owned ? 'Tap to Equip' : 'Empty'}</span>
-    </div>`;
+    return `<div class="equip-slot${isEquipped?' equip-slot-on':owned?' equip-slot-off':' equip-slot-empty'}" ${owned?`data-equip-item="${itemKey}"`:''}>`
+      + `<div class="equip-slot-img">${imgEl}</div>`
+      + `<span class="equip-slot-lbl">${label}</span>`
+      + `<span class="equip-slot-sub">${isEquipped?'✓ Equipped':owned?'Tap to Equip':'Empty'}</span>`
+      + `</div>`;
   }).join('');
 
   const bossRows = s.bosses.length
@@ -1885,6 +1968,23 @@ function renderHub() {
         <div class="panel-title">🏆 Bosses Defeated</div>
         <div class="boss-list">${bossRows}</div>
       </div>
+      ${equipInventory.length ? `
+      <div class="hub-panel equip-inv-panel enter" style="animation-delay:.19s;grid-column:1/-1">
+        <div class="panel-title">⚔️ Equipment</div>
+        <div class="equip-inv-grid">
+          ${equipInventory.map(id => {
+            const def = getEquipItemDef(id);
+            const isEquipped = equippedSlots[def.slotKey] === id;
+            return `<div class="equip-inv-card${isEquipped?' equip-inv-equipped':''}" style="--tier-color:${def.tierColor}"
+              data-equip-slot-item="${id}" data-equip-slot-key="${def.slotKey}" title="${def.n}">
+              <div class="equip-inv-icon">${def.icon}</div>
+              <div class="equip-inv-name">${def.n}</div>
+              <div class="equip-inv-badge">${def.tier.charAt(0).toUpperCase()+def.tier.slice(1)}</div>
+              ${isEquipped ? `<div class="equip-inv-eq-lbl">✓ On</div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
       </div><!-- /hub-inv-bosses bottom -->
       <div class="hub-actions enter" style="animation-delay:.2s">
         <button class="btn btn-gold" id="continue-quest-btn">⚔️ Continue Quest</button>
@@ -3855,7 +3955,7 @@ function bindEvents() {
             if (STATE.pin === STATE.student.pin) {
               const _pos = getLandPos(STATE.student);
               const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0;
-              STATE.screen = _firstTimer ? "welcome-splash" : "hub";
+              STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
               STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false; mount();
             } else {
               STATE.pinError = "Incorrect secret number! Try again, brave adventurer.";
@@ -4028,7 +4128,7 @@ function bindEvents() {
         slot.addEventListener("click", () => { STATE.pendingCompanion = slot.dataset.companion; mount(); });
       });
     }
-    // Equip / unequip items from inventory
+    // Equip / unequip items from inventory (legacy consumable-based)
     document.querySelectorAll("[data-equip-item]").forEach(slot => {
       slot.addEventListener("click", () => {
         const key = slot.dataset.equipItem;
@@ -4041,6 +4141,23 @@ function bindEvents() {
     document.querySelectorAll("[data-unequip-item]").forEach(slot => {
       slot.addEventListener("click", () => {
         unequipItem(STATE.student, slot.dataset.unequipItem);
+        mount();
+      });
+    });
+    // New equipment system — equip from inventory card
+    document.querySelectorAll("[data-equip-slot-item]").forEach(card => {
+      card.addEventListener("click", () => {
+        const itemId  = card.dataset.equipSlotItem;
+        const slotKey = card.dataset.equipSlotKey;
+        if (equippedSlots[slotKey] === itemId) unequipSlotItem(STATE.student, slotKey);
+        else equipSlotItem(STATE.student, slotKey, itemId);
+        mount();
+      });
+    });
+    // New equipment system — unequip from equip slot
+    document.querySelectorAll("[data-unequip-slot]").forEach(slot => {
+      slot.addEventListener("click", () => {
+        unequipSlotItem(STATE.student, slot.dataset.unequipSlot);
         mount();
       });
     });
@@ -4699,7 +4816,7 @@ function bindEvents() {
         STATE.travelDestName = nextLand ? nextLand.name : "The Verdant Vale";
         STATE.screen = "travel-screen";
         mount();
-        setTimeout(() => { STATE.screen = "hub"; mount(); }, 2500);
+        setTimeout(() => { STATE.screen = "quest-map"; mount(); }, 2500);
         return;
       }
       mount();
@@ -4795,6 +4912,16 @@ function bindEvents() {
       saveStudentOverride(student.id, { completedTiles: completed });
       logActivity(student.id, isDungeon ? '🏰' : '⚔️', `Defeated ${tile.name}!`);
       advanceStudentTile(student, land);
+      // Equipment drops
+      if (land && EQUIP_POOLS[land.name]) {
+        if (isDungeon) {
+          // Master Boss: award all three legendary items
+          ['weapon','shield','accessory'].forEach(slot => awardEquipItem(student, pickEquipItem(land.name, slot, 'legendary')));
+        } else {
+          // Overworld Boss: one random epic item
+          awardEquipItem(student, pickEquipItem(land.name, randFrom(['weapon','shield','accessory']), 'epic'));
+        }
+      }
       // Determine companion to award
       let companionFile = null;
       if (isDungeon) {
@@ -4866,6 +4993,11 @@ function bindEvents() {
       saveTileCompletion(STATE.student.id, tile.id, timeOnPage);
       const { levelsGained, newLevel } = awardXP(STATE.student, xpAmount);
       logActivity(STATE.student.id, '📖', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xpAmount} XP)`);
+      // Common equipment drop on lesson/loot tile completion
+      if (land && land.name && EQUIP_POOLS[land.name]) {
+        const _cSlot = randFrom(['weapon','shield','accessory']);
+        awardEquipItem(STATE.student, pickEquipItem(land.name, _cSlot, 'common'));
+      }
       if (levelsGained > 0) logActivity(STATE.student.id, '⬆️', `Reached Level ${newLevel}!`);
       const hasExitTicket = getExitTicketEnabled(tile.id);
       const isLesson = tile.type === 'lesson';

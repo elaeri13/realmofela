@@ -578,6 +578,18 @@ input  { font-family: var(--font-body); }
 .equip-slot { position:relative; width:120px; height:120px; background:rgba(255,255,255,.5); border:1.5px dashed #9CA3AF; border-radius:12px; cursor:pointer; transition:background .15s,border-color .15s; overflow:hidden; flex-shrink:0; }
 .equip-slot-empty { cursor:default; opacity:.55; border-style:dashed; }
 .equip-slot-on { background:rgba(251,191,36,.1); border-color:rgba(251,191,36,.6); }
+.equip-slot-new { border-style:solid; border-width:2.5px; border-color:var(--tier-color,rgba(251,191,36,.6)); background:color-mix(in srgb,var(--tier-color,#F59E0B) 8%,transparent); }
+.equip-slot-new:hover { opacity:.85; }
+/* Equipment inventory panel */
+.equip-inv-panel { grid-column:1/-1; }
+.equip-inv-grid { display:flex; flex-wrap:wrap; gap:10px; }
+.equip-inv-card { position:relative; width:90px; min-height:90px; background:#fff; border:2.5px solid var(--tier-color,#9CA3AF); border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:8px 6px 6px; cursor:pointer; transition:transform .1s,box-shadow .1s; text-align:center; }
+.equip-inv-card:hover { transform:translateY(-2px); box-shadow:0 4px 14px color-mix(in srgb,var(--tier-color,#9CA3AF) 30%,transparent); }
+.equip-inv-equipped { box-shadow:0 0 0 2px var(--tier-color,#9CA3AF); background:color-mix(in srgb,var(--tier-color,#9CA3AF) 8%,#fff); }
+.equip-inv-icon { font-size:28px; line-height:1; }
+.equip-inv-name { font-size:9px; font-weight:800; color:rgba(0,0,0,.65); line-height:1.25; word-break:break-word; }
+.equip-inv-badge { font-size:8px; font-weight:900; letter-spacing:.5px; text-transform:uppercase; color:var(--tier-color,#9CA3AF); }
+.equip-inv-eq-lbl { position:absolute; top:4px; right:5px; font-size:8px; font-weight:900; color:var(--tier-color,#9CA3AF); }
 .equip-slot-off:hover { background:rgba(167,139,250,.12); border-color:rgba(167,139,250,.5); }
 .equip-slot-img { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
 .equip-slot-img img { width:80px; height:80px; object-fit:contain; }
