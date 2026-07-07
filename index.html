@@ -368,15 +368,15 @@ input  { font-family: var(--font-body); }
 @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
 
 /* ── Lesson Stop ── */
-.ls-screen { padding: 16px 12px 48px; overflow-y: auto; background: #F5F4FC; }
+.ls-screen { padding: 16px 12px 48px; overflow-y: auto; background: linear-gradient(180deg, #2A2438 0%, #1F1B2E 100%); min-height: 100vh; }
 .ls-wrap { width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
 .ls-nav { display: flex; align-items: center; gap: 14px; padding-bottom: 4px; }
 .ls-breadcrumb { display: flex; align-items: center; gap: 6px; }
-.ls-bc-land { font-size: 11px; font-weight: 800; color: rgba(0,0,0,.38); letter-spacing: .8px; text-transform: uppercase; }
-.ls-bc-sep { color: rgba(0,0,0,.25); font-size: 12px; }
-.ls-bc-tile { font-family: var(--font-display); font-size: 14px; font-weight: 900; color: #1E1B4B; }
-.ls-screen .btn-back { background: rgba(0,0,0,.07); border-color: rgba(0,0,0,.15); color: #1E1B4B; }
-.ls-screen .btn-back:hover { background: rgba(0,0,0,.12); }
+.ls-bc-land { font-size: 11px; font-weight: 800; color: rgba(255,255,255,.45); letter-spacing: .8px; text-transform: uppercase; }
+.ls-bc-sep { color: rgba(255,255,255,.3); font-size: 12px; }
+.ls-bc-tile { font-family: var(--font-display); font-size: 14px; font-weight: 900; color: rgba(255,255,255,.9); }
+.ls-screen .btn-back { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.2); color: rgba(255,255,255,.85); }
+.ls-screen .btn-back:hover { background: rgba(255,255,255,.16); }
 .ls-video-btn { display: flex; align-items: center; justify-content: center; gap: 12px; background: linear-gradient(135deg, #6D28D9, #4C1D95); color: white; font-family: var(--font-display); font-size: 18px; font-weight: 900; padding: 22px 28px; border-radius: 16px; border: 3px solid var(--gold); box-shadow: 0 6px 28px rgba(109,40,217,.45), inset 0 1px 0 rgba(255,255,255,.15); cursor: pointer; width: 100%; transition: transform .15s, box-shadow .15s; letter-spacing: .5px; }
 .ls-video-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(109,40,217,.55), inset 0 1px 0 rgba(255,255,255,.15); }
 .ls-play-icon { font-size: 22px; }
@@ -405,14 +405,14 @@ input  { font-family: var(--font-body); }
 .ls-task-done span:last-child { text-decoration: line-through; }
 .ls-task-locked { opacity: .45; pointer-events: none; cursor: not-allowed; }
 .ls-task-locked input[type="checkbox"] { cursor: not-allowed; }
-.ls-video-lock-hint { font-size: 12px; font-weight: 700; color: #9CA3AF; text-align: center; padding: 6px 0 4px; letter-spacing: .2px; }
+.ls-video-lock-hint { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.45); text-align: center; padding: 6px 0 4px; letter-spacing: .2px; }
 .ls-tier-must   input[type="checkbox"] { accent-color: #EF4444; }
 .ls-tier-should input[type="checkbox"] { accent-color: #D97706; }
 .ls-tier-aspire input[type="checkbox"] { accent-color: #10B981; }
 .ls-submit-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 20px 28px; border-radius: 16px; font-family: var(--font-display); font-size: 18px; font-weight: 900; letter-spacing: .5px; cursor: pointer; transition: transform .15s, box-shadow .15s; border: 3px solid transparent; }
 .ls-submit-btn:not(:disabled) { background: linear-gradient(135deg,#059669,#047857); color: white; border-color: #34D399; box-shadow: 0 6px 28px rgba(5,150,105,.4); }
 .ls-submit-btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(5,150,105,.55); }
-.ls-submit-btn:disabled { background: rgba(0,0,0,.06); color: rgba(0,0,0,.28); border-color: rgba(0,0,0,.1); cursor: not-allowed; }
+.ls-submit-btn:disabled { background: rgba(255,255,255,.07); color: rgba(255,255,255,.3); border-color: rgba(255,255,255,.1); cursor: not-allowed; }
 /* XP Celebration overlay */
 .xp-celebrate { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .xp-pop { display: flex; flex-direction: column; align-items: center; gap: 10px; animation: xpPop .45s cubic-bezier(.34,1.56,.64,1) both; }
@@ -895,6 +895,15 @@ input  { font-family: var(--font-body); }
 .companion-reveal-rarity { font-size:12px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; }
 .companion-reveal-btn { margin-top:6px; padding:12px 36px; border-radius:12px; border:none; background:var(--gold); color:#1a0a00; font-size:14px; font-weight:900; cursor:pointer; font-family:var(--font-display); transition:transform .12s; }
 .companion-reveal-btn:hover { transform:scale(1.04); }
+.equip-reveal-overlay { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.75); backdrop-filter:blur(6px); animation:fadeIn .25s ease; }
+.equip-reveal-card { background:linear-gradient(155deg,#1E1B4B,#0F172A); border:1.5px solid rgba(124,58,237,.5); border-radius:20px; padding:32px 28px 24px; display:flex; flex-direction:column; align-items:center; gap:12px; box-shadow:0 28px 80px rgba(0,0,0,.7); animation:popIn .35s cubic-bezier(.34,1.56,.64,1); }
+.equip-reveal-label { font-size:12px; font-weight:900; color:rgba(180,160,255,.7); letter-spacing:1px; text-transform:uppercase; }
+.equip-reveal-img-wrap { width:110px; height:110px; border-radius:16px; border:3px solid var(--tier-color,#9CA3AF); display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,.07); }
+.equip-reveal-img-wrap img { width:80px; height:80px; object-fit:contain; animation:float 2s ease-in-out infinite; }
+.equip-reveal-name { font-family:var(--font-display); font-size:20px; font-weight:900; color:var(--tier-color,#fff); text-align:center; }
+.equip-reveal-tier { font-size:12px; font-weight:800; letter-spacing:.8px; text-transform:uppercase; color:var(--tier-color,#9CA3AF); }
+.equip-reveal-btn { margin-top:6px; padding:12px 36px; border-radius:12px; border:none; background:var(--gold); color:#1a0a00; font-size:14px; font-weight:900; cursor:pointer; font-family:var(--font-display); transition:transform .12s; }
+.equip-reveal-btn:hover { transform:scale(1.04); }
 
 /* Boss defeat button */
 .boss-defeat-btn { width:100%; padding:16px 20px; border-radius:14px; border:2px solid #10B981; background:linear-gradient(135deg,#059669,#047857); color:white; font-family:var(--font-display); font-size:15px; font-weight:900; cursor:pointer; transition:transform .12s,box-shadow .12s; box-shadow:0 4px 18px rgba(5,150,105,.3); letter-spacing:.3px; }
@@ -1219,9 +1228,9 @@ input  { font-family: var(--font-body); }
 .item-equip-new .item-name { color:var(--tier-color) !important; }
 .item-equip-new.item-equipped { border-color:var(--tier-color) !important; background:color-mix(in srgb,var(--tier-color) 10%,white) !important; box-shadow:0 0 8px color-mix(in srgb,var(--tier-color) 40%,transparent); }
 /* Ghost preview image on empty equip slots */
-.equip-slot-ghost { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0.18; pointer-events:none; }
+.equip-slot-ghost { position:absolute; inset:0; width:100% !important; height:100% !important; object-fit:contain; opacity:0.18; pointer-events:none; }
 /* Equip slot owned-count badge */
-.equip-slot-owned-badge { position:absolute; top:-6px; right:-8px; background:#7C3AED; color:#fff; font-size:9px; font-weight:900; border-radius:10px; padding:1px 5px; min-width:16px; text-align:center; line-height:16px; z-index:2; pointer-events:none; }
+.equip-slot-owned-badge { position:absolute; top:5px; right:5px; background:#7C3AED; color:#fff; font-size:9px; font-weight:900; border-radius:10px; padding:1px 5px; min-width:16px; text-align:center; line-height:16px; z-index:2; pointer-events:none; }
 /* Equip picker modals (weapon / shield / collectibles) */
 .equip-picker-overlay { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:300; display:flex; align-items:center; justify-content:center; padding:16px; }
 .equip-picker-box { background:#fff; border-radius:16px; padding:24px 20px 20px; max-width:420px; width:100%; max-height:80vh; display:flex; flex-direction:column; gap:16px; box-shadow:0 8px 40px rgba(0,0,0,.28); }
@@ -1251,6 +1260,22 @@ input  { font-family: var(--font-body); }
 .seasonal-badge-locked { opacity:.28; filter:grayscale(1); }
 .seasonal-badge-ph { width:52px; height:52px; display:flex; align-items:center; justify-content:center; font-size:28px; background:rgba(0,0,0,.06); border-radius:8px; }
 .seasonal-badge-name { font-size:9px; font-weight:700; color:#4B5563; line-height:1.2; }
+/* Collectibles modal sections */
+.coll-section { margin-bottom:18px; }
+.coll-section-active { border-left:3px solid #7C3AED; padding-left:10px; }
+.coll-section-hdr { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.coll-section-land { font-size:12px; font-weight:800; color:#374151; }
+.coll-section-season { font-size:12px; font-weight:800; color:#374151; }
+.coll-season-active { font-size:10px; font-weight:800; color:#7C3AED; background:rgba(124,58,237,.1); border-radius:6px; padding:1px 6px; }
+.coll-season-status { font-size:10px; font-weight:600; color:#9CA3AF; }
+.coll-season-past { opacity:.6; }
+.coll-season-count { font-size:10px; font-weight:600; color:#9CA3AF; margin-left:auto; }
+.coll-item-slot { display:flex; flex-direction:column; align-items:center; gap:5px; padding:10px 6px 8px; border-radius:12px; background:rgba(124,58,237,.06); border:1.5px solid rgba(124,58,237,.18); text-align:center; }
+.coll-item-locked { opacity:.28; filter:grayscale(1); }
+/* Special badges */
+.special-badge-slot { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 10px 12px; border-radius:14px; background:rgba(245,158,11,.06); border:1.5px solid rgba(245,158,11,.22); text-align:center; }
+.special-badge-emoji { font-size:36px; line-height:1; }
+.special-badge-desc { font-size:9px; font-weight:500; color:#9CA3AF; line-height:1.3; }
 /* Health Potion — usable inventory slots */
 .item-usable { cursor:pointer; position:relative; }
 .item-usable:hover { border-color:#EF4444 !important; background:rgba(239,68,68,.12); transform:scale(1.05); }

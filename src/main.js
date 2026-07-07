@@ -275,7 +275,7 @@ function awardFromPool(student, landName, tier) {
     if (petFile) awardCompanion(student, petFile);
     ['weapon','shield','accessory'].forEach(slot => {
       const id = pickEquipItem(landName, slot, 'legendary');
-      if (id) awardEquipItem(student, id);
+      if (id) awardEquipItem(student, id, true);
     });
     return;
   }
@@ -289,7 +289,7 @@ function awardFromPool(student, landName, tier) {
   } else {
     const slot = randFrom(['weapon','shield','accessory']);
     const id   = pickEquipItem(landName, slot, tier);
-    if (id) awardEquipItem(student, id);
+    if (id) awardEquipItem(student, id, true);
   }
 }
 
@@ -320,13 +320,14 @@ function pickEquipItem(landName, slotKey, tier) {
   const arr = slotPool[tier] || [];
   return arr.length ? randFrom(arr) : null;
 }
-function awardEquipItem(student, itemId) {
+function awardEquipItem(student, itemId, doReveal = false) {
   if (!itemId) return;
   const ov = getOverrides().students[String(student.id)] || {};
   const inv = [...new Set([...(ov.equipInventory || []), itemId])];
   saveStudentOverride(student.id, { equipInventory: inv });
   const def = getEquipItemDef(itemId);
   logActivity(student.id, def.icon, `Found ${def.n}!`);
+  if (doReveal) showEquipReveal(def);
 }
 function getEquipInventory(student) {
   return (_overrides[String(student.id)] || {}).equipInventory || [];
@@ -343,8 +344,38 @@ function unequipSlotItem(student, slotKey) {
   delete slots[slotKey];
   saveStudentOverride(student.id, { equippedSlots: Object.keys(slots).length ? slots : null });
 }
+const SPECIAL_BADGES = [
+  { id:"special_loot_1", name:"Vale Pathfinder",   desc:"Explored every loot path in The Verdant Vale",   landId:1, emoji:"🌿" },
+  { id:"special_loot_2", name:"Kingdom Delver",    desc:"Explored every loot path in The Stone Kingdoms", landId:2, emoji:"⛏️" },
+  { id:"special_loot_3", name:"Depth Diver",       desc:"Explored every loot path in The Drowned Depths", landId:3, emoji:"🌊" },
+  { id:"special_loot_4", name:"Thorn Blazer",      desc:"Explored every loot path in The Thornwood",      landId:4, emoji:"🌿" },
+  { id:"special_loot_5", name:"Hollow Wanderer",   desc:"Explored every loot path in The Ashen Hollows",  landId:5, emoji:"🕯️" },
+  { id:"special_loot_6", name:"Storm Seeker",      desc:"Explored every loot path in The Stormspire",     landId:6, emoji:"⚡" },
+];
+const LOOT_TILE_IDS = [28,29,30,31,32,33,34,35];
+
 function getSeasonalBadges(student) {
   return (_overrides[String(student.id)] || {}).seasonalBadges || [];
+}
+function getSpecialBadges(student) {
+  return (_overrides[String(student.id)] || {}).specialBadges || [];
+}
+function checkAndAwardSpecialBadges(student) {
+  const ov = getOverrides().students[String(student.id)] || {};
+  const pos = getLandPos(student);
+  if (!pos.land) return;
+  const completedSet = new Set((ov.completedTiles || []).map(Number));
+  const allLootDone = LOOT_TILE_IDS.every(id => completedSet.has(id));
+  if (!allLootDone) return;
+  const badgeId = `special_loot_${pos.land}`;
+  const existing = ov.specialBadges || [];
+  if (existing.includes(badgeId)) return;
+  saveStudentOverride(student.id, { specialBadges: [...existing, badgeId] });
+  const badge = SPECIAL_BADGES.find(b => b.id === badgeId);
+  if (badge) {
+    logActivity(student.id, '🏅', `Special Badge earned: ${badge.name}!`);
+    showSpecialBadgeReveal(badge);
+  }
 }
 function awardSeasonalBadge(student) {
   const season = getActiveSeasonalSet();
@@ -1403,6 +1434,38 @@ function showCompanionReveal(file, onComplete) {
     el.remove(); onComplete();
   });
 }
+function showEquipReveal(def) {
+  const el = document.createElement("div");
+  el.className = "equip-reveal-overlay";
+  el.innerHTML = `
+    <div class="equip-reveal-card" style="--tier-color:${def.tierColor}">
+      <div class="equip-reveal-label">⚔️ Equipment Found!</div>
+      <div class="equip-reveal-img-wrap">
+        <img src="${def.img}" alt="${def.n}" width="80" height="80" onerror="this.style.display='none'"/>
+      </div>
+      <div class="equip-reveal-name">${def.n}</div>
+      <div class="equip-reveal-tier">${def.tier.charAt(0).toUpperCase()+def.tier.slice(1)}</div>
+      <button class="equip-reveal-btn">Awesome!</button>
+    </div>`;
+  document.body.appendChild(el);
+  el.querySelector(".equip-reveal-btn").addEventListener("click", () => el.remove());
+}
+function showSpecialBadgeReveal(badge) {
+  const el = document.createElement("div");
+  el.className = "equip-reveal-overlay";
+  el.innerHTML = `
+    <div class="equip-reveal-card" style="--tier-color:#F59E0B">
+      <div class="equip-reveal-label">🏅 Special Badge Unlocked!</div>
+      <div class="equip-reveal-img-wrap" style="border-color:#F59E0B">
+        <span style="font-size:52px;line-height:1">${badge.emoji}</span>
+      </div>
+      <div class="equip-reveal-name" style="color:#F59E0B">${badge.name}</div>
+      <div class="equip-reveal-tier" style="color:#9CA3AF;font-size:11px;font-weight:600;text-transform:none;letter-spacing:0">${badge.desc}</div>
+      <button class="equip-reveal-btn">Awesome!</button>
+    </div>`;
+  document.body.appendChild(el);
+  el.querySelector(".equip-reveal-btn").addEventListener("click", () => el.remove());
+}
 function formatFlagTime(iso) {
   const diff = Math.floor((Date.now() - new Date(iso)) / 60000);
   if (diff < 1) return "Just now";
@@ -1430,7 +1493,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               equipPickerOpen:false, equipPickerStudentId:null,
               tgDialogueOpen:false, tgContinueReady:false,
               bossLockedOpen:false,
-              weaponPickerOpen:false, shieldPickerOpen:false, collectiblesOpen:false, collectiblesTab:'land',
+              weaponPickerOpen:false, shieldPickerOpen:false, collectiblesOpen:false, collectiblesTab:'collectibles',
               mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
               sideQuestModalOpen:false, sideQuestTileId:null, sideQuestSoloIdx:0, sideQuestCollabIdx:0,
               pendingSQAfterGrade:null, sqBoardOpen:false, sqBoardLandId:null,
@@ -1914,6 +1977,7 @@ function renderHub() {
   const ownedShields      = equipInventory.filter(id => getEquipItemDef(id).type === 'shield');
   const ownedCollectibles = equipInventory.filter(id => getEquipItemDef(id).type === 'accessory');
   const ownedSeasonalBadges = getSeasonalBadges(STATE.student);
+  const ownedSpecialBadges  = getSpecialBadges(STATE.student);
   const activeSeasonForHub  = getActiveSeasonalSet();
   const weaponEquippedId  = equippedSlots['weapon'];
   const shieldEquippedId  = equippedSlots['shield'];
@@ -1930,10 +1994,10 @@ function renderHub() {
       </div>`;
     }
     return `<div class="equip-slot${ownedItems.length ? ' equip-slot-off' : ' equip-slot-empty'}" ${openAttr}>
-      <div class="equip-slot-img" style="position:relative">
+      <div class="equip-slot-img">
         ${ghostImg ? `<img src="${ghostImg}" class="equip-slot-ghost" alt="" aria-hidden="true"/>` : ''}
-        ${ownedItems.length ? `<span class="equip-slot-owned-badge">${ownedItems.length}</span>` : ''}
       </div>
+      ${ownedItems.length ? `<span class="equip-slot-owned-badge">${ownedItems.length}</span>` : ''}
     </div>`;
   }
 
@@ -1941,10 +2005,10 @@ function renderHub() {
     _equipPickerSlot(weaponEquippedId, 'Weapon', '⚔️', ownedWeapons, 'data-open-weapon-picker', '/equipment/weapon_valeblade_common.png'),
     _equipPickerSlot(shieldEquippedId, 'Shield', '🛡️', ownedShields, 'data-open-shield-picker', '/equipment/shield_valeguard_common.png'),
     `<div class="equip-slot equip-slot-collectibles${ownedCollectibles.length ? '' : ' equip-slot-empty'}" data-open-collectibles>
-      <div class="equip-slot-img" style="position:relative">
+      <div class="equip-slot-img">
         <img src="/equipment/accessory_bag.png" alt="Collectibles" style="width:68px;height:68px;object-fit:contain${ownedCollectibles.length ? '' : ';opacity:0.22'}" onerror="this.style.display='none'"/>
-        ${ownedCollectibles.length ? `<span class="equip-slot-owned-badge">${ownedCollectibles.length}</span>` : ''}
       </div>
+      ${ownedCollectibles.length ? `<span class="equip-slot-owned-badge">${ownedCollectibles.length}</span>` : ''}
     </div>`
   ].join('');
 
@@ -2295,56 +2359,88 @@ function renderHub() {
       </div>`;
     })() : ''}
     ${STATE.collectiblesOpen ? (() => {
-      const tab = STATE.collectiblesTab || 'land';
-      // Land tab content
-      const grouped = {};
-      ownedCollectibles.forEach(id => { grouped[id] = (grouped[id] || 0) + 1; });
-      const landContent = Object.keys(grouped).length
-        ? Object.entries(grouped).map(([id, count]) => {
-            const def = getEquipItemDef(id);
-            return `<div class="equip-picker-item" style="--tier-color:${def.tierColor};cursor:default">
-              <img src="${def.img}" alt="${def.n}" class="equip-picker-img" onerror="this.style.display='none';this.nextSibling.style.display='block'"/>
-              <span style="display:none;font-size:36px">${def.icon}</span>
-              <div class="equip-picker-info">
-                <span class="equip-picker-name" style="color:${def.tierColor}">${def.n}</span>
-                <span class="equip-picker-tier">${def.tier.charAt(0).toUpperCase()+def.tier.slice(1)}</span>
-              </div>
-              ${count > 1 ? `<span class="collectibles-count-badge">×${count}</span>` : ''}
-            </div>`;
-          }).join('')
-        : '<p class="equip-picker-empty">No land collectibles earned yet.</p>';
-      // Seasonal tab content
-      const seasonalContent = (() => {
-        if (!activeSeasonForHub) return '<p class="equip-picker-empty" style="text-align:center;padding:24px 0">No seasonal event is active right now.<br><span style="opacity:.5;font-size:12px">Check back when the next season begins!</span></p>';
-        const earnedSet = new Set(ownedSeasonalBadges);
-        const earnedCount = activeSeasonForHub.badges.filter(b => earnedSet.has(b.id)).length;
-        return `<div style="margin-bottom:10px">
-            <div style="font-size:13px;font-weight:700;color:#7C3AED;margin-bottom:8px">${activeSeasonForHub.emoji} ${activeSeasonForHub.label} <span style="font-weight:500;opacity:.6;font-size:11px">${earnedCount}/${activeSeasonForHub.badges.length} collected</span></div>
-            <div class="seasonal-badge-grid">
-              ${activeSeasonForHub.badges.map(badge => {
-                const earned = earnedSet.has(badge.id);
-                return `<div class="seasonal-badge-slot${earned ? '' : ' seasonal-badge-locked'}">
-                  <img src="/equipment/seasonal/${badge.img}" alt="${earned ? badge.name : '???'}" width="52" height="52" style="object-fit:contain" onerror="this.style.display='none';this.nextSibling.style.display='flex'"/>
-                  <div class="seasonal-badge-ph" style="display:none">🏅</div>
-                  <span class="seasonal-badge-name">${earned ? badge.name : '???'}</span>
-                </div>`;
-              }).join('')}
-            </div>
-          </div>`;
-      })();
-      return `<div class="equip-picker-overlay" id="collectibles-overlay">
-        <div class="equip-picker-box">
-          <button class="npc-modal-close" id="collectibles-close">✕</button>
-          <div class="equip-picker-title">💼 Collectibles</div>
-          <div class="coll-tabs">
-            <button class="coll-tab${tab==='land'?' coll-tab-active':''}" data-colltab="land">🏔️ Land</button>
-            <button class="coll-tab${tab==='seasonal'?' coll-tab-active':''}" data-colltab="seasonal">🌟 Seasonal</button>
-          </div>
-          <div class="equip-picker-list" style="margin-top:0">
-            ${tab === 'land' ? landContent : seasonalContent}
-          </div>
-        </div>
-      </div>`;
+      const tab = STATE.collectiblesTab || 'collectibles';
+      const today = new Date().toISOString().slice(0,10);
+      const earnedSeasonalSet = new Set(ownedSeasonalBadges);
+      const earnedSpecialSet  = new Set(ownedSpecialBadges);
+
+      // ── Tab: Collectibles ──────────────────────────────────────────────
+      // Land accessory sections (one per land that has a pool)
+      const landSections = Object.entries(EQUIP_POOLS).map(([landName, slots]) => {
+        if (!slots.accessory) return '';
+        const tiers = ['common','rare','epic','legendary'];
+        const items = tiers.flatMap(tier => {
+          const v = slots.accessory[tier];
+          return v ? (Array.isArray(v) ? v : [v]) : [];
+        });
+        const cells = items.map(id => {
+          const def = getEquipItemDef(id);
+          const owned = ownedCollectibles.includes(id);
+          return '<div class="coll-item-slot' + (owned ? '' : ' coll-item-locked') + '" title="' + (owned ? def.n : '???') + '">'
+            + '<img src="' + def.img + '" width="52" height="52" style="object-fit:contain" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">'
+            + '<div class="seasonal-badge-ph" style="display:none">' + def.icon + '</div>'
+            + '<span class="seasonal-badge-name">' + (owned ? def.n : '???') + '</span>'
+            + '</div>';
+        }).join('');
+        return '<div class="coll-section">'
+          + '<div class="coll-section-hdr"><span class="coll-section-land">' + landName + '</span></div>'
+          + '<div class="seasonal-badge-grid">' + cells + '</div>'
+          + '</div>';
+      }).join('');
+
+      // Seasonal sections (all 6 sets)
+      const seasonalSections = SEASONAL_SETS.map(set => {
+        const isActive = today >= set.startDate && today <= set.endDate;
+        const isFuture = today < set.startDate;
+        const isPast   = today > set.endDate;
+        const earnedCount = set.badges.filter(b => earnedSeasonalSet.has(b.id)).length;
+        const statusLabel = isActive ? '<span class="coll-season-active">● Active</span>'
+          : isFuture ? '<span class="coll-season-status">Starts ' + set.startDate + '</span>'
+          : '<span class="coll-season-status coll-season-past">Season ended</span>';
+        const cells = set.badges.map(badge => {
+          const earned = earnedSeasonalSet.has(badge.id);
+          const locked = !earned;
+          return '<div class="seasonal-badge-slot' + (locked ? ' seasonal-badge-locked' : '') + '" title="' + (earned ? badge.name : '???') + '">'
+            + '<img src="/equipment/seasonal/' + badge.img + '" width="52" height="52" style="object-fit:contain" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">'
+            + '<div class="seasonal-badge-ph" style="display:none">🏅</div>'
+            + '<span class="seasonal-badge-name">' + (earned ? badge.name : '???') + '</span>'
+            + '</div>';
+        }).join('');
+        return '<div class="coll-section' + (isActive ? ' coll-section-active' : '') + '">'
+          + '<div class="coll-section-hdr"><span class="coll-section-season">' + set.emoji + ' ' + set.label + '</span>'
+          + statusLabel
+          + '<span class="coll-season-count">' + earnedCount + '/' + set.badges.length + '</span></div>'
+          + '<div class="seasonal-badge-grid">' + cells + '</div>'
+          + '</div>';
+      }).join('');
+
+      const collectiblesContent = (landSections || '') + seasonalSections;
+
+      // ── Tab: Special ───────────────────────────────────────────────────
+      const specialContent = '<div class="seasonal-badge-grid" style="grid-template-columns:repeat(2,1fr);gap:12px">'
+        + SPECIAL_BADGES.map(badge => {
+          const earned = earnedSpecialSet.has(badge.id);
+          return '<div class="special-badge-slot' + (earned ? '' : ' seasonal-badge-locked') + '">'
+            + '<span class="special-badge-emoji">' + badge.emoji + '</span>'
+            + '<span class="seasonal-badge-name" style="font-size:10px;font-weight:800">' + (earned ? badge.name : '???') + '</span>'
+            + '<span class="special-badge-desc">' + (earned ? badge.desc : 'Keep exploring...') + '</span>'
+            + '</div>';
+        }).join('')
+        + '</div>';
+
+      return '<div class="equip-picker-overlay" id="collectibles-overlay">'
+        + '<div class="equip-picker-box">'
+        + '<button class="npc-modal-close" id="collectibles-close">✕</button>'
+        + '<div class="equip-picker-title">💼 Collectibles</div>'
+        + '<div class="coll-tabs">'
+        + '<button class="coll-tab' + (tab==='collectibles'?' coll-tab-active':'') + '" data-colltab="collectibles">🏔️ Collectibles</button>'
+        + '<button class="coll-tab' + (tab==='special'?' coll-tab-active':'') + '" data-colltab="special">🏅 Special</button>'
+        + '</div>'
+        + '<div class="equip-picker-list" style="margin-top:0">'
+        + (tab === 'collectibles' ? collectiblesContent : specialContent)
+        + '</div>'
+        + '</div>'
+        + '</div>';
     })() : ''}
   </div>`;
 }
@@ -2905,7 +3001,6 @@ function renderTrainingGroundsTutorial() {
 }
 
 function renderLessonStop() {
-  if ((STATE.lessonTile || {}).id === 5) return renderTrainingGroundsTutorial();
   const tile     = STATE.lessonTile || {};
   const land     = STATE.lessonLand || LANDS[0];
   const student  = STATE.student;
@@ -2932,7 +3027,7 @@ function renderLessonStop() {
   const tierHTML = (tasks, tier, cls, icon, label, tierLocked = false) => {
     if (!tasks.length) return "";
     const prog = progress[tier] || [];
-    const isDisabled = !videoOpened || tierLocked;
+    const isDisabled = tierLocked;
     const rows = tasks.map((t, i) => {
       const checked = prog[i] || false;
       return `<label class="ls-task${checked ? " ls-task-done" : ""}${isDisabled ? " ls-task-locked" : ""}">
@@ -2978,7 +3073,7 @@ function renderLessonStop() {
       </button>
       <div class="ls-tiers enter" style="animation-delay:.12s">
         ${!videoOpened ? `<div class="ls-video-lock-hint">🔒 Watch the video first to unlock this checklist.</div>` : ''}
-        ${tierHTML(mustDo, "mustDo", "ls-tier-must", "🔴", "Must Do")}
+        ${tierHTML(mustDo, "mustDo", "ls-tier-must", "🔴", "Must Do", !videoOpened)}
         ${tierHTML(shouldDo, "shouldDo", "ls-tier-should", "🟡", "Should Do", !mustAllDone)}
         ${tierHTML(aspireTo, "aspireTo", "ls-tier-aspire", "🟢", "Aspire To", !mustAllDone)}
       </div>
@@ -3219,6 +3314,63 @@ function renderSg0Modal() {
         <div class="sg-modal-footer">${armoryFooter}</div>
       </div>
     </div>`;
+  }
+
+  // Tile 1 — The Notice Board: Hometown intro + Lumielle NPC sequence
+  if (tile.id === 1) {
+    const lumielleImg1 = (() => {
+      const npcs = CLASS_DATA?.npcs;
+      if (!npcs) return null;
+      for (const key of ['lumin_lore','lumin_hint','lumin_encouragement','lumin_easter']) {
+        if (npcs[key]?.image) return npcs[key].image;
+      }
+      return null;
+    })();
+    const npc1Clickable = isCurrent && !isDone && !STATE.tgContinueReady;
+    const npc1Dialogue = STATE.tgDialogueOpen
+      ? '<div class="npc-overlay" id="tg-npc-overlay">'
+        + '<div class="npc-modal">'
+        + '<button class="npc-modal-close" id="tg-npc-close" aria-label="Close">✕</button>'
+        + (lumielleImg1 ? '<img class="npc-modal-portrait" src="' + lumielleImg1 + '" alt="Lumielle" style="border-color:#0891B2"/>' : '')
+        + '<div class="npc-modal-name">Lumielle</div>'
+        + '<div style="text-align:center;margin-bottom:16px"><span class="npc-type-badge" style="background:rgba(8,145,178,.18);color:#0891B2;border:1.5px solid #0891B2">HINT</span></div>'
+        + '<div class="npc-modal-dialogue">"There you go — that\'s all it takes. Every Lumin, Thornkin, and creature you meet works the same way. Keep your eyes open. Onward, hero."</div>'
+        + '<div class="npc-modal-footer"><button id="tg-npc-close-btn">Close</button></div>'
+        + '</div></div>'
+      : '';
+    const npc1Stage = '<div class="tg-npc-stage" style="display:flex;align-items:flex-start;gap:12px;margin:10px 0">'
+      + '<div class="tg-npc-figure' + (npc1Clickable ? ' tg-npc-clickable' : '') + '"' + (npc1Clickable ? ' id="tg-lumielle"' : '') + '>'
+      + '<div class="tg-npc-ring tg-npc-ring-outer"></div>'
+      + '<div class="tg-npc-ring tg-npc-ring-inner"></div>'
+      + (lumielleImg1 ? '<img class="tg-npc-portrait" src="' + lumielleImg1 + '" alt="Lumielle"/>' : '<div class="tg-npc-portrait tg-npc-fallback">👤</div>')
+      + '<div class="tg-npc-name">Lumielle</div>'
+      + '</div>'
+      + (!isDone && !STATE.tgContinueReady
+        ? '<div class="tg-speech-bubble" style="flex:1"><p>Psst — over here! I\'m Lumielle. You\'ll meet folks like me in every land you visit. Some of us know a helpful hint. Some of us just like to talk. Go on — give me a click and see what I say.</p></div>'
+        : STATE.tgContinueReady
+          ? '<div class="tg-speech-bubble" style="flex:1"><p>There you go — that\'s all it takes. Every Lumin, Thornkin, and creature you meet works the same way. Keep your eyes open. Onward, hero.</p></div>'
+          : '')
+      + '</div>';
+    const nb1Body = '<p class="sg-modal-flavor">"' + tile.flavor + '"</p>'
+      + (tile.flavorDramatic ? '<p class="sg-modal-flavor-dramatic">' + tile.flavorDramatic + '</p>' : '')
+      + '<div class="tg-intro-card" style="margin:10px 0 14px;padding:12px 14px;background:rgba(124,58,237,.07);border-radius:12px;font-size:13px;line-height:1.6;color:#374151">'
+      + 'Every hero needs a place to call home. This is yours — the quiet corner of the Realm where you\'ll return between every quest, every trial, every victory. And you\'re not alone here. The Lumin have lived in this village since before the Realm had a name.'
+      + '</div>'
+      + npc1Stage;
+    const nb1Footer = isDone
+      ? '<div style="color:#10B981;font-weight:700;font-size:14px">✓ Completed</div>'
+      : isCurrent
+        ? '<button class="btn btn-purple" id="sg-complete-btn"' + (!STATE.tgContinueReady ? ' disabled' : '') + '>Mark Complete ✓</button>'
+        : '<div style="color:rgba(0,0,0,.35);font-size:13px">Complete earlier tiles first</div>';
+    return '<div class="npc-overlay" id="sg-overlay">'
+      + '<div class="sg-modal">'
+      + '<button class="npc-modal-close" id="sg-close">✕</button>'
+      + '<div class="sg-modal-icon">' + icon + '</div>'
+      + '<div class="sg-modal-title">' + tile.name + '</div>'
+      + '<div class="sg-modal-body">' + nb1Body + '</div>'
+      + '<div class="sg-modal-footer">' + nb1Footer + '</div>'
+      + '</div></div>'
+      + npc1Dialogue;
   }
 
   let body = `<p class="sg-modal-flavor">"${tile.flavor}"</p>${tile.flavorDramatic ? `<p class="sg-modal-flavor-dramatic">${tile.flavorDramatic}</p>` : ''}`;
@@ -3740,7 +3892,6 @@ function renderTeacherDashboard() {
       </div>
       ${flg ? `<div class="flag-badge">🚩 ${formatFlagTime(flg.flaggedAt || flg)}${flg.message ? `<span class="flag-msg">${flg.message}</span>` : ''}</div>` : ""}
       <button class="t-award-companion-btn" data-award-companion="${s.id}">🐾 Award Companion</button>
-      <button class="t-award-companion-btn" data-award-equip="${s.id}">⚔️ Award Equipment</button>
     </div>`;
   }).join("");
 
@@ -3946,49 +4097,6 @@ function renderTeacherDashboard() {
         </div>
       </div>
     </div>`;
-  })() : ""}
-  ${STATE.equipPickerOpen ? (() => {
-    const pickerStudentName = (() => {
-      if (!STATE.equipPickerStudentId) return "Student";
-      for (const p of CLASS_DATA.periods) {
-        const found = p.students.find(s => s.id === STATE.equipPickerStudentId);
-        if (found) return found.displayName || found.name;
-      }
-      return "Student";
-    })();
-    const allItems = Object.entries(EQUIP_POOLS).flatMap(([landName, slots]) =>
-      Object.entries(slots).flatMap(([slotKey, tiers]) =>
-        Object.entries(tiers).flatMap(([tier, val]) => {
-          const ids = Array.isArray(val) ? val : [val];
-          return ids.map(id => ({ id, landName }));
-        })
-      )
-    );
-    const TIER_ORDER = ['legendary','epic','rare','common'];
-    allItems.sort((a, b) => {
-      const def_a = getEquipItemDef(a.id), def_b = getEquipItemDef(b.id);
-      const ti = TIER_ORDER.indexOf(def_a.tier) - TIER_ORDER.indexOf(def_b.tier);
-      if (ti !== 0) return ti;
-      return def_a.n.localeCompare(def_b.n);
-    });
-    const itemsHTML = allItems.map(({ id, landName }) => {
-      const def = getEquipItemDef(id);
-      return `<div class="cpicker-item equip-picker-item" data-epick="${id}" style="--tier-color:${def.tierColor}" title="${def.n} · ${landName}">
-        <div class="equip-picker-icon" style="color:${def.tierColor}">${def.icon}</div>
-        <span class="cp-name">${def.n}</span>
-        <span class="cp-rarity" style="color:${def.tierColor}">${def.tier.charAt(0).toUpperCase()+def.tier.slice(1)}</span>
-        <span class="equip-picker-land">${landName}</span>
-      </div>`;
-    }).join("");
-    return `<div class="cpicker-overlay" id="epicker-overlay">
-      <div class="cpicker-modal">
-        <div class="cpicker-hdr">
-          <span class="cpicker-title">⚔️ Award Equipment to ${pickerStudentName}</span>
-          <button class="cpicker-award-btn" id="epicker-close">✕</button>
-        </div>
-        <div class="cpicker-grid">${itemsHTML}</div>
-      </div>
-    </div>`;
   })() : ""}`;
 }
 
@@ -4074,6 +4182,72 @@ function renderTeacherEdit() {
         <div class="chip-row" id="inv-chips">${invChips || '<span style="color:var(--text-light);font-size:13px;font-style:italic">No items</span>'}</div>
         ${addableItems.length > 0 ? `<select class="t-add-sel" id="add-item-sel"><option value="">+ Add item…</option>${itemOpts}</select>` : ""}
       </div>
+
+      ${(() => {
+        const sOvEdit = getOverrides().students[String(s.id)] || {};
+        const currentEquipInv = sOvEdit.equipInventory || [];
+        const allEquipItems = Object.entries(EQUIP_POOLS).flatMap(([landName, slots]) =>
+          Object.entries(slots).flatMap(([slotKey, tiers]) =>
+            Object.entries(tiers).flatMap(([tier, val]) =>
+              (Array.isArray(val) ? val : [val]).map(id => ({ id, landName }))
+            )
+          )
+        );
+        const TIER_ORDER_E = ['legendary','epic','rare','common'];
+        allEquipItems.sort((a, b) => {
+          const da = getEquipItemDef(a.id), db = getEquipItemDef(b.id);
+          return TIER_ORDER_E.indexOf(da.tier) - TIER_ORDER_E.indexOf(db.tier) || da.n.localeCompare(db.n);
+        });
+        const equipChips = currentEquipInv.map(id => {
+          const def = getEquipItemDef(id);
+          return `<span class="inv-chip" style="border-color:${def.tierColor}">${def.icon} ${def.n}<button class="chip-x" data-remove-equip="${id}">×</button></span>`;
+        }).join("");
+        const addableEquip = allEquipItems.filter(({ id }) => !currentEquipInv.includes(id));
+        const equipOpts = addableEquip.map(({ id, landName }) => {
+          const def = getEquipItemDef(id);
+          return `<option value="${id}">${def.icon} ${def.n} (${def.tier}) — ${landName}</option>`;
+        }).join("");
+        return `<div class="t-section">
+          <div class="t-section-title">⚔️ Equipment</div>
+          <div class="chip-row">${equipChips || '<span style="color:var(--text-light);font-size:13px;font-style:italic">No equipment</span>'}</div>
+          ${addableEquip.length ? `<select class="t-add-sel" id="add-equip-sel"><option value="">+ Add equipment…</option>${equipOpts}</select>` : ""}
+        </div>`;
+      })()}
+
+      ${(() => {
+        const sOvEdit = getOverrides().students[String(s.id)] || {};
+        const currentBadges = sOvEdit.seasonalBadges || [];
+        const allBadges = SEASONAL_SETS.flatMap(set => set.badges.map(b => ({ ...b, setLabel: set.label })));
+        const badgeChips = currentBadges.map(id => {
+          const badge = allBadges.find(b => b.id === id);
+          if (!badge) return "";
+          return `<span class="inv-chip">${badge.name}<button class="chip-x" data-remove-seasonal="${id}">×</button></span>`;
+        }).join("");
+        const addableBadges = allBadges.filter(b => !currentBadges.includes(b.id));
+        const badgeOpts = addableBadges.map(b => `<option value="${b.id}">${b.name} (${b.setLabel})</option>`).join("");
+        return `<div class="t-section">
+          <div class="t-section-title">🌟 Seasonal Badges</div>
+          <div class="chip-row">${badgeChips || '<span style="color:var(--text-light);font-size:13px;font-style:italic">No seasonal badges</span>'}</div>
+          ${addableBadges.length ? `<select class="t-add-sel" id="add-seasonal-sel"><option value="">+ Add badge…</option>${badgeOpts}</select>` : ""}
+        </div>`;
+      })()}
+
+      ${(() => {
+        const sOvEdit = getOverrides().students[String(s.id)] || {};
+        const currentSpecial = sOvEdit.specialBadges || [];
+        const specialChips = currentSpecial.map(id => {
+          const badge = SPECIAL_BADGES.find(b => b.id === id);
+          if (!badge) return "";
+          return `<span class="inv-chip">${badge.emoji} ${badge.name}<button class="chip-x" data-remove-special="${id}">×</button></span>`;
+        }).join("");
+        const addableSpecial = SPECIAL_BADGES.filter(b => !currentSpecial.includes(b.id));
+        const specialOpts = addableSpecial.map(b => `<option value="${b.id}">${b.emoji} ${b.name}</option>`).join("");
+        return `<div class="t-section">
+          <div class="t-section-title">🏅 Special Badges</div>
+          <div class="chip-row">${specialChips || '<span style="color:var(--text-light);font-size:13px;font-style:italic">No special badges</span>'}</div>
+          ${addableSpecial.length ? `<select class="t-add-sel" id="add-special-sel"><option value="">+ Award special badge…</option>${specialOpts}</select>` : ""}
+        </div>`;
+      })()}
 
       <div class="t-section">
         <div class="t-section-title">🏆 Bosses Defeated</div>
@@ -4911,44 +5085,6 @@ function bindEvents() {
         });
       });
     }
-    // Award equipment buttons
-    document.querySelectorAll("[data-award-equip]").forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.stopPropagation();
-        STATE.equipPickerStudentId = parseInt(btn.dataset.awardEquip, 10);
-        STATE.equipPickerOpen = true;
-        mount();
-      });
-    });
-    // Equipment picker overlay
-    if (STATE.equipPickerOpen) {
-      $("epicker-close") && $("epicker-close").addEventListener("click", () => {
-        STATE.equipPickerOpen = false; STATE.equipPickerStudentId = null; mount();
-      });
-      $("epicker-overlay") && $("epicker-overlay").addEventListener("click", e => {
-        if (e.target === $("epicker-overlay")) { STATE.equipPickerOpen = false; STATE.equipPickerStudentId = null; mount(); }
-      });
-      document.querySelectorAll(".equip-picker-item").forEach(item => {
-        item.addEventListener("click", () => {
-          const itemId = item.dataset.epick;
-          const sid = STATE.equipPickerStudentId;
-          let targetStudent = null;
-          for (const p of CLASS_DATA.periods) {
-            const found = p.students.find(s => s.id === sid);
-            if (found) { targetStudent = found; break; }
-          }
-          if (targetStudent) awardEquipItem(targetStudent, itemId);
-          STATE.equipPickerOpen = false; STATE.equipPickerStudentId = null;
-          const def = getEquipItemDef(itemId);
-          const toast = document.createElement("div");
-          toast.className = "toast";
-          toast.textContent = `${def.icon} ${def.n} awarded!`;
-          document.body.appendChild(toast);
-          setTimeout(() => toast.remove(), 2500);
-          mount();
-        });
-      });
-    }
   }
 
   /* TEACHER EDIT */
@@ -4985,6 +5121,55 @@ function bindEvents() {
           const ico = t.type==="dungeon"?"🏰":t.type==="boss"?"💀":t.type==="event"?"📜":t.type==="loot"?"💰":t.type==="arrival"?"🌟":t.type==="sg"?"🏕️":"📍";
           return `<option value="${t.id}">${ico} ${t.id}: ${t.name}${t.skill?" ("+t.skill+")":""}</option>`;
         }).join("");
+      }
+    });
+
+    /* Remove equip chips */
+    document.querySelectorAll(".chip-x[data-remove-equip]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.removeEquip;
+        const ov = getOverrides().students[String(STATE.teacherStudent.id)] || {};
+        saveStudentOverride(STATE.teacherStudent.id, { equipInventory: (ov.equipInventory || []).filter(x => x !== id) });
+        mount();
+      });
+    });
+    $("add-equip-sel") && $("add-equip-sel").addEventListener("change", e => {
+      if (e.target.value) { awardEquipItem(STATE.teacherStudent, e.target.value); mount(); }
+    });
+
+    /* Remove seasonal badge chips */
+    document.querySelectorAll(".chip-x[data-remove-seasonal]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.removeSeasonal;
+        const ov = getOverrides().students[String(STATE.teacherStudent.id)] || {};
+        saveStudentOverride(STATE.teacherStudent.id, { seasonalBadges: (ov.seasonalBadges || []).filter(x => x !== id) });
+        mount();
+      });
+    });
+    $("add-seasonal-sel") && $("add-seasonal-sel").addEventListener("change", e => {
+      const v = e.target.value;
+      if (v) {
+        const ov = getOverrides().students[String(STATE.teacherStudent.id)] || {};
+        saveStudentOverride(STATE.teacherStudent.id, { seasonalBadges: [...new Set([...(ov.seasonalBadges || []), v])] });
+        mount();
+      }
+    });
+
+    /* Remove special badge chips */
+    document.querySelectorAll(".chip-x[data-remove-special]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.removeSpecial;
+        const ov = getOverrides().students[String(STATE.teacherStudent.id)] || {};
+        saveStudentOverride(STATE.teacherStudent.id, { specialBadges: (ov.specialBadges || []).filter(x => x !== id) });
+        mount();
+      });
+    });
+    $("add-special-sel") && $("add-special-sel").addEventListener("change", e => {
+      const v = e.target.value;
+      if (v) {
+        const ov = getOverrides().students[String(STATE.teacherStudent.id)] || {};
+        saveStudentOverride(STATE.teacherStudent.id, { specialBadges: [...new Set([...(ov.specialBadges || []), v])] });
+        mount();
       }
     });
 
@@ -5179,14 +5364,13 @@ function bindEvents() {
             return;
           }
         }
-        // Tile 5: Training Grounds — NPC tutorial, goes to lesson-stop
-        if (tile.id === 5) {
-          STATE.lessonTile = tile;
-          STATE.lessonLand = land;
-          STATE.lessonOpenedAt = Date.now();
-          STATE.screen = "lesson-stop";
-          mount();
-          return;
+        // Reset NPC dialogue state when opening Tile 1 fresh (before completion)
+        if (tile.id === 1) {
+          const _t1pos = getLandPos(STATE.student);
+          if (!(_t1pos.completed || []).includes(1)) {
+            STATE.tgDialogueOpen = false;
+            STATE.tgContinueReady = false;
+          }
         }
         STATE.sg0Open = true;
         STATE.sg0Tile = tile;
@@ -5257,6 +5441,14 @@ function bindEvents() {
       STATE.sg0Tile = null;
       mount();
     });
+    // Land 0 sg modal — Tile 1 NPC dialogue (Lumielle intro)
+    $("tg-lumielle") && $("tg-lumielle").addEventListener("click", () => { STATE.tgDialogueOpen = true; mount(); });
+    if (STATE.tgDialogueOpen) {
+      const closeTg1Dlg = () => { STATE.tgDialogueOpen = false; STATE.tgContinueReady = true; mount(); };
+      $("tg-npc-close")     && $("tg-npc-close").addEventListener("click", closeTg1Dlg);
+      $("tg-npc-close-btn") && $("tg-npc-close-btn").addEventListener("click", closeTg1Dlg);
+      $("tg-npc-overlay")   && $("tg-npc-overlay").addEventListener("click", e => { if (e.target === $("tg-npc-overlay")) closeTg1Dlg(); });
+    }
     // Land 0 sg modal
     const closeSg = () => { STATE.sg0Open = false; STATE.sg0Tile = null; mount(); };
     $("sg-close")   && $("sg-close").addEventListener("click", closeSg);
@@ -5389,6 +5581,7 @@ function bindEvents() {
           awardFromPool(student, _bossLandName, 'epic');
         }
         awardSeasonalBadge(student);
+        checkAndAwardSpecialBadges(student);
       }
       // Determine companion to award
       let companionFile = null;
@@ -5479,6 +5672,7 @@ function bindEvents() {
                         : 'common';
         awardFromPool(STATE.student, _poolLand, _dropTier);
         if (Math.random() < 0.2) awardSeasonalBadge(STATE.student);
+        checkAndAwardSpecialBadges(STATE.student);
       }
       if (levelsGained > 0) logActivity(STATE.student.id, '⬆️', `Reached Level ${newLevel}!`);
       const hasExitTicket = getExitTicketEnabled(tile.id);
