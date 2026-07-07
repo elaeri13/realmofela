@@ -61,6 +61,68 @@ const EQUIP_POOLS = {
     accessory: { common:["accessory_valecharm_common"], rare:["accessory_valecharm_rare"], epic:["accessory_valecharm_epic"], legendary:"accessory_valecharm_legendary" },
   }
 };
+/* ─── SEASONAL COLLECTIBLES ─── */
+const SEASONAL_SETS = [
+  { id:"back_to_school",     label:"Back to School",        emoji:"✏️",  startDate:"2026-08-01", endDate:"2026-09-30",
+    badges:[
+      { id:"seasonal_bts_pencil",     name:"Pencil of Knowledge",  img:"seasonal_bts_pencil.png"     },
+      { id:"seasonal_bts_backpack",   name:"Scholar's Backpack",   img:"seasonal_bts_backpack.png"   },
+      { id:"seasonal_bts_apple",      name:"Teacher's Apple",      img:"seasonal_bts_apple.png"      },
+      { id:"seasonal_bts_ruler",      name:"Ruler of Precision",   img:"seasonal_bts_ruler.png"      },
+      { id:"seasonal_bts_notebook",   name:"Hero's Notebook",      img:"seasonal_bts_notebook.png"   },
+      { id:"seasonal_bts_compass",    name:"Compass of Discovery", img:"seasonal_bts_compass.png"    },
+    ]},
+  { id:"fall_halloween",     label:"Fall & Halloween",      emoji:"🎃",  startDate:"2026-10-01", endDate:"2026-10-31",
+    badges:[
+      { id:"seasonal_fall_pumpkin",   name:"Lantern Pumpkin",      img:"seasonal_fall_pumpkin.png"   },
+      { id:"seasonal_fall_leaf",      name:"Crimson Leaf",         img:"seasonal_fall_leaf.png"      },
+      { id:"seasonal_fall_ghost",     name:"Wandering Spirit",     img:"seasonal_fall_ghost.png"     },
+      { id:"seasonal_fall_witch",     name:"Witch's Hat",          img:"seasonal_fall_witch.png"     },
+      { id:"seasonal_fall_bat",       name:"Shadow Bat",           img:"seasonal_fall_bat.png"       },
+      { id:"seasonal_fall_cauldron",  name:"Bubbling Cauldron",    img:"seasonal_fall_cauldron.png"  },
+    ]},
+  { id:"winter_holiday",     label:"Winter Holiday",        emoji:"❄️",  startDate:"2026-11-01", endDate:"2026-12-31",
+    badges:[
+      { id:"seasonal_winter_snowflake", name:"Frost Snowflake",    img:"seasonal_winter_snowflake.png" },
+      { id:"seasonal_winter_star",    name:"Winter Star",          img:"seasonal_winter_star.png"    },
+      { id:"seasonal_winter_bell",    name:"Jingle Bell",          img:"seasonal_winter_bell.png"    },
+      { id:"seasonal_winter_mitten",  name:"Cozy Mitten",          img:"seasonal_winter_mitten.png"  },
+      { id:"seasonal_winter_pine",    name:"Pine Bough",           img:"seasonal_winter_pine.png"    },
+      { id:"seasonal_winter_gift",    name:"Wrapped Gift",         img:"seasonal_winter_gift.png"    },
+    ]},
+  { id:"new_year_valentine", label:"New Year & Valentine's", emoji:"💝", startDate:"2027-01-01", endDate:"2027-02-28",
+    badges:[
+      { id:"seasonal_nyw_firework",   name:"Celebration Firework", img:"seasonal_nyw_firework.png"   },
+      { id:"seasonal_nyw_heart",      name:"Crimson Heart",        img:"seasonal_nyw_heart.png"      },
+      { id:"seasonal_nyw_confetti",   name:"Confetti Burst",       img:"seasonal_nyw_confetti.png"   },
+      { id:"seasonal_nyw_rose",       name:"Rose of Valor",        img:"seasonal_nyw_rose.png"       },
+      { id:"seasonal_nyw_crown",      name:"New Year Crown",       img:"seasonal_nyw_crown.png"      },
+      { id:"seasonal_nyw_arrow",      name:"Cupid's Arrow",        img:"seasonal_nyw_arrow.png"      },
+    ]},
+  { id:"spring",             label:"Spring",                emoji:"🌸",  startDate:"2027-03-01", endDate:"2027-04-30",
+    badges:[
+      { id:"seasonal_spring_flower",  name:"Bloom Flower",         img:"seasonal_spring_flower.png"  },
+      { id:"seasonal_spring_egg",     name:"Painted Egg",          img:"seasonal_spring_egg.png"     },
+      { id:"seasonal_spring_butterfly",name:"Spring Butterfly",    img:"seasonal_spring_butterfly.png"},
+      { id:"seasonal_spring_rain",    name:"April Rain Drop",      img:"seasonal_spring_rain.png"    },
+      { id:"seasonal_spring_chick",   name:"Golden Chick",         img:"seasonal_spring_chick.png"   },
+      { id:"seasonal_spring_rainbow", name:"Rainbow Arch",         img:"seasonal_spring_rainbow.png" },
+    ]},
+  { id:"end_of_year",        label:"End of Year",           emoji:"🎓",  startDate:"2027-05-01", endDate:"2027-06-30",
+    badges:[
+      { id:"seasonal_eoy_scroll",     name:"Scholar's Scroll",     img:"seasonal_eoy_scroll.png"     },
+      { id:"seasonal_eoy_medal",      name:"Gold Medal",           img:"seasonal_eoy_medal.png"      },
+      { id:"seasonal_eoy_mortarboard",name:"Graduation Cap",       img:"seasonal_eoy_mortarboard.png"},
+      { id:"seasonal_eoy_trophy",     name:"Champion Trophy",      img:"seasonal_eoy_trophy.png"     },
+      { id:"seasonal_eoy_book",       name:"Tome of Tales",        img:"seasonal_eoy_book.png"       },
+      { id:"seasonal_eoy_star",       name:"Star of Excellence",   img:"seasonal_eoy_star.png"       },
+    ]},
+];
+function getActiveSeasonalSet() {
+  const today = new Date().toISOString().slice(0, 10);
+  return SEASONAL_SETS.find(s => today >= s.startDate && today <= s.endDate) || null;
+}
+
 const BOSS_ICON = {
   "Aldric the Unyielding":  "⚔️",
   "Seraphine of the Veil":  "🌙",
@@ -280,6 +342,20 @@ function unequipSlotItem(student, slotKey) {
   const slots = Object.assign({}, getEquippedSlots(student));
   delete slots[slotKey];
   saveStudentOverride(student.id, { equippedSlots: Object.keys(slots).length ? slots : null });
+}
+function getSeasonalBadges(student) {
+  return (_overrides[String(student.id)] || {}).seasonalBadges || [];
+}
+function awardSeasonalBadge(student) {
+  const season = getActiveSeasonalSet();
+  if (!season) return;
+  const ov = getOverrides().students[String(student.id)] || {};
+  const owned = new Set(ov.seasonalBadges || []);
+  const unowned = season.badges.filter(b => !owned.has(b.id));
+  if (!unowned.length) return;
+  const badge = randFrom(unowned);
+  saveStudentOverride(student.id, { seasonalBadges: [...(ov.seasonalBadges || []), badge.id] });
+  logActivity(student.id, '🏅', `Found seasonal badge: ${badge.name}!`);
 }
 function findLandByTileId(tileId) {
   return LANDS.find(l => l.tiles.some(t => t.id === tileId)) || null;
@@ -1063,6 +1139,7 @@ function completeSideQuest(student, key) {
   // Rare drop for side quest completion
   const _sqLand = findLandByTileId(entry.tileId);
   if (_sqLand) awardFromPool(student, _sqLand.name, 'rare');
+  if (Math.random() < 0.5) awardSeasonalBadge(student);
   showXPCelebration(quest.xp, levelsGained, newLevel, () => mount());
 }
 function getGuildCounts() {
@@ -1349,9 +1426,11 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               avStep:0, avGender:null, avClass:null, avVariant:null, avTone:null,
               customizeOpen:false, pendingTitle:null, pendingCompanion:undefined, custTab:"avatar",
               companionPickerOpen:false, companionPickerStudentId:null,
+              studentCompanionOpen:false,
               equipPickerOpen:false, equipPickerStudentId:null,
               tgDialogueOpen:false, tgContinueReady:false,
               bossLockedOpen:false,
+              weaponPickerOpen:false, shieldPickerOpen:false, collectiblesOpen:false, collectiblesTab:'land',
               mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
               sideQuestModalOpen:false, sideQuestTileId:null, sideQuestSoloIdx:0, sideQuestCollabIdx:0,
               pendingSQAfterGrade:null, sqBoardOpen:false, sqBoardLandId:null,
@@ -1750,7 +1829,6 @@ function renderHub() {
         <div class="cust-tabs">
           <button class="cust-tab${custTab==="avatar"?" active":""}" data-custtab="avatar">🎭 Avatar</button>
           <button class="cust-tab${custTab==="title"?" active":""}" data-custtab="title">👑 Title</button>
-          <button class="cust-tab${custTab==="companions"?" active":""}" data-custtab="companions">🐾 Companions</button>
         </div>
         <div class="cust-body">
           ${custTab==="avatar" ? `
@@ -1772,7 +1850,6 @@ function renderHub() {
                 <button class="title-card${activeTitle===t?" cust-active":""}" data-title="${t}">${t}</button>`).join("")}
             </div>
           </div>` : ""}
-          ${custTab==="companions" ? companionsTabHTML : ""}
         </div>
         <div class="cust-footer">
           <button class="cust-save-btn" id="cust-save">✓ Save Changes</button>
@@ -1826,50 +1903,50 @@ function renderHub() {
       ${equippable ? `<span class="item-equip-lbl">${isEquipped ? '✓ Equipped' : 'Equip'}</span>` : ''}
     </div>`;
   });
-  const equipSlots = equipInventory.map(id => {
-    const def = getEquipItemDef(id);
-    const isEq = equippedSlots[def.slotKey] === id;
-    return `<div class="item-slot item-equip-new${isEq?' item-equipped':''}" style="--tier-color:${def.tierColor};border-color:var(--tier-color)"
-      data-equip-slot-item="${id}" data-equip-slot-key="${def.slotKey}" title="${def.n}">
-      <img src="${def.img}" alt="${def.icon}" style="width:36px;height:36px;object-fit:contain" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'"><span style="font-size:26px;display:none">${def.icon}</span>
-      <span class="item-name" style="color:var(--tier-color)">${def.n}</span>
-      <span class="item-equip-lbl">${isEq ? '✓ On' : 'Equip'}</span>
-    </div>`;
-  });
-  const totalSlots = Math.max(8, legacySlots.length + equipSlots.length);
-  const emptyCount = totalSlots - legacySlots.length - equipSlots.length;
+  const totalSlots = Math.max(8, legacySlots.length);
+  const emptyCount = totalSlots - legacySlots.length;
   const invSlots = [
     ...legacySlots,
-    ...equipSlots,
     ...Array(emptyCount).fill(`<div class="item-slot empty"></div>`)
   ].join("");
 
-  const equipSlotsHTML = EQUIP_SLOTS.map(({ label, icon, key, itemKey }) => {
-    const newItemId = equippedSlots[key];
-    if (newItemId) {
-      const def = getEquipItemDef(newItemId);
-      return `<div class="equip-slot equip-slot-on equip-slot-new" style="--tier-color:${def.tierColor}" data-unequip-slot="${key}">
+  const ownedWeapons      = equipInventory.filter(id => getEquipItemDef(id).type === 'weapon');
+  const ownedShields      = equipInventory.filter(id => getEquipItemDef(id).type === 'shield');
+  const ownedCollectibles = equipInventory.filter(id => getEquipItemDef(id).type === 'accessory');
+  const ownedSeasonalBadges = getSeasonalBadges(STATE.student);
+  const activeSeasonForHub  = getActiveSeasonalSet();
+  const weaponEquippedId  = equippedSlots['weapon'];
+  const shieldEquippedId  = equippedSlots['shield'];
+
+  function _equipPickerSlot(equippedId, label, phIcon, ownedItems, openAttr, ghostImg) {
+    if (equippedId) {
+      const def = getEquipItemDef(equippedId);
+      return `<div class="equip-slot equip-slot-on equip-slot-new" style="--tier-color:${def.tierColor}" ${openAttr}>
         <div class="equip-slot-img">
-          <img src="${def.img}" alt="${def.n}" width="120" height="120" style="object-fit:contain" onerror="this.style.display='none';this.nextSibling.style.display='block'"/>
+          <img src="${def.img}" alt="${def.n}" style="width:68px;height:68px;object-fit:contain" onerror="this.style.display='none';this.nextSibling.style.display='block'"/>
           <span style="display:none;font-size:48px;line-height:1">${def.icon}</span>
         </div>
-        <span class="equip-slot-lbl">${label}</span>
         <span class="equip-slot-sub">✓ Equipped</span>
       </div>`;
     }
-    const owned = s.items.includes(itemKey);
-    const def = ITEMS[itemKey] || {};
-    const isEquipped = owned && !!equipped[itemKey];
-    const imgEl = owned && def.img
-      ? `<img src="/icons/${def.img}" alt="${def.n}" width="120" height="120" style="object-fit:contain" onerror="this.style.display='none'"/>`
-      : owned ? `<span style="font-size:48px;line-height:1">${def.i}</span>`
-      : `<span class="equip-slot-ph">${icon}</span>`;
-    return `<div class="equip-slot${isEquipped?' equip-slot-on':owned?' equip-slot-off':' equip-slot-empty'}" ${owned?`data-equip-item="${itemKey}"`:''}>`
-      + `<div class="equip-slot-img">${imgEl}</div>`
-      + `<span class="equip-slot-lbl">${label}</span>`
-      + `<span class="equip-slot-sub">${isEquipped?'✓ Equipped':owned?'Tap to Equip':'Empty'}</span>`
-      + `</div>`;
-  }).join('');
+    return `<div class="equip-slot${ownedItems.length ? ' equip-slot-off' : ' equip-slot-empty'}" ${openAttr}>
+      <div class="equip-slot-img" style="position:relative">
+        ${ghostImg ? `<img src="${ghostImg}" class="equip-slot-ghost" alt="" aria-hidden="true"/>` : ''}
+        ${ownedItems.length ? `<span class="equip-slot-owned-badge">${ownedItems.length}</span>` : ''}
+      </div>
+    </div>`;
+  }
+
+  const equipSlotsHTML = [
+    _equipPickerSlot(weaponEquippedId, 'Weapon', '⚔️', ownedWeapons, 'data-open-weapon-picker', '/equipment/weapon_valeblade_common.png'),
+    _equipPickerSlot(shieldEquippedId, 'Shield', '🛡️', ownedShields, 'data-open-shield-picker', '/equipment/shield_valeguard_common.png'),
+    `<div class="equip-slot equip-slot-collectibles${ownedCollectibles.length ? '' : ' equip-slot-empty'}" data-open-collectibles>
+      <div class="equip-slot-img" style="position:relative">
+        <img src="/equipment/accessory_bag.png" alt="Collectibles" style="width:68px;height:68px;object-fit:contain${ownedCollectibles.length ? '' : ';opacity:0.22'}" onerror="this.style.display='none'"/>
+        ${ownedCollectibles.length ? `<span class="equip-slot-owned-badge">${ownedCollectibles.length}</span>` : ''}
+      </div>
+    </div>`
+  ].join('');
 
   const bossRows = s.bosses.length
     ? s.bosses.map(b => `
@@ -1926,7 +2003,7 @@ function renderHub() {
                     <img src="${avatarUrl}" class="hub-avatar-img" alt="Avatar" width="250" height="250"/>
                   </div>
                 </div>
-                <div class="char-companion-slot${activeCompanion ? '' : ' char-companion-empty'}" title="${activeCompanion ? (() => { const c = companionByFile(activeCompanion); return c.name; })() : 'No companion'}">
+                <div class="char-companion-slot${activeCompanion ? '' : ' char-companion-empty'}" id="companion-slot-btn" title="Choose companion">
                   ${activeCompanion ? `<img src="/companions/${activeCompanion}" alt="companion" width="65" height="65"/>` : `<span style="font-size:22px;opacity:.35">🐾</span>`}
                   <span class="char-companion-name">${activeCompanion ? companionByFile(activeCompanion).name : 'Companion'}</span>
                 </div>
@@ -1989,55 +2066,10 @@ function renderHub() {
             : `<button class="btn-brew" id="brew-crafting-btn">⚗️ Visit Crafting Station</button>`}
         </div>
       </div>
-      ${STATE.craftingOpen ? (() => {
-        if (STATE.craftingStep === 1) {
-          return `<div class="crafting-overlay" id="crafting-overlay">
-            <div class="crafting-modal">
-              <button class="crafting-close" id="crafting-close">✕</button>
-              <div class="crafting-title">⚗️ Crafting Station</div>
-              <div class="crafting-subtitle">What would you like to craft?</div>
-              <div class="crafting-cards">
-                ${['health_potion','behavior_potion','stamina_potion'].map(key => {
-                  const def = ITEMS[key];
-                  const imgTag = def.img
-                    ? `<img class="crafting-card-img item-img" src="/icons/${def.img}" alt="${def.n}" width="64" height="64" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:32px">${def.i}</span>`
-                    : `<span style="font-size:32px">${def.i}</span>`;
-                  return `<div class="crafting-card" data-craft-pick="${key}">
-                  <div class="crafting-card-img-wrap">${imgTag}</div>
-                  <span class="crafting-card-name">${def.n}</span>
-                  <span class="crafting-card-desc">${def.desc}</span>
-                </div>`;
-                }).join('')}
-              </div>
-            </div>
-          </div>`;
-        } else {
-          const sel = ITEMS[STATE.craftingSelected] || { i:'⚗️', n: STATE.craftingSelected, desc:'' };
-          return `<div class="crafting-overlay" id="crafting-overlay">
-            <div class="crafting-modal">
-              <button class="crafting-back" id="crafting-back">← Back</button>
-              <button class="crafting-close" id="crafting-close">✕</button>
-              <div class="crafting-title">⚗️ Crafting Station</div>
-              <div class="crafting-selected-card">
-                <span class="crafting-card-icon" style="font-size:48px">${sel.i}</span>
-                <span class="crafting-card-name" style="font-size:18px">${sel.n}</span>
-                <span class="crafting-card-desc">${sel.desc}</span>
-              </div>
-              <label class="crafting-checkbox-row">
-                <input type="checkbox" id="crafting-confirm-cb"/>
-                <span>I have completed the crafting binder activity for this item and I am ready for my teacher to review it.</span>
-              </label>
-              <button class="btn-brew crafting-submit" id="crafting-submit" disabled>Submit Request</button>
-            </div>
-          </div>`;
-        }
-      })() : ''}
       <div class="hub-panel boss-panel-wrap enter" style="animation-delay:.16s">
         <div class="panel-title">🏆 Bosses Defeated</div>
         <div class="boss-list">${bossRows}</div>
       </div>
-      </div><!-- /hub-inv-bosses bottom -->
-      <div class="character-hub-two-col-row">
         ${(() => {
           const activeSQ = getActiveSideQuests(STATE.student);
           const activeEntries = Object.entries(activeSQ);
@@ -2123,6 +2155,49 @@ function renderHub() {
           <div class="act-feed">${actFeedHTML}</div>
         </div>
       </div>
+      ${STATE.craftingOpen ? (() => {
+        if (STATE.craftingStep === 1) {
+          return `<div class="crafting-overlay" id="crafting-overlay">
+            <div class="crafting-modal">
+              <button class="crafting-close" id="crafting-close">✕</button>
+              <div class="crafting-title">⚗️ Crafting Station</div>
+              <div class="crafting-subtitle">What would you like to craft?</div>
+              <div class="crafting-cards">
+                ${['health_potion','behavior_potion','stamina_potion'].map(key => {
+                  const def = ITEMS[key];
+                  const imgTag = def.img
+                    ? `<img class="crafting-card-img item-img" src="/icons/${def.img}" alt="${def.n}" width="64" height="64" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:32px">${def.i}</span>`
+                    : `<span style="font-size:32px">${def.i}</span>`;
+                  return `<div class="crafting-card" data-craft-pick="${key}">
+                  <div class="crafting-card-img-wrap">${imgTag}</div>
+                  <span class="crafting-card-name">${def.n}</span>
+                  <span class="crafting-card-desc">${def.desc}</span>
+                </div>`;
+                }).join('')}
+              </div>
+            </div>
+          </div>`;
+        } else {
+          const sel = ITEMS[STATE.craftingSelected] || { i:'⚗️', n: STATE.craftingSelected, desc:'' };
+          return `<div class="crafting-overlay" id="crafting-overlay">
+            <div class="crafting-modal">
+              <button class="crafting-back" id="crafting-back">← Back</button>
+              <button class="crafting-close" id="crafting-close">✕</button>
+              <div class="crafting-title">⚗️ Crafting Station</div>
+              <div class="crafting-selected-card">
+                <span class="crafting-card-icon" style="font-size:48px">${sel.i}</span>
+                <span class="crafting-card-name" style="font-size:18px">${sel.n}</span>
+                <span class="crafting-card-desc">${sel.desc}</span>
+              </div>
+              <label class="crafting-checkbox-row">
+                <input type="checkbox" id="crafting-confirm-cb"/>
+                <span>I have completed the crafting binder activity for this item and I am ready for my teacher to review it.</span>
+              </label>
+              <button class="btn-brew crafting-submit" id="crafting-submit" disabled>Submit Request</button>
+            </div>
+          </div>`;
+        }
+      })() : ''}
     </div>
     ${custHTML}
     ${renderCatchUpModal()}
@@ -2152,6 +2227,125 @@ function renderHub() {
         </div>
       </div>
     </div>` : ''}
+    ${STATE.studentCompanionOpen ? `
+    <div class="equip-picker-overlay" id="student-companion-overlay">
+      <div class="equip-picker-box" style="max-width:520px">
+        <button class="npc-modal-close" id="student-companion-close">✕</button>
+        <div class="equip-picker-title">🐾 Companions <span style="font-size:12px;font-weight:600;opacity:.55">${earnedCompanions.length}/${COMPANIONS.length} collected</span></div>
+        <div class="companion-grid" style="overflow-y:auto;max-height:55vh;padding:4px 2px">
+          ${COMPANIONS.map(c => {
+            const earned = earnedCompanions.includes(c.file);
+            const isActive = activeCompanion === c.file;
+            const border = COMPANION_RARITY_BORDER[c.rarity];
+            return `<div class="companion-slot ${earned?'earned':'locked'}${isActive?' c-active':''}" style="border-color:${earned?border:'transparent'}" data-student-companion="${c.file}">
+              <img src="/companions/${c.file}" alt="${c.name}" width="58" height="58" loading="lazy"/>
+              <span class="c-name">${c.name}</span>
+              <span class="c-rarity" style="color:${border}">${earned ? COMPANION_RARITY_LABEL[c.rarity] : '???'}</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>` : ''}
+    ${STATE.weaponPickerOpen ? (() => {
+      const dedupedWeapons = [...new Set(ownedWeapons)];
+      return `<div class="equip-picker-overlay" id="weapon-picker-overlay">
+        <div class="equip-picker-box">
+          <button class="npc-modal-close" id="weapon-picker-close">✕</button>
+          <div class="equip-picker-title">⚔️ Weapons</div>
+          <div class="equip-picker-list">
+            ${dedupedWeapons.length ? dedupedWeapons.map(id => {
+              const def = getEquipItemDef(id);
+              const isEq = weaponEquippedId === id;
+              return `<div class="equip-picker-item${isEq ? ' equip-picker-item-eq' : ''}" data-pick-weapon="${id}" data-equip-unequip="${isEq}" style="--tier-color:${def.tierColor}">
+                <img src="${def.img}" alt="${def.n}" class="equip-picker-img" onerror="this.style.display='none';this.nextSibling.style.display='block'"/>
+                <span style="display:none;font-size:36px">${def.icon}</span>
+                <div class="equip-picker-info">
+                  <span class="equip-picker-name" style="color:${def.tierColor}">${def.n}</span>
+                  <span class="equip-picker-tier">${def.tier.charAt(0).toUpperCase()+def.tier.slice(1)}</span>
+                </div>
+                <button class="equip-picker-btn${isEq ? ' equip-picker-btn-eq' : ''}">${isEq ? '✓ Unequip' : 'Equip'}</button>
+              </div>`;
+            }).join('') : '<p class="equip-picker-empty">No weapons owned yet.</p>'}
+          </div>
+        </div>
+      </div>`;
+    })() : ''}
+    ${STATE.shieldPickerOpen ? (() => {
+      const dedupedShields = [...new Set(ownedShields)];
+      return `<div class="equip-picker-overlay" id="shield-picker-overlay">
+        <div class="equip-picker-box">
+          <button class="npc-modal-close" id="shield-picker-close">✕</button>
+          <div class="equip-picker-title">🛡️ Shields</div>
+          <div class="equip-picker-list">
+            ${dedupedShields.length ? dedupedShields.map(id => {
+              const def = getEquipItemDef(id);
+              const isEq = shieldEquippedId === id;
+              return `<div class="equip-picker-item${isEq ? ' equip-picker-item-eq' : ''}" data-pick-shield="${id}" data-equip-unequip="${isEq}" style="--tier-color:${def.tierColor}">
+                <img src="${def.img}" alt="${def.n}" class="equip-picker-img" onerror="this.style.display='none';this.nextSibling.style.display='block'"/>
+                <span style="display:none;font-size:36px">${def.icon}</span>
+                <div class="equip-picker-info">
+                  <span class="equip-picker-name" style="color:${def.tierColor}">${def.n}</span>
+                  <span class="equip-picker-tier">${def.tier.charAt(0).toUpperCase()+def.tier.slice(1)}</span>
+                </div>
+                <button class="equip-picker-btn${isEq ? ' equip-picker-btn-eq' : ''}">${isEq ? '✓ Unequip' : 'Equip'}</button>
+              </div>`;
+            }).join('') : '<p class="equip-picker-empty">No shields owned yet.</p>'}
+          </div>
+        </div>
+      </div>`;
+    })() : ''}
+    ${STATE.collectiblesOpen ? (() => {
+      const tab = STATE.collectiblesTab || 'land';
+      // Land tab content
+      const grouped = {};
+      ownedCollectibles.forEach(id => { grouped[id] = (grouped[id] || 0) + 1; });
+      const landContent = Object.keys(grouped).length
+        ? Object.entries(grouped).map(([id, count]) => {
+            const def = getEquipItemDef(id);
+            return `<div class="equip-picker-item" style="--tier-color:${def.tierColor};cursor:default">
+              <img src="${def.img}" alt="${def.n}" class="equip-picker-img" onerror="this.style.display='none';this.nextSibling.style.display='block'"/>
+              <span style="display:none;font-size:36px">${def.icon}</span>
+              <div class="equip-picker-info">
+                <span class="equip-picker-name" style="color:${def.tierColor}">${def.n}</span>
+                <span class="equip-picker-tier">${def.tier.charAt(0).toUpperCase()+def.tier.slice(1)}</span>
+              </div>
+              ${count > 1 ? `<span class="collectibles-count-badge">×${count}</span>` : ''}
+            </div>`;
+          }).join('')
+        : '<p class="equip-picker-empty">No land collectibles earned yet.</p>';
+      // Seasonal tab content
+      const seasonalContent = (() => {
+        if (!activeSeasonForHub) return '<p class="equip-picker-empty" style="text-align:center;padding:24px 0">No seasonal event is active right now.<br><span style="opacity:.5;font-size:12px">Check back when the next season begins!</span></p>';
+        const earnedSet = new Set(ownedSeasonalBadges);
+        const earnedCount = activeSeasonForHub.badges.filter(b => earnedSet.has(b.id)).length;
+        return `<div style="margin-bottom:10px">
+            <div style="font-size:13px;font-weight:700;color:#7C3AED;margin-bottom:8px">${activeSeasonForHub.emoji} ${activeSeasonForHub.label} <span style="font-weight:500;opacity:.6;font-size:11px">${earnedCount}/${activeSeasonForHub.badges.length} collected</span></div>
+            <div class="seasonal-badge-grid">
+              ${activeSeasonForHub.badges.map(badge => {
+                const earned = earnedSet.has(badge.id);
+                return `<div class="seasonal-badge-slot${earned ? '' : ' seasonal-badge-locked'}">
+                  <img src="/equipment/seasonal/${badge.img}" alt="${earned ? badge.name : '???'}" width="52" height="52" style="object-fit:contain" onerror="this.style.display='none';this.nextSibling.style.display='flex'"/>
+                  <div class="seasonal-badge-ph" style="display:none">🏅</div>
+                  <span class="seasonal-badge-name">${earned ? badge.name : '???'}</span>
+                </div>`;
+              }).join('')}
+            </div>
+          </div>`;
+      })();
+      return `<div class="equip-picker-overlay" id="collectibles-overlay">
+        <div class="equip-picker-box">
+          <button class="npc-modal-close" id="collectibles-close">✕</button>
+          <div class="equip-picker-title">💼 Collectibles</div>
+          <div class="coll-tabs">
+            <button class="coll-tab${tab==='land'?' coll-tab-active':''}" data-colltab="land">🏔️ Land</button>
+            <button class="coll-tab${tab==='seasonal'?' coll-tab-active':''}" data-colltab="seasonal">🌟 Seasonal</button>
+          </div>
+          <div class="equip-picker-list" style="margin-top:0">
+            ${tab === 'land' ? landContent : seasonalContent}
+          </div>
+        </div>
+      </div>`;
+    })() : ''}
   </div>`;
 }
 
@@ -4316,22 +4510,68 @@ function bindEvents() {
       });
     });
     // New equipment system — equip from inventory card
-    document.querySelectorAll("[data-equip-slot-item]").forEach(card => {
-      card.addEventListener("click", () => {
-        const itemId  = card.dataset.equipSlotItem;
-        const slotKey = card.dataset.equipSlotKey;
-        if (getEquippedSlots(STATE.student)[slotKey] === itemId) unequipSlotItem(STATE.student, slotKey);
-        else equipSlotItem(STATE.student, slotKey, itemId);
-        mount();
+    // Weapon/shield/collectibles picker openers
+    document.querySelector("[data-open-weapon-picker]")?.addEventListener("click", () => { STATE.weaponPickerOpen = true; mount(); });
+    document.querySelector("[data-open-shield-picker]")?.addEventListener("click", () => { STATE.shieldPickerOpen = true; mount(); });
+    document.querySelector("[data-open-collectibles]")?.addEventListener("click", () => { STATE.collectiblesOpen = true; mount(); });
+
+    // Weapon picker modal handlers
+    if (STATE.weaponPickerOpen) {
+      const closeWP = () => { STATE.weaponPickerOpen = false; mount(); };
+      $("weapon-picker-close") && $("weapon-picker-close").addEventListener("click", closeWP);
+      $("weapon-picker-overlay") && $("weapon-picker-overlay").addEventListener("click", e => { if (e.target === $("weapon-picker-overlay")) closeWP(); });
+      document.querySelectorAll("[data-pick-weapon]").forEach(item => {
+        item.addEventListener("click", () => {
+          const id = item.dataset.pickWeapon;
+          const isEq = item.dataset.equipUnequip === 'true';
+          if (isEq) unequipSlotItem(STATE.student, 'weapon');
+          else equipSlotItem(STATE.student, 'weapon', id);
+          STATE.weaponPickerOpen = false; mount();
+        });
       });
-    });
-    // New equipment system — unequip from equip slot
-    document.querySelectorAll("[data-unequip-slot]").forEach(slot => {
-      slot.addEventListener("click", () => {
-        unequipSlotItem(STATE.student, slot.dataset.unequipSlot);
-        mount();
+    }
+
+    // Shield picker modal handlers
+    if (STATE.shieldPickerOpen) {
+      const closeSP = () => { STATE.shieldPickerOpen = false; mount(); };
+      $("shield-picker-close") && $("shield-picker-close").addEventListener("click", closeSP);
+      $("shield-picker-overlay") && $("shield-picker-overlay").addEventListener("click", e => { if (e.target === $("shield-picker-overlay")) closeSP(); });
+      document.querySelectorAll("[data-pick-shield]").forEach(item => {
+        item.addEventListener("click", () => {
+          const id = item.dataset.pickShield;
+          const isEq = item.dataset.equipUnequip === 'true';
+          if (isEq) unequipSlotItem(STATE.student, 'shield');
+          else equipSlotItem(STATE.student, 'shield', id);
+          STATE.shieldPickerOpen = false; mount();
+        });
       });
-    });
+    }
+
+    // Collectibles modal handlers
+    if (STATE.collectiblesOpen) {
+      const closeCO = () => { STATE.collectiblesOpen = false; mount(); };
+      $("collectibles-close") && $("collectibles-close").addEventListener("click", closeCO);
+      $("collectibles-overlay") && $("collectibles-overlay").addEventListener("click", e => { if (e.target === $("collectibles-overlay")) closeCO(); });
+      document.querySelectorAll(".coll-tab").forEach(btn => {
+        btn.addEventListener("click", () => { STATE.collectiblesTab = btn.dataset.colltab; mount(); });
+      });
+    }
+
+    // Student companion picker
+    $("companion-slot-btn") && $("companion-slot-btn").addEventListener("click", () => { STATE.studentCompanionOpen = true; mount(); });
+    if (STATE.studentCompanionOpen) {
+      const closeSC = () => { STATE.studentCompanionOpen = false; mount(); };
+      $("student-companion-close") && $("student-companion-close").addEventListener("click", closeSC);
+      $("student-companion-overlay") && $("student-companion-overlay").addEventListener("click", e => { if (e.target === $("student-companion-overlay")) closeSC(); });
+      document.querySelectorAll("[data-student-companion]").forEach(slot => {
+        slot.addEventListener("click", () => {
+          if (!slot.classList.contains("earned")) return;
+          const file = slot.dataset.studentCompanion;
+          saveStudentOverride(STATE.student.id, { activeCompanion: file });
+          STATE.studentCompanionOpen = false; mount();
+        });
+      });
+    }
 
     // Quest journal tabs
     document.querySelectorAll(".qj-tab").forEach(tab => {
@@ -5148,6 +5388,7 @@ function bindEvents() {
         } else {
           awardFromPool(student, _bossLandName, 'epic');
         }
+        awardSeasonalBadge(student);
       }
       // Determine companion to award
       let companionFile = null;
@@ -5237,6 +5478,7 @@ function bindEvents() {
                         : _shouldDone ? (Math.random() < 0.15 ? 'rare' : 'common')
                         : 'common';
         awardFromPool(STATE.student, _poolLand, _dropTier);
+        if (Math.random() < 0.2) awardSeasonalBadge(STATE.student);
       }
       if (levelsGained > 0) logActivity(STATE.student.id, '⬆️', `Reached Level ${newLevel}!`);
       const hasExitTicket = getExitTicketEnabled(tile.id);
