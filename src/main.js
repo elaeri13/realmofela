@@ -193,6 +193,15 @@ function resolveCollabQuest(tileId, tile) {
 function pickQuestIdx(pool, tileId, salt) {
   return Math.abs((tileId * 17 + salt * 31)) % pool.length;
 }
+/* ─── SHOP ─── */
+const SHOP_ITEMS = [
+  { id:'jolly_rancher',  emoji:'🍬', label:'Jolly Rancher',         cost:25,  desc:'A sweet reward for a brave adventurer.' },
+  { id:'loot_roll',      emoji:'🎲', label:'Loot Roll',              cost:50,  desc:'Try your luck — a mystery item awaits.' },
+  { id:'sit_anywhere',   emoji:'🪑', label:'Sit Anywhere Day',       cost:75,  desc:'Choose your throne for the day.' },
+  { id:'plinko',         emoji:'🎯', label:'Plinko Drop',            cost:75,  desc:'Drop the puck, claim your fate.' },
+  { id:'free_game_time', emoji:'🎮', label:'10 Min Free Game Time',  cost:150, desc:'A moment of rest for a seasoned hero.' },
+  { id:'gimkit',         emoji:'🎉', label:'Whole Class Gimkit',     cost:200, desc:'Rally your classmates — victory for all!' },
+];
 /* ─── COMPANIONS ─── */
 const COMPANIONS = [
   // Common (grey border)
@@ -1002,6 +1011,7 @@ let _craftRequests = {};   // { studentId: { requestedAt } } — pending potion 
 let _settings = {};        // { pacing: { startDate, targetDate, targetCount } }
 let _activityLog = {};     // { studentId: { pushKey: { type, message, icon, ts } } }
 let _sqInvites = {};       // { studentId: { questKey: { fromStudentId, fromStudentName, questKey, questName, tileId, type, idx, timestamp, status } } }
+let _shopPending = {};     // { key: { studentId, studentName, itemId, itemName, cost, timestamp } }
 
 function getOverrides() {
   return { students: _overrides };
@@ -1478,6 +1488,88 @@ function showXPCelebration(amount, levelsGained, newLevel, onComplete, message =
   };
   setTimeout(dismiss, levelsGained > 0 ? 1800 : 1200);
 }
+/* ─── GOLD HELPERS ─── */
+function getGold(student) {
+  return (_overrides[String(student.id)] || {}).gold || 0;
+}
+function awardGold(student, amount) {
+  const current = getGold(student);
+  saveStudentOverride(student.id, { gold: current + amount });
+}
+function spendGold(student, amount) {
+  const current = getGold(student);
+  saveStudentOverride(student.id, { gold: Math.max(0, current - amount) });
+}
+function showGoldToast(amount, onComplete) {
+  const el = document.createElement("div");
+  el.className = "gold-toast";
+  el.innerHTML = `<div class="gold-pop">🪙 +${amount} Gold!</div>`;
+  document.body.appendChild(el);
+  const dismiss = () => {
+    el.classList.add("gold-toast-out");
+    setTimeout(() => { el.remove(); if (onComplete) onComplete(); }, 380);
+  };
+  setTimeout(dismiss, 1000);
+}
+/* ─── SHOP PENDING REDEMPTIONS ─── */
+function getShopPending() { return Object.assign({}, _shopPending); }
+function addShopPending(student, item) {
+  const key = `${String(student.id)}_${Date.now()}`;
+  const entry = { studentId: String(student.id), studentName: student.displayName || student.name || 'Student', itemId: item.id, itemName: item.label, cost: item.cost, timestamp: new Date().toISOString() };
+  _shopPending[key] = entry;
+  set(ref(db, `shopPending/${key}`), entry).catch(console.error);
+}
+function clearShopPending(key) {
+  delete _shopPending[key];
+  set(ref(db, `shopPending/${key}`), null).catch(console.error);
+}
+function getShopItemEnabled(itemId) {
+  return (_settings.shopItems || {})[itemId] !== false;
+}
+function setShopItemEnabled(itemId, enabled) {
+  if (!_settings.shopItems) _settings.shopItems = {};
+  _settings.shopItems[itemId] = enabled;
+  set(ref(db, `settings/shopItems/${itemId}`), enabled).catch(console.error);
+}
+function renderShopModal(student) {
+  const gold = getGold(student);
+  const confirmItem = STATE.shopConfirmItem ? SHOP_ITEMS.find(i => i.id === STATE.shopConfirmItem) : null;
+  const enabledItems = SHOP_ITEMS.filter(i => getShopItemEnabled(i.id));
+  return `<div class="shop-overlay" id="shop-overlay">
+    <div class="shop-modal">
+      <div class="shop-hdr">
+        <span class="shop-title">🏪 Item Shop</span>
+        <span class="shop-gold-bal">🪙 ${gold} Gold</span>
+        <button class="shop-close" id="shop-close">✕</button>
+      </div>
+      ${STATE.shopSuccess ? `<div class="shop-success">✅ Your teacher has been notified!</div>` : ''}
+      ${confirmItem ? `<div class="shop-confirm">
+        <div class="shop-confirm-q">Purchase ${confirmItem.emoji} ${confirmItem.label}?</div>
+        <div class="shop-confirm-cost">This will cost 🪙 ${confirmItem.cost} Gold</div>
+        <div class="shop-confirm-btns">
+          <button class="shop-confirm-yes" id="shop-confirm-yes" data-confirm-id="${confirmItem.id}">Yes, Buy It!</button>
+          <button class="shop-confirm-no" id="shop-confirm-no">Cancel</button>
+        </div>
+      </div>` : ''}
+      <div class="shop-items">
+        ${enabledItems.map(item => {
+          const canAfford = gold >= item.cost;
+          return `<div class="shop-item">
+            <span class="shop-item-icon">${item.emoji}</span>
+            <div class="shop-item-info">
+              <div class="shop-item-name">${item.label}</div>
+              <div class="shop-item-desc">${item.desc}</div>
+              <div class="shop-item-cost">🪙 ${item.cost} Gold</div>
+            </div>
+            <button class="shop-buy-btn${!canAfford ? ' not-enough' : ''}" data-shop-item="${item.id}" ${!canAfford ? 'disabled' : ''}>
+              ${canAfford ? 'Buy' : 'Not enough\nGold'}
+            </button>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
 function showCompanionReveal(file, onComplete) {
   const c = companionByFile(file);
   const border = COMPANION_RARITY_BORDER[c.rarity];
@@ -1566,6 +1658,8 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               sideQuestModalOpen:false, sideQuestTileId:null, sideQuestSoloIdx:0, sideQuestCollabIdx:0,
               pendingSQAfterGrade:null, sqBoardOpen:false, sqBoardLandId:null,
               sqPartnerPickOpen:false, sqPartnerPickKey:null, sqPartnerPickIdx:0, sqPartnerPickType:null, sqPartnerPickTile:null, sqPartnerPickLand:null, sqPartnerPickSelected:null,
+              shopOpen:false, shopConfirmItem:null, shopSuccess:false,
+              teacherGoldShopOpen:false,
               sqInviteNotifOpen:false,
               questJournalTab:'active',
               craftingOpen:false, craftingStep:1, craftingSelected:null,
@@ -2170,6 +2264,10 @@ function renderHub() {
                 <div class="xp-fill" data-w="${xpPct}"></div>
                 <span class="xp-pct">${xpPct}%</span>
               </div>
+              <div class="gold-sect">
+                <span class="gold-display">🪙 ${getGold(STATE.student)} Gold</span>
+                <button class="shop-open-btn" id="open-shop-btn">🏪 Shop</button>
+              </div>
             </div>
           </div>
         </div>
@@ -2485,7 +2583,8 @@ function renderHub() {
         + '</div>'
         + '</div>';
     })() : ''}
-  </div>`;
+  </div>
+  ${STATE.shopOpen ? renderShopModal(STATE.student) : ''}`;
 }
 
 /* ─── AVATARS ─── */
@@ -3947,6 +4046,9 @@ function renderTeacherDashboard() {
         <span class="t-dash-title">👩‍🏫 Teacher Dashboard</span>
         <div style="display:flex;gap:10px;align-items:center">
           <button class="btn btn-outline-sm" id="t-mp-bulk-btn">💙 MP Bulk Edit</button>
+          <button class="btn btn-outline-sm t-gold-shop-btn" id="t-gold-shop-btn">
+            🪙 Gold Shop${(() => { const n = Object.keys(getShopPending()).length; return n ? `<span class="t-gold-badge">${n}</span>` : ''; })()}
+          </button>
           <button class="btn btn-outline-sm" id="t-board-view">📡 Board View</button>
           <button class="btn btn-outline-sm" id="t-dash-logout">Exit</button>
         </div>
@@ -4070,6 +4172,64 @@ function renderTeacherDashboard() {
       })()}
     </div>
   </div>
+  ${STATE.teacherGoldShopOpen ? (() => {
+    const allStudents = periods.flatMap(p => p.students);
+    const pendingEntries = Object.entries(getShopPending());
+    return `<div class="tgs-overlay" id="tgs-overlay">
+      <div class="tgs-modal">
+        <div class="tgs-hdr">
+          <span class="tgs-title">🪙 Gold Shop</span>
+          <button class="tgs-close" id="tgs-close">✕</button>
+        </div>
+
+        <div class="tgs-section">
+          <div class="tgs-section-hdr">HOMEWORK GOLD (+15 PER STUDENT)</div>
+          <button class="tgs-award-all-btn" id="gold-award-all-btn">🎁 Award All Students +15 Gold</button>
+          <div class="tgs-student-list">
+            ${allStudents.map((s, idx) => {
+              const m = getMergedStudent(s);
+              const g = getGold(s);
+              return `<div class="tgs-student-row ${idx % 2 === 0 ? 'tgs-row-even' : 'tgs-row-odd'}">
+                <span class="tgs-student-name">${m.displayName}</span>
+                <span class="tgs-student-bal">🪙 ${g}</span>
+                <button class="tgs-hw-btn" data-hw-gold="${s.id}">+15 Gold</button>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="tgs-divider"></div>
+
+        <div class="tgs-section">
+          <div class="tgs-section-hdr">PENDING REDEMPTIONS</div>
+          ${pendingEntries.length
+            ? pendingEntries.map(([key, p]) => `
+              <div class="tgs-redemption-row">
+                <span class="tgs-redemption-name">${p.studentName}</span>
+                <span class="tgs-redemption-item">${p.itemName}</span>
+                <span class="tgs-redemption-time">${new Date(p.timestamp).toLocaleDateString()}</span>
+                <button class="gold-fulfill-btn" data-fulfill-key="${key}">✓ Fulfilled</button>
+              </div>`).join('')
+            : '<p class="tgs-empty">No pending redemptions</p>'}
+        </div>
+
+        <div class="tgs-divider"></div>
+
+        <div class="tgs-section">
+          <div class="tgs-section-hdr">SHOP INVENTORY</div>
+          ${SHOP_ITEMS.map(item => {
+            const on = getShopItemEnabled(item.id);
+            return `<div class="tgs-toggle-row">
+              <span class="tgs-toggle-name">${item.emoji} ${item.label} <span class="tgs-toggle-cost">🪙 ${item.cost}</span></span>
+              <button class="tgs-toggle-btn ${on ? 'tgs-on' : 'tgs-off'}" data-shop-toggle="${item.id}" data-shop-toggle-val="${on ? '1' : '0'}">
+                ${on ? 'Available' : 'Hidden'}
+              </button>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`;
+  })() : ''}
   ${STATE.mpBulkOpen ? (() => {
     const allStudents = periods.flatMap(p => p.students.map(s => ({ ...s, periodName: p.periodName })));
     const filtered = STATE.mpBulkPeriod === 'all'
@@ -4956,6 +5116,55 @@ function bindEvents() {
         if (e.target === $("help-modal-overlay")) { STATE.helpModalOpen = false; mount(); }
       });
     }
+    // Shop open/close
+    $("open-shop-btn") && $("open-shop-btn").addEventListener("click", () => {
+      STATE.shopOpen = true; STATE.shopConfirmItem = null; STATE.shopSuccess = false; mount();
+    });
+    if (STATE.shopOpen) {
+      const closeShop = () => { STATE.shopOpen = false; STATE.shopConfirmItem = null; STATE.shopSuccess = false; mount(); };
+      $("shop-close") && $("shop-close").addEventListener("click", closeShop);
+      $("shop-overlay") && $("shop-overlay").addEventListener("click", e => {
+        if (e.target === $("shop-overlay")) closeShop();
+      });
+      // Buy buttons — move to confirm step
+      document.querySelectorAll(".shop-buy-btn:not(:disabled)").forEach(btn => {
+        btn.addEventListener("click", () => {
+          STATE.shopConfirmItem = btn.dataset.shopItem;
+          STATE.shopSuccess = false;
+          mount();
+        });
+      });
+      // Confirm purchase
+      $("shop-confirm-yes") && $("shop-confirm-yes").addEventListener("click", () => {
+        const itemId = ($("shop-confirm-yes") || {}).dataset?.confirmId || STATE.shopConfirmItem;
+        const item = SHOP_ITEMS.find(i => i.id === itemId);
+        if (!item) return;
+        const gold = getGold(STATE.student);
+        if (gold < item.cost) { STATE.shopConfirmItem = null; mount(); return; }
+        spendGold(STATE.student, item.cost);
+        logActivity(STATE.student.id, '🏪', `Purchased ${item.emoji} ${item.label} for ${item.cost} 🪙 Gold`);
+        if (item.id === 'loot_roll') {
+          const student = STATE.student;
+          const pos = getLandPos(student);
+          const land = getLandData(pos.land);
+          const poolLand = land && land.name;
+          STATE.shopConfirmItem = null; STATE.shopOpen = false;
+          if (poolLand && (EQUIP_POOLS[poolLand] || PET_POOLS[poolLand])) {
+            awardFromPool(student, poolLand, 'rare', () => mount());
+          } else {
+            mount();
+          }
+        } else {
+          addShopPending(STATE.student, item);
+          STATE.shopConfirmItem = null;
+          STATE.shopSuccess = true;
+          mount();
+        }
+      });
+      $("shop-confirm-no") && $("shop-confirm-no").addEventListener("click", () => {
+        STATE.shopConfirmItem = null; mount();
+      });
+    }
   }
 
   /* TEACHER LOGIN */
@@ -4981,6 +5190,12 @@ function bindEvents() {
   if (STATE.screen === "teacher-dash") {
     $("t-dash-logout") && $("t-dash-logout").addEventListener("click", () => { STATE.screen = "code"; mount(); });
     $("t-board-view") && $("t-board-view").addEventListener("click", () => { STATE.screen = "board-view"; mount(); });
+    $("t-gold-shop-btn") && $("t-gold-shop-btn").addEventListener("click", () => { STATE.teacherGoldShopOpen = true; mount(); });
+    if (STATE.teacherGoldShopOpen) {
+      const closeTGS = () => { STATE.teacherGoldShopOpen = false; mount(); };
+      $("tgs-close") && $("tgs-close").addEventListener("click", closeTGS);
+      $("tgs-overlay") && $("tgs-overlay").addEventListener("click", e => { if (e.target === $("tgs-overlay")) closeTGS(); });
+    }
     document.querySelectorAll(".period-tab").forEach(btn => {
       btn.addEventListener("click", () => { STATE.teacherPeriodIdx = parseInt(btn.dataset.pi, 10); mount(); });
     });
@@ -5135,6 +5350,50 @@ function bindEvents() {
         });
       });
     }
+    // Gold Shop — Homework Gold per student
+    document.querySelectorAll("[data-hw-gold]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const sid = parseInt(btn.dataset.hwGold, 10);
+        let stu = null;
+        for (const p of CLASS_DATA.periods) { const f = p.students.find(s => s.id === sid); if (f) { stu = f; break; } }
+        if (!stu) return;
+        awardGold(stu, 15);
+        logActivity(sid, '🪙', 'Earned 15 Gold for homework completion!');
+        const t = document.createElement("div"); t.className = "toast"; t.textContent = `🪙 +15 Gold awarded to ${getMergedStudent(stu).displayName}`;
+        document.body.appendChild(t); setTimeout(() => t.remove(), 2500);
+        mount();
+      });
+    });
+    // Gold Shop — Award All +15 Gold
+    $("gold-award-all-btn") && $("gold-award-all-btn").addEventListener("click", () => {
+      const allStudents = CLASS_DATA.periods.flatMap(p => p.students);
+      allStudents.forEach(stu => {
+        awardGold(stu, 15);
+        logActivity(stu.id, '🪙', 'Earned 15 Gold for homework completion!');
+      });
+      const t = document.createElement("div"); t.className = "toast"; t.textContent = `🪙 +15 Gold awarded to all ${allStudents.length} students!`;
+      document.body.appendChild(t); setTimeout(() => t.remove(), 3000);
+      mount();
+    });
+    // Gold Shop — Mark Fulfilled
+    document.querySelectorAll("[data-fulfill-key]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        clearShopPending(btn.dataset.fulfillKey);
+        mount();
+      });
+    });
+    // Gold Shop — Item toggles
+    document.querySelectorAll("[data-shop-toggle]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const itemId = btn.dataset.shopToggle;
+        const currentOn = btn.dataset.shopToggleVal === '1';
+        setShopItemEnabled(itemId, !currentOn);
+        mount();
+      });
+    });
   }
 
   /* TEACHER EDIT */
@@ -5645,11 +5904,14 @@ function bindEvents() {
       } else if (isFirstBoss) {
         companionFile = randFrom(companionsByRarity("common")).file;
       }
+      awardGold(student, 20);
+      logActivity(student.id, '🪙', `Earned 20 Gold for defeating ${tile.name}!`);
+      const _afterBossGold = () => { STATE.screen = "quest-map"; mount(); };
       if (companionFile) {
         awardCompanion(student, companionFile);
-        showCompanionReveal(companionFile, () => { STATE.screen = "quest-map"; mount(); });
+        showCompanionReveal(companionFile, () => showGoldToast(20, _afterBossGold));
       } else {
-        STATE.screen = "quest-map"; mount();
+        showGoldToast(20, _afterBossGold);
       }
     });
   }
@@ -5717,10 +5979,12 @@ function bindEvents() {
       const xpAmount = tile.type === 'lesson'
         ? (10 + (_shouldDone ? 5 : 0) + (_aspireDone ? 5 : 0))
         : tileXP(tile);
+      const goldAmount = tile.type === 'loot' ? 10 : (5 + (_shouldDone ? 3 : 0) + (_aspireDone ? 3 : 0));
       const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
       saveTileCompletion(STATE.student.id, tile.id, timeOnPage);
       const { levelsGained, newLevel } = awardXP(STATE.student, xpAmount);
-      logActivity(STATE.student.id, '📖', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xpAmount} XP)`);
+      awardGold(STATE.student, goldAmount);
+      logActivity(STATE.student.id, '📖', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xpAmount} XP, +${goldAmount} 🪙)`);
       if (levelsGained > 0) logActivity(STATE.student.id, '⬆️', `Reached Level ${newLevel}!`);
       const hasExitTicket = getExitTicketEnabled(tile.id);
       const openSQPopup = (tileId) => {
@@ -5755,8 +6019,9 @@ function bindEvents() {
       };
       const finalCallback = hasExitTicket ? doAdvanceWithGrade : doAdvance;
 
-      // FIX 1: XP toast fires after loot popup is dismissed (or after 2500ms)
-      const _showMainXP = () => showXPCelebration(xpAmount, levelsGained, newLevel, finalCallback);
+      // XP toast fires after loot popup is dismissed (or after 2500ms), Gold toast follows XP
+      const _showMainXP = () => showXPCelebration(xpAmount, levelsGained, newLevel,
+        () => showGoldToast(goldAmount, finalCallback));
 
       // FIX 2: Tiered drop rates based on highest tier reached
       const _poolLand = (land && land.name) || (LANDS[0] && LANDS[0].name);
@@ -5972,6 +6237,10 @@ function initFirebaseCache() {
     });
     onValue(ref(db, 'sideQuestInvites'), (snap) => {
       _sqInvites = snap.exists() ? snap.val() : {};
+      liveMount();
+    });
+    onValue(ref(db, 'shopPending'), (snap) => {
+      _shopPending = snap.exists() ? snap.val() : {};
       liveMount();
     });
   });
