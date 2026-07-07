@@ -552,7 +552,6 @@ input  { font-family: var(--font-body); }
 
 @media (min-width:768px) {
   .hub-wrap { display: flex; flex-direction: column; }
-  .hub-2col-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 }
 
 /* Unified character card */
@@ -580,16 +579,7 @@ input  { font-family: var(--font-body); }
 .equip-slot-on { background:rgba(251,191,36,.1); border-color:rgba(251,191,36,.6); }
 .equip-slot-new { border-style:solid; border-width:2.5px; border-color:var(--tier-color,rgba(251,191,36,.6)); background:color-mix(in srgb,var(--tier-color,#F59E0B) 8%,transparent); }
 .equip-slot-new:hover { opacity:.85; }
-/* Equipment inventory panel */
-.equip-inv-panel { grid-column:1/-1; }
-.equip-inv-grid { display:flex; flex-wrap:wrap; gap:10px; }
-.equip-inv-card { position:relative; width:90px; min-height:90px; background:#fff; border:2.5px solid var(--tier-color,#9CA3AF); border-radius:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:8px 6px 6px; cursor:pointer; transition:transform .1s,box-shadow .1s; text-align:center; }
-.equip-inv-card:hover { transform:translateY(-2px); box-shadow:0 4px 14px color-mix(in srgb,var(--tier-color,#9CA3AF) 30%,transparent); }
-.equip-inv-equipped { box-shadow:0 0 0 2px var(--tier-color,#9CA3AF); background:color-mix(in srgb,var(--tier-color,#9CA3AF) 8%,#fff); }
-.equip-inv-icon { font-size:28px; line-height:1; }
-.equip-inv-name { font-size:9px; font-weight:800; color:rgba(0,0,0,.65); line-height:1.25; word-break:break-word; }
-.equip-inv-badge { font-size:8px; font-weight:900; letter-spacing:.5px; text-transform:uppercase; color:var(--tier-color,#9CA3AF); }
-.equip-inv-eq-lbl { position:absolute; top:4px; right:5px; font-size:8px; font-weight:900; color:var(--tier-color,#9CA3AF); }
+
 .equip-slot-off:hover { background:rgba(167,139,250,.12); border-color:rgba(167,139,250,.5); }
 .equip-slot-img { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
 .equip-slot-img img { width:80px; height:80px; object-fit:contain; }
@@ -598,7 +588,6 @@ input  { font-family: var(--font-body); }
 .equip-slot-sub { position:absolute; bottom:3px; left:0; right:0; text-align:center; font-size:8px; color:var(--text-mid); }
 .char-col-equip { display:flex; flex-direction:column; align-items:center; }
 .hub-inv-bosses { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:14px; width:100%; }
-.hub-2col-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 .char-col-stats { display:flex; flex-direction:column; }
 .guild-banner { display:flex; align-items:center; gap:10px; margin-top:12px; padding:10px 12px; border:1.5px solid; border-radius:10px; }
 .guild-banner-crest { flex-shrink:0; object-fit:contain; }
@@ -610,7 +599,6 @@ input  { font-family: var(--font-body); }
 @media (max-width:860px) {
   /* Both grid rows collapse to single column */
   .hub-inv-bosses { grid-template-columns:1fr; }
-  .hub-2col-row   { grid-template-columns:1fr; }
   .character-hub-two-col-row { grid-template-columns:1fr; }
 
   /* Top card: single column — identity above, equip below */

@@ -240,7 +240,7 @@ function awardCompanion(student, file) {
 function getEquipItemDef(id) {
   if (EQUIP_LEGENDARY_NAMES[id]) {
     const type = id.split('_')[0];
-    return { id, type, tier:'legendary', tierColor:EQUIP_TIER_COLOR.legendary, icon:EQUIP_TYPE_ICON[type]||'📦', img:`/equip/${id}.png`, n:EQUIP_LEGENDARY_NAMES[id], slotKey:type };
+    return { id, type, tier:'legendary', tierColor:EQUIP_TIER_COLOR.legendary, icon:EQUIP_TYPE_ICON[type]||'📦', img:`/equipment/${id}.png`, n:EQUIP_LEGENDARY_NAMES[id], slotKey:type };
   }
   const parts = id.split('_'); // e.g. ["weapon","valeblade","common"]
   const type = parts[0];
@@ -248,7 +248,7 @@ function getEquipItemDef(id) {
   const lineKey = parts.slice(1, -1).join('_');
   const lineName = EQUIP_LINE_NAMES[lineKey] || lineKey;
   const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
-  return { id, type, tier, tierColor:EQUIP_TIER_COLOR[tier]||"#9CA3AF", icon:EQUIP_TYPE_ICON[type]||'📦', img:`/equip/${id}.png`, n:`${lineName} (${tierLabel})`, slotKey:type };
+  return { id, type, tier, tierColor:EQUIP_TIER_COLOR[tier]||"#9CA3AF", icon:EQUIP_TYPE_ICON[type]||'📦', img:`/equipment/${id}.png`, n:`${lineName} (${tierLabel})`, slotKey:type };
 }
 function pickEquipItem(landName, slotKey, tier) {
   const pool = EQUIP_POOLS[landName];
@@ -1831,7 +1831,7 @@ function renderHub() {
     const isEq = equippedSlots[def.slotKey] === id;
     return `<div class="item-slot item-equip-new${isEq?' item-equipped':''}" style="--tier-color:${def.tierColor};border-color:var(--tier-color)"
       data-equip-slot-item="${id}" data-equip-slot-key="${def.slotKey}" title="${def.n}">
-      <span style="font-size:26px">${def.icon}</span>
+      <img src="${def.img}" alt="${def.icon}" style="width:36px;height:36px;object-fit:contain" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'"><span style="font-size:26px;display:none">${def.icon}</span>
       <span class="item-name" style="color:var(--tier-color)">${def.n}</span>
       <span class="item-equip-lbl">${isEq ? '✓ On' : 'Equip'}</span>
     </div>`;
@@ -4320,7 +4320,7 @@ function bindEvents() {
       card.addEventListener("click", () => {
         const itemId  = card.dataset.equipSlotItem;
         const slotKey = card.dataset.equipSlotKey;
-        if (equippedSlots[slotKey] === itemId) unequipSlotItem(STATE.student, slotKey);
+        if (getEquippedSlots(STATE.student)[slotKey] === itemId) unequipSlotItem(STATE.student, slotKey);
         else equipSlotItem(STATE.student, slotKey, itemId);
         mount();
       });
