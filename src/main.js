@@ -65,12 +65,16 @@ const EQUIP_POOLS = {
 const SEASONAL_SETS = [
   { id:"back_to_school",     label:"Back to School",        emoji:"✏️",  startDate:"2026-08-01", endDate:"2026-09-30",
     badges:[
-      { id:"seasonal_bts_pencil",     name:"Pencil of Knowledge",  img:"seasonal_bts_pencil.png"     },
-      { id:"seasonal_bts_backpack",   name:"Scholar's Backpack",   img:"seasonal_bts_backpack.png"   },
-      { id:"seasonal_bts_apple",      name:"Teacher's Apple",      img:"seasonal_bts_apple.png"      },
-      { id:"seasonal_bts_ruler",      name:"Ruler of Precision",   img:"seasonal_bts_ruler.png"      },
-      { id:"seasonal_bts_notebook",   name:"Hero's Notebook",      img:"seasonal_bts_notebook.png"   },
-      { id:"seasonal_bts_compass",    name:"Compass of Discovery", img:"seasonal_bts_compass.png"    },
+      { id:"seasonal_bts_pencil",      name:"Pencil of Knowledge",   img:"back_to_school_pencil.png"      },
+      { id:"seasonal_bts_backpack",    name:"Scholar's Backpack",    img:"back_to_school_backpack.png"    },
+      { id:"seasonal_bts_apple",       name:"Teacher's Apple",       img:"back_to_school_apple.png"       },
+      { id:"seasonal_bts_scissors",    name:"Scissors of Craft",     img:"back_to_school_scissors.png"    },
+      { id:"seasonal_bts_sharpener",   name:"Sharpener's Edge",      img:"back_to_school_sharpener.png"   },
+      { id:"seasonal_bts_glue",        name:"Glue of Creation",      img:"back_to_school_glue.png"        },
+      { id:"seasonal_bts_tape",        name:"Tape of Unity",         img:"back_to_school_tape.png"        },
+      { id:"seasonal_bts_calendar",    name:"Scholar's Calendar",    img:"back_to_school_calendar.png"    },
+      { id:"seasonal_bts_exam",        name:"Champion's Exam",       img:"back_to_school_exam.png"        },
+      { id:"seasonal_bts_calculator",  name:"Calculator of Logic",   img:"back_to_school_calculator.png"  },
     ]},
   { id:"fall_halloween",     label:"Fall & Halloween",      emoji:"🎃",  startDate:"2026-10-01", endDate:"2026-10-31",
     badges:[
@@ -269,27 +273,65 @@ function pickPetItem(landName, tier) {
   const arr = pool[tier] || [];
   return arr.length ? randFrom(arr) : null;
 }
-function awardFromPool(student, landName, tier) {
+function awardFromPool(student, landName, tier, onComplete = null) {
+  const done = () => { if (onComplete) onComplete(); };
+  const ov = getOverrides().students[String(student.id)] || {};
+  const ownedCompanions = new Set(ov.companions || []);
+  const ownedEquip      = new Set(ov.equipInventory || []);
+
   if (tier === 'legendary') {
+    const items = [];
     const petFile = pickPetItem(landName, 'legendary');
-    if (petFile) awardCompanion(student, petFile);
-    ['weapon','shield'].forEach(slot => {
+    if (petFile && !ownedCompanions.has(petFile)) {
+      awardCompanion(student, petFile);
+      items.push({ type: 'pet', file: petFile });
+    }
+    ['weapon', 'shield'].forEach(slot => {
       const id = pickEquipItem(landName, slot, 'legendary');
-      if (id) awardEquipItem(student, id, true);
+      if (id && !ownedEquip.has(id)) {
+        awardEquipItem(student, id, false);
+        items.push({ type: 'equip', def: getEquipItemDef(id) });
+      }
     });
+    if (!items.length) { done(); return; }
+    const showNext = (idx) => {
+      if (idx >= items.length) { done(); return; }
+      const item = items[idx];
+      if (item.type === 'pet') showCompanionReveal(item.file, () => showNext(idx + 1));
+      else showEquipReveal(item.def, () => showNext(idx + 1));
+    };
+    showNext(0);
     return;
   }
-  const hasPet  = !!(PET_POOLS[landName]?.[tier]?.length);
-  const hasEquip = !!(EQUIP_POOLS[landName]);
-  if (!hasPet && !hasEquip) return;
+
+  // Build eligible pools excluding already-owned items (FIX 3)
+  const petPool    = (PET_POOLS[landName]?.[tier] || []).filter(f => !ownedCompanions.has(f));
+  const weaponPool = ((EQUIP_POOLS[landName]?.weapon?.[tier]) || []).filter(id => !ownedEquip.has(id));
+  const shieldPool = ((EQUIP_POOLS[landName]?.shield?.[tier]) || []).filter(id => !ownedEquip.has(id));
+  const hasPet   = petPool.length > 0;
+  const hasEquip = weaponPool.length > 0 || shieldPool.length > 0;
+
+  if (!hasPet && !hasEquip) {
+    // Student owns everything available — award +5 bonus XP instead
+    const { levelsGained, newLevel } = awardXP(student, 5);
+    logActivity(student.id, '🎒', 'Bag full of rare finds! (+5 Bonus XP)');
+    showXPCelebration(5, levelsGained, newLevel, done, "Your bag is full of rare finds! +5 Bonus XP");
+    return;
+  }
+
   const givePet = hasPet && (!hasEquip || Math.random() < 0.5);
   if (givePet) {
-    const file = pickPetItem(landName, tier);
-    if (file) awardCompanion(student, file);
+    const file = randFrom(petPool);
+    awardCompanion(student, file);
+    showCompanionReveal(file, done);
   } else {
-    const slot = randFrom(['weapon','shield']);
-    const id   = pickEquipItem(landName, slot, tier);
-    if (id) awardEquipItem(student, id, true);
+    const eligibleSlots = [];
+    if (weaponPool.length > 0) eligibleSlots.push('weapon');
+    if (shieldPool.length > 0) eligibleSlots.push('shield');
+    const slot = randFrom(eligibleSlots);
+    const id   = randFrom(slot === 'weapon' ? weaponPool : shieldPool);
+    awardEquipItem(student, id, false);
+    showEquipReveal(getEquipItemDef(id), done);
   }
 }
 
@@ -320,14 +362,14 @@ function pickEquipItem(landName, slotKey, tier) {
   const arr = slotPool[tier] || [];
   return arr.length ? randFrom(arr) : null;
 }
-function awardEquipItem(student, itemId, doReveal = false) {
+function awardEquipItem(student, itemId, doReveal = false, onRevealComplete = null) {
   if (!itemId) return;
   const ov = getOverrides().students[String(student.id)] || {};
   const inv = [...new Set([...(ov.equipInventory || []), itemId])];
   saveStudentOverride(student.id, { equipInventory: inv });
   const def = getEquipItemDef(itemId);
   logActivity(student.id, def.icon, `Found ${def.n}!`);
-  if (doReveal) showEquipReveal(def);
+  if (doReveal) showEquipReveal(def, onRevealComplete);
 }
 function getEquipInventory(student) {
   return (_overrides[String(student.id)] || {}).equipInventory || [];
@@ -1416,10 +1458,11 @@ function awardXP(student, amount) {
   saveStudentOverride(student.id, { xp, level });
   return { levelsGained, newLevel: level };
 }
-function showXPCelebration(amount, levelsGained, newLevel, onComplete) {
+function showXPCelebration(amount, levelsGained, newLevel, onComplete, message = null) {
   const el = document.createElement("div");
   el.className = "xp-celebrate";
   el.innerHTML = `<div class="xp-pop">
+    ${message ? `<div class="xp-pop-msg">${message}</div>` : ""}
     <div class="xp-pop-amount">+${amount} XP!</div>
     ${levelsGained > 0
       ? `<div class="xp-pop-levelup">⬆️ Level Up!</div><div class="xp-pop-newlvl">Level ${newLevel}</div>`
@@ -1428,7 +1471,7 @@ function showXPCelebration(amount, levelsGained, newLevel, onComplete) {
   document.body.appendChild(el);
   const dismiss = () => {
     el.classList.add("xp-celebrate-out");
-    setTimeout(() => { el.remove(); onComplete(); }, 380);
+    setTimeout(() => { el.remove(); if (onComplete) onComplete(); }, 380);
   };
   setTimeout(dismiss, levelsGained > 0 ? 1800 : 1200);
 }
@@ -1453,7 +1496,7 @@ function showCompanionReveal(file, onComplete) {
     el.remove(); onComplete();
   });
 }
-function showEquipReveal(def) {
+function showEquipReveal(def, onComplete) {
   const el = document.createElement("div");
   el.className = "equip-reveal-overlay";
   el.innerHTML = `
@@ -1467,7 +1510,10 @@ function showEquipReveal(def) {
       <button class="equip-reveal-btn">Awesome!</button>
     </div>`;
   document.body.appendChild(el);
-  el.querySelector(".equip-reveal-btn").addEventListener("click", () => el.remove());
+  el.querySelector(".equip-reveal-btn").addEventListener("click", () => {
+    el.remove();
+    if (onComplete) onComplete();
+  });
 }
 function showSpecialBadgeReveal(badge) {
   const el = document.createElement("div");
@@ -2393,11 +2439,11 @@ function renderHub() {
           : '<span class="coll-season-status coll-season-past">Season ended</span>';
         const cells = set.badges.map(badge => {
           const earned = earnedSeasonalSet.has(badge.id);
-          const locked = !earned;
-          return '<div class="seasonal-badge-slot' + (locked ? ' seasonal-badge-locked' : '') + '" title="' + (earned ? badge.name : '???') + '">'
-            + '<img src="/equipment/seasonal/' + badge.img + '" width="52" height="52" style="object-fit:contain" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">'
-            + '<div class="seasonal-badge-ph" style="display:none">🏅</div>'
-            + '<span class="seasonal-badge-name">' + (earned ? badge.name : '???') + '</span>'
+          const imgSrc = '/collectibles/' + set.id + '/' + badge.img;
+          const imgStyle = 'object-fit:contain' + (earned ? '' : ';filter:grayscale(100%) opacity(40%)');
+          return '<div class="seasonal-badge-slot' + (earned ? '' : ' seasonal-badge-locked') + '" title="' + (earned ? badge.name : '') + '">'
+            + '<img src="' + imgSrc + '" width="52" height="52" style="' + imgStyle + '" onerror="this.style.display=\'none\'">'
+            + (earned ? '<span class="seasonal-badge-name">' + badge.name + '</span>' : '')
             + '</div>';
         }).join('');
         return '<div class="coll-section' + (isActive ? ' coll-section-active' : '') + '">'
@@ -3018,7 +3064,7 @@ function renderLessonStop() {
       : pos.tile === tile.id
   );
 
-  const tierHTML = (tasks, tier, cls, icon, label, tierLocked = false) => {
+  const tierHTML = (tasks, tier, cls, icon, label, tierLocked = false, xpNote = null) => {
     if (!tasks.length) return "";
     const prog = progress[tier] || [];
     const isDisabled = tierLocked;
@@ -3033,6 +3079,7 @@ function renderLessonStop() {
       <div class="ls-tier-header">
         <span class="ls-tier-icon">${icon}</span>
         <span class="ls-tier-label">${label}</span>
+        ${xpNote ? `<span class="ls-xp-note">${xpNote}</span>` : ""}
       </div>
       <div class="ls-tier-body">${rows}</div>
     </div>`;
@@ -3074,8 +3121,8 @@ function renderLessonStop() {
       <div class="ls-tiers">
         ${!videoOpened ? `<div class="ls-video-lock-hint">🔒 Watch the video first to unlock this checklist.</div>` : ''}
         ${tierHTML(mustDo, "mustDo", "ls-tier-must", "🔴", "Must Do", !videoOpened)}
-        ${tierHTML(shouldDo, "shouldDo", "ls-tier-should", "🟡", "Should Do", !mustAllDone)}
-        ${tierHTML(aspireTo, "aspireTo", "ls-tier-aspire", "🟢", "Aspire To", !mustAllDone)}
+        ${tierHTML(shouldDo, "shouldDo", "ls-tier-should", "🟡", "Should Do", !mustAllDone, "+5 XP")}
+        ${tierHTML(aspireTo, "aspireTo", "ls-tier-aspire", "🟢", "Aspire To", !mustAllDone, "+5 XP")}
       </div>
       <button class="ls-submit-btn" id="ls-submit" ${(!isActionable || !mustAllDone) ? "disabled" : ""} data-completed="${!isActionable}">
         ${!isActionable ? "Quest Complete ✓" : mustAllDone ? "✅ I'm Ready!" : "🔒 Complete Must Do tasks to continue"}
@@ -5652,26 +5699,17 @@ function bindEvents() {
       );
       if (!isActionable) return;
       const prog = getTaskProgress(STATE.student.id, tile.id);
-      const xpAmount = tileXP(tile);
+      const _shouldDone = (tile.shouldDo||[]).length > 0 && (tile.shouldDo||[]).every((_,i) => (prog.shouldDo||[])[i]);
+      const _aspireDone = (tile.aspireTo||[]).length > 0 && (tile.aspireTo||[]).every((_,i) => (prog.aspireTo||[])[i]);
+      const xpAmount = tile.type === 'lesson'
+        ? (10 + (_shouldDone ? 5 : 0) + (_aspireDone ? 5 : 0))
+        : tileXP(tile);
       const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
       saveTileCompletion(STATE.student.id, tile.id, timeOnPage);
       const { levelsGained, newLevel } = awardXP(STATE.student, xpAmount);
       logActivity(STATE.student.id, '📖', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xpAmount} XP)`);
-      // Tiered loot drop based on task depth completed
-      const _poolLand = (land && land.name) || (LANDS[0] && LANDS[0].name);
-      if (_poolLand && (EQUIP_POOLS[_poolLand] || PET_POOLS[_poolLand])) {
-        const _shouldDone = (tile.shouldDo||[]).length > 0 && (tile.shouldDo||[]).every((_,i) => (prog.shouldDo||[])[i]);
-        const _aspireDone = (tile.aspireTo||[]).length > 0 && (tile.aspireTo||[]).every((_,i) => (prog.aspireTo||[])[i]);
-        const _dropTier = (_shouldDone && _aspireDone) ? 'rare'
-                        : _shouldDone ? (Math.random() < 0.15 ? 'rare' : 'common')
-                        : 'common';
-        awardFromPool(STATE.student, _poolLand, _dropTier);
-        if (Math.random() < 0.2) awardSeasonalBadge(STATE.student);
-        checkAndAwardSpecialBadges(STATE.student);
-      }
       if (levelsGained > 0) logActivity(STATE.student.id, '⬆️', `Reached Level ${newLevel}!`);
       const hasExitTicket = getExitTicketEnabled(tile.id);
-      const isLesson = tile.type === 'lesson';
       const openSQPopup = (tileId) => {
         STATE.sideQuestModalOpen = true;
         STATE.sideQuestTileId = tileId;
@@ -5703,14 +5741,41 @@ function bindEvents() {
         mount();
       };
       const finalCallback = hasExitTicket ? doAdvanceWithGrade : doAdvance;
-      showXPCelebration(xpAmount, levelsGained, newLevel, finalCallback);
+
+      // FIX 1: XP toast fires after loot popup is dismissed (or after 2500ms)
+      const _showMainXP = () => showXPCelebration(xpAmount, levelsGained, newLevel, finalCallback);
+
+      // FIX 2: Tiered drop rates based on highest tier reached
+      const _poolLand = (land && land.name) || (LANDS[0] && LANDS[0].name);
+      const _dropRate = tile.type === 'loot' ? 1.0
+                      : _aspireDone ? 0.55
+                      : _shouldDone ? 0.35
+                      : 0.15;
+      const _hasPool = _poolLand && (EQUIP_POOLS[_poolLand] || PET_POOLS[_poolLand]);
+      if (_hasPool && Math.random() < _dropRate) {
+        const _dropTier = (_shouldDone && _aspireDone) ? 'rare' : 'common';
+        if (Math.random() < 0.2) awardSeasonalBadge(STATE.student);
+        checkAndAwardSpecialBadges(STATE.student);
+        // Show loot popup first, then XP — with 2500ms fallback (FIX 1)
+        let _xpFired = false;
+        const _showXPOnce = () => { if (!_xpFired) { _xpFired = true; _showMainXP(); } };
+        setTimeout(_showXPOnce, 2500);
+        awardFromPool(STATE.student, _poolLand, _dropTier, _showXPOnce);
+      } else {
+        if (_hasPool) {
+          if (Math.random() < 0.2) awardSeasonalBadge(STATE.student);
+          checkAndAwardSpecialBadges(STATE.student);
+        }
+        _showMainXP();
+      }
     });
     document.querySelectorAll(".ls-check").forEach(cb => {
       cb.addEventListener("change", () => {
+        const tile = STATE.lessonTile;
         saveTaskCheck(STATE.student.id, STATE.lessonTile.id, cb.dataset.tier, parseInt(cb.dataset.idx), cb.checked);
         if (cb.checked) saveTaskTimestamp(STATE.student.id, STATE.lessonTile.id, cb.dataset.tier, parseInt(cb.dataset.idx));
         cb.closest(".ls-task").classList.toggle("ls-task-done", cb.checked);
-        const tile = STATE.lessonTile;
+
         const prog = getTaskProgress(STATE.student.id, tile.id);
         const allMust = (tile.mustDo || []).length === 0 || (tile.mustDo || []).every((_, i) => (prog.mustDo || [])[i]);
         const btn = $("ls-submit");
@@ -5725,6 +5790,7 @@ function bindEvents() {
         });
         document.querySelector(".ls-tier-should")?.classList.toggle("ls-tier-dimmed", !allMust);
         document.querySelector(".ls-tier-aspire")?.classList.toggle("ls-tier-dimmed", !allMust);
+
       });
     });
 
