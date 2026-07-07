@@ -214,7 +214,7 @@ input  { font-family: var(--font-body); }
 .hub-header { display: flex; align-items: center; justify-content: space-between; padding: 2px 0 8px; }
 .hub-badge { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: white; text-shadow: 0 1px 4px rgba(0,0,0,.3); }
 
-.hub-panel { background: rgba(255,255,255,.8); border: 1.5px solid #C4B5FD; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.1); padding: 20px 20px 22px; }
+.hub-panel { background: rgba(255,255,255,.8); border: 1.5px solid #C4B5FD; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,.1); padding: 20px 20px 22px; width: 100%; max-width: 100%; box-sizing: border-box; }
 .panel-title { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--purple-dark); letter-spacing: .5px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1.5px solid #EDE9FE; flex-shrink:0; }
 
 /* Identity */
@@ -864,9 +864,9 @@ input  { font-family: var(--font-body); }
 .equip-picker-land { font-size:7px; color:#9CA3AF; text-align:center; line-height:1.2; }
 
 /* Character Hub — shared two-column row */
-.character-hub-two-col-row { display:grid; grid-template-columns:1fr 1fr; gap:24px; width:100%; }
+.character-hub-two-col-row { display:grid; grid-template-columns:1fr 1fr; gap:24px; width:100%; box-sizing:border-box; }
 @media (max-width:600px) {
-  .character-hub-two-col-row { grid-template-columns:1fr; }
+  .character-hub-two-col-row { grid-template-columns:1fr; padding:0 16px; box-sizing:border-box; overflow-x:hidden; }
 }
 
 /* ─── GOLD / SHOP ─── */
@@ -1369,7 +1369,7 @@ input  { font-family: var(--font-body); }
 .item-use-lbl { display:block; font-size:9px; font-weight:700; color:#EF4444; letter-spacing:.5px; text-transform:uppercase; margin-top:2px; }
 /* Brew button */
 .brew-row { margin-top:10px; display:flex; justify-content:center; }
-.btn-brew { background:rgba(239,68,68,.15); border:1.5px solid #EF4444; color:#FCA5A5; border-radius:10px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s; }
+.btn-brew { background:rgba(239,68,68,.15); border:1.5px solid #EF4444; color:#FCA5A5; border-radius:10px; padding:8px 16px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:background .15s; width:100%; box-sizing:border-box; }
 .btn-brew:hover { background:rgba(239,68,68,.28); }
 .brew-pending { font-size:12px; color:#94A3B8; font-style:italic; text-align:center; }
 /* HP flash animation */
