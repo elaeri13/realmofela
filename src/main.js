@@ -3655,7 +3655,7 @@ function renderTeacherTileView() {
   };
 
   return `
-  <div class="screen ls-screen">
+  <div class="screen">
     ${starsHTML()}
     <div class="ls-wrap">
       <div class="ls-nav enter">
