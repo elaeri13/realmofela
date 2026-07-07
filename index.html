@@ -1203,10 +1203,9 @@ input  { font-family: var(--font-body); }
 .sq-view-lesson-btn:hover { background:rgba(167,139,250,.3); }
 /* Lesson Lore — parchment block */
 .ls-lore { margin:0 0 4px; }
-.ls-lore-inner { background:linear-gradient(135deg,#3D2A0E 0%,#4A3015 50%,#3D2A0E 100%); border:2px solid #8B6914; border-radius:12px; padding:14px 16px 14px 14px; display:flex; gap:12px; align-items:flex-start; position:relative; overflow:hidden; box-shadow:inset 0 0 30px rgba(0,0,0,.3), 0 2px 8px rgba(0,0,0,.4); }
-.ls-lore-inner::before { content:''; position:absolute; inset:0; background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E"); opacity:.4; pointer-events:none; }
-.ls-lore-icon { font-size:20px; flex-shrink:0; margin-top:1px; filter:drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
-.ls-lore-text { margin:0; font-size:13px; line-height:1.65; color:#D4A84B; font-style:italic; letter-spacing:.2px; text-shadow:0 1px 3px rgba(0,0,0,.5); }
+.ls-lore-inner { background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.08); border-left:3px solid #F5C842; border-radius:12px; padding:14px 16px 14px 14px; display:flex; gap:12px; align-items:flex-start; box-shadow:0 2px 8px rgba(0,0,0,.4); }
+.ls-lore-icon { flex-shrink:0; margin-top:1px; }
+.ls-lore-text { margin:0; font-size:13px; line-height:1.65; color:#FFFFFF; font-style:italic; letter-spacing:.2px; }
 /* Equipment panel */
 /* Weapon slot next to avatar portrait */
 .weapon-slot { position:absolute; bottom:6px; right:-14px; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:5; transition:transform .15s,box-shadow .15s; }

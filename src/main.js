@@ -897,11 +897,11 @@ const LAND0 = {
       flavorDramatic:"✦ The Hall of Heroes is already expecting you. ✦" },
     { id:2, type:"sg", name:"The Hall of Heroes",    x:455, y:350, sgModal:"avatar",
       flavor:"Every legend begins with a face and a name. Step into the Hall of Heroes to choose your class and forge the hero you will become. Your look, your story." },
-    { id:3, type:"sg", name:"The Guild Hall",         x:715, y:350,
+    { id:3, type:"sg", name:"The Guild Hall",         x:455, y:630,
       flavor:"All heroes belong to a guild. Enter and see where your talents place you — your guild will be your companion through every challenge that lies ahead." },
     { id:4, type:"sg", name:"The Armory",             x:715, y:630,
       flavor:"Know your power before the battle. The Armory holds the secrets of XP, levels, and the strength that grows within you with every tile you complete." },
-    { id:5, type:"sg", name:"The Training Grounds",   x:455, y:630, sgModal:"lesson",
+    { id:5, type:"sg", name:"The Training Grounds",   x:715, y:350, sgModal:"lesson",
       flavor:"No hero charges into battle untrained. Walk through a practice session and prove you are ready for the real lessons that wait on the road ahead." },
     { id:6, type:"sg", name:"The Village Gate",       x:195, y:630, sgModal:"gate",
       flavor:"You've chosen your class. You've found your guild. The Realm knows your name now.<br><br>Beyond this gate, the real trials begin — new lands, new challenges, and a legend still waiting to be written. Take a breath, hero. It's time." },
@@ -910,7 +910,7 @@ const LAND0 = {
     { id:12, type:"npc", npcKey:"lumin_encouragement", x:975,  y:490, landId:0 },
     { id:13, type:"npc", npcKey:"lumin_easter",        x:325,  y:490, landId:0 },
   ],
-  pathOrder:[1,2,3,4,5,6],
+  pathOrder:[1,2,5,4,3,6],
 };
 
 function getLandData(id) {
@@ -3050,12 +3050,22 @@ function renderLessonStop() {
         </div>
       </div>
 
+      <div class="ls-header-icon enter" style="text-align:center;padding:6px 0 2px;animation-delay:.03s" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+      </div>
+
       ${(() => {
         const loreText = tile.sessionLore || land.lore;
         if (!loreText) return '';
         return `<div class="ls-lore enter" style="animation-delay:.05s">
           <div class="ls-lore-inner">
-            <span class="ls-lore-icon">📖</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="ls-lore-icon" aria-hidden="true">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
             <p class="ls-lore-text">${loreText}</p>
           </div>
         </div>`;
