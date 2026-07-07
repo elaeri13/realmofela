@@ -273,7 +273,7 @@ function awardFromPool(student, landName, tier) {
   if (tier === 'legendary') {
     const petFile = pickPetItem(landName, 'legendary');
     if (petFile) awardCompanion(student, petFile);
-    ['weapon','shield','accessory'].forEach(slot => {
+    ['weapon','shield'].forEach(slot => {
       const id = pickEquipItem(landName, slot, 'legendary');
       if (id) awardEquipItem(student, id, true);
     });
@@ -287,7 +287,7 @@ function awardFromPool(student, landName, tier) {
     const file = pickPetItem(landName, tier);
     if (file) awardCompanion(student, file);
   } else {
-    const slot = randFrom(['weapon','shield','accessory']);
+    const slot = randFrom(['weapon','shield']);
     const id   = pickEquipItem(landName, slot, tier);
     if (id) awardEquipItem(student, id, true);
   }
@@ -432,47 +432,66 @@ const LANDS = [
         aspireTo:["Extension reading response"],
         workbookRef:"Workbook pages 10-12",
       },
-      {id: 3, type:"lesson",   name:"L1-S2",                 x:325,  y:70},
-      {id: 4, type:"lesson",   name:"L1-S3",                 x:455,  y:70},
-      {id: 5, type:"lesson",   name:"L1-S6",                 x:585,  y:70},
+      {id: 3, type:"lesson",   name:"L1-S2",                 x:325,  y:70,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id: 4, type:"lesson",   name:"L1-S3",                 x:455,  y:70,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id: 5, type:"lesson",   name:"L1-S6",                 x:585,  y:70,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id: 6, type:"boss", name:"Seraphine of the Veil", x:715, y:70, skill:"RL.5.2",
         portrait:"boss_seraphine.png",
         lore:"Seraphine of the Veil weaves illusions from the hidden meanings buried in every text, cloaking the true theme beneath layers of misdirection. Only a reader who can cut through the surface story and name what it truly teaches will pierce her veil.",
         pearUrl:"https://app.peardeck.com/placeholder-seraphine",
       },
-      {id: 7, type:"lesson",   name:"L2-S1",                 x:845,  y:70},
-      {id: 8, type:"lesson",   name:"L2-S2",                 x:975,  y:70},
-      {id: 9, type:"lesson",   name:"L2-S3",                 x:1105, y:70},
+      {id: 7, type:"lesson",   name:"L2-S1",                 x:845,  y:70,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id: 8, type:"lesson",   name:"L2-S2",                 x:975,  y:70,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id: 9, type:"lesson",   name:"L2-S3",                 x:1105, y:70,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       // ── Row 2: main path R→L ──
-      {id:10, type:"lesson",   name:"L2-S6",                 x:1105, y:350},
+      {id:10, type:"lesson",   name:"L2-S6",                 x:1105, y:350,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id:11, type:"boss", name:"Seraphine Ascendant", x:975, y:350, skill:"RL.5.2",
         portrait:"boss_seraphine_ascendant.png",
         lore:"Seraphine has transcended the veil, evolving into a force of pure narrative deception that bends theme and summary into endless reflections of itself. She cannot be defeated by a single reading — you must summarize with precision and name the theme with conviction.",
         pearUrl:"https://app.peardeck.com/placeholder-seraphine-ascendant",
       },
-      {id:12, type:"lesson",   name:"L3-S1",                 x:845,  y:350},
-      {id:13, type:"lesson",   name:"L3-S2",                 x:715,  y:350},
-      {id:14, type:"lesson",   name:"L3-S3",                 x:585,  y:350},
-      {id:15, type:"lesson",   name:"L3-S6",                 x:455,  y:350},
+      {id:12, type:"lesson",   name:"L3-S1",                 x:845,  y:350,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id:13, type:"lesson",   name:"L3-S2",                 x:715,  y:350,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id:14, type:"lesson",   name:"L3-S3",                 x:585,  y:350,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id:15, type:"lesson",   name:"L3-S6",                 x:455,  y:350,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id:16, type:"boss", name:"Aldric the Unyielding", x:325, y:350, skill:"RL.5.1",
         portrait:"boss_aldric.png",
         lore:"Aldric the Unyielding is an iron-bound warlord who demands proof — he will not yield to vague answers or weak inferences. Defeat him by returning to the text, quoting with precision, and supporting every claim with unbreakable evidence.",
         pearUrl:"https://app.peardeck.com/placeholder-aldric",
       },
-      {id:17, type:"lesson",   name:"L4-S1",                 x:195,  y:350},
-      {id:18, type:"lesson",   name:"L4-S2",                 x:65,   y:350},
+      {id:17, type:"lesson",   name:"L4-S1",                 x:195,  y:350,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id:18, type:"lesson",   name:"L4-S2",                 x:65,   y:350,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       // ── Row 4: main path L→R ──
-      {id:19, type:"lesson",   name:"L4-S3",                 x:65,   y:630},
-      {id:20, type:"lesson",   name:"L4-S6",                 x:195,  y:630},
+      {id:19, type:"lesson",   name:"L4-S3",                 x:65,   y:630,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id:20, type:"lesson",   name:"L4-S6",                 x:195,  y:630,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id:21, type:"boss", name:"Duskmantle", x:325, y:630, skill:"RL.5.3",
         portrait:"boss_duskmantle.png",
         lore:"Duskmantle dwells in the space between stories, feeding on the confusion between heroes and their shadows. Only a student who can compare characters with precision — tracing their motives, changes, and contrasts — can shatter its hold on the realm.",
         pearUrl:"https://app.peardeck.com/placeholder-duskmantle",
       },
-      {id:22, type:"lesson",   name:"CI-S1",                 x:455,  y:630},
-      {id:23, type:"lesson",   name:"CI-S2",                 x:585,  y:630},
-      {id:24, type:"lesson",   name:"CI-S3",                 x:715,  y:630},
-      {id:25, type:"lesson",   name:"CI-S4",                 x:845,  y:630},
+      {id:22, type:"lesson",   name:"CI-S1",                 x:455,  y:630,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id:23, type:"lesson",   name:"CI-S2",                 x:585,  y:630,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id:24, type:"lesson",   name:"CI-S3",                 x:715,  y:630,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id:25, type:"lesson",   name:"CI-S4",                 x:845,  y:630,
+        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id:26, type:"event",    name:"The Scribe's Calling",  x:975,  y:630},
       // ── Row 6: dungeon ──
       {id:27, type:"dungeon",  name:"The Warden of the Vale",x:975,  y:840, portrait:"boss_warden.png"},
@@ -1985,11 +2004,9 @@ function renderHub() {
   function _equipPickerSlot(equippedId, label, phIcon, ownedItems, openAttr, ghostImg) {
     if (equippedId) {
       const def = getEquipItemDef(equippedId);
-      return `<div class="equip-slot equip-slot-on equip-slot-new" style="--tier-color:${def.tierColor}" ${openAttr}>
-        <div class="equip-slot-img">
-          <img src="${def.img}" alt="${def.n}" style="width:68px;height:68px;object-fit:contain" onerror="this.style.display='none';this.nextSibling.style.display='block'"/>
-          <span style="display:none;font-size:48px;line-height:1">${def.icon}</span>
-        </div>
+      return `<div class="equip-slot equip-slot-on equip-slot-new equip-slot-equipped" style="--tier-color:${def.tierColor}" ${openAttr}>
+        <img src="${def.img}" alt="${def.n}" class="equip-slot-main-img" onerror="this.style.display='none';this.nextSibling.style.display='block'"/>
+        <span style="display:none;font-size:48px;line-height:1">${def.icon}</span>
         <span class="equip-slot-sub">✓ Equipped</span>
       </div>`;
     }
@@ -2006,7 +2023,7 @@ function renderHub() {
     _equipPickerSlot(shieldEquippedId, 'Shield', '🛡️', ownedShields, 'data-open-shield-picker', '/equipment/shield_valeguard_common.png'),
     `<div class="equip-slot equip-slot-collectibles${ownedCollectibles.length ? '' : ' equip-slot-empty'}" data-open-collectibles>
       <div class="equip-slot-img">
-        <img src="/equipment/accessory_bag.png" alt="Collectibles" style="width:68px;height:68px;object-fit:contain${ownedCollectibles.length ? '' : ';opacity:0.22'}" onerror="this.style.display='none'"/>
+        <img src="/equipment/accessory_bag.png" alt="Collectibles" style="object-fit:contain${ownedCollectibles.length ? '' : ';opacity:0.22'}" onerror="this.style.display='none'"/>
       </div>
       ${ownedCollectibles.length ? `<span class="equip-slot-owned-badge">${ownedCollectibles.length}</span>` : ''}
     </div>`
@@ -2365,29 +2382,6 @@ function renderHub() {
       const earnedSpecialSet  = new Set(ownedSpecialBadges);
 
       // ── Tab: Collectibles ──────────────────────────────────────────────
-      // Land accessory sections (one per land that has a pool)
-      const landSections = Object.entries(EQUIP_POOLS).map(([landName, slots]) => {
-        if (!slots.accessory) return '';
-        const tiers = ['common','rare','epic','legendary'];
-        const items = tiers.flatMap(tier => {
-          const v = slots.accessory[tier];
-          return v ? (Array.isArray(v) ? v : [v]) : [];
-        });
-        const cells = items.map(id => {
-          const def = getEquipItemDef(id);
-          const owned = ownedCollectibles.includes(id);
-          return '<div class="coll-item-slot' + (owned ? '' : ' coll-item-locked') + '" title="' + (owned ? def.n : '???') + '">'
-            + '<img src="' + def.img + '" width="52" height="52" style="object-fit:contain" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">'
-            + '<div class="seasonal-badge-ph" style="display:none">' + def.icon + '</div>'
-            + '<span class="seasonal-badge-name">' + (owned ? def.n : '???') + '</span>'
-            + '</div>';
-        }).join('');
-        return '<div class="coll-section">'
-          + '<div class="coll-section-hdr"><span class="coll-section-land">' + landName + '</span></div>'
-          + '<div class="seasonal-badge-grid">' + cells + '</div>'
-          + '</div>';
-      }).join('');
-
       // Seasonal sections (all 6 sets)
       const seasonalSections = SEASONAL_SETS.map(set => {
         const isActive = today >= set.startDate && today <= set.endDate;
@@ -2414,7 +2408,7 @@ function renderHub() {
           + '</div>';
       }).join('');
 
-      const collectiblesContent = (landSections || '') + seasonalSections;
+      const collectiblesContent = seasonalSections;
 
       // ── Tab: Special ───────────────────────────────────────────────────
       const specialContent = '<div class="seasonal-badge-grid" style="grid-template-columns:repeat(2,1fr);gap:12px">'
@@ -3392,14 +3386,12 @@ function renderSg0Modal() {
       </div>
       <div class="sg-lesson-section">
         <div class="sg-lesson-label">🟡 Should Do</div>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I found one detail in the practice video I'd use as evidence</label>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I checked my Character Hub to see my starting stats</label>
+        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I can explain what "Should Do" means in my own words</label>
+        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I clicked on an NPC to see what they say</label>
       </div>
       <div class="sg-lesson-section">
         <div class="sg-lesson-label">🟢 Aspire To</div>
         <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I can explain the difference between Must Do, Should Do, and Aspire To to a partner</label>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I found the Side Quest Board and read what's on it</label>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I clicked on an NPC to see what they say</label>
       </div>
     </div>`;
   } else if (tile.sgModal === "gate") {
@@ -5723,6 +5715,13 @@ function bindEvents() {
           btn.disabled = !allMust;
           btn.textContent = allMust ? "✅ I'm Ready!" : "🔒 Complete Must Do tasks to continue";
         }
+        // Sync Should Do / Aspire To interactivity independently of the button
+        document.querySelectorAll(".ls-tier-should .ls-check, .ls-tier-aspire .ls-check").forEach(inp => {
+          inp.disabled = !allMust;
+          inp.closest(".ls-task").classList.toggle("ls-task-locked", !allMust);
+        });
+        document.querySelector(".ls-tier-should")?.classList.toggle("ls-tier-dimmed", !allMust);
+        document.querySelector(".ls-tier-aspire")?.classList.toggle("ls-tier-dimmed", !allMust);
       });
     });
 
