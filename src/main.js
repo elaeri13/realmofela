@@ -190,6 +190,47 @@ function companionByFile(file) { return COMPANIONS.find(c=>c.file===file) || {fi
 function companionsByRarity(r) { return COMPANIONS.filter(c=>c.rarity===r); }
 function randFrom(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
 function landToRarity(landId) { return landId<=2?"common": landId<=4?"uncommon": landId<=6?"rare":"legendary"; }
+
+/* ─── PET POOLS (mirrors EQUIP_POOLS structure, keyed by land name) ─── */
+const PET_POOLS = {
+  "The Verdant Vale": {
+    common:    companionsByRarity('common').map(c => c.file),
+    rare:      companionsByRarity('uncommon').map(c => c.file),
+    epic:      companionsByRarity('rare').map(c => c.file),
+    legendary: "051-lion.png",
+  }
+};
+function pickPetItem(landName, tier) {
+  const pool = PET_POOLS[landName];
+  if (!pool) return null;
+  if (tier === 'legendary') return pool.legendary || null;
+  const arr = pool[tier] || [];
+  return arr.length ? randFrom(arr) : null;
+}
+function awardFromPool(student, landName, tier) {
+  if (tier === 'legendary') {
+    const petFile = pickPetItem(landName, 'legendary');
+    if (petFile) awardCompanion(student, petFile);
+    ['weapon','shield','accessory'].forEach(slot => {
+      const id = pickEquipItem(landName, slot, 'legendary');
+      if (id) awardEquipItem(student, id);
+    });
+    return;
+  }
+  const hasPet  = !!(PET_POOLS[landName]?.[tier]?.length);
+  const hasEquip = !!(EQUIP_POOLS[landName]);
+  if (!hasPet && !hasEquip) return;
+  const givePet = hasPet && (!hasEquip || Math.random() < 0.5);
+  if (givePet) {
+    const file = pickPetItem(landName, tier);
+    if (file) awardCompanion(student, file);
+  } else {
+    const slot = randFrom(['weapon','shield','accessory']);
+    const id   = pickEquipItem(landName, slot, tier);
+    if (id) awardEquipItem(student, id);
+  }
+}
+
 function awardCompanion(student, file) {
   const ov = getOverrides().students[String(student.id)] || {};
   const companions = [...new Set([...(ov.companions||[]), file])];
@@ -1019,12 +1060,9 @@ function completeSideQuest(student, key) {
   logActivity(sid, '✨', `Completed quest: ${quest.title} (+${quest.xp} XP)`);
   const { levelsGained, newLevel } = awardXP(student, quest.xp);
   if (levelsGained > 0) logActivity(sid, '⬆️', `Reached Level ${newLevel}!`);
-  // Rare equipment drop for side quest completion
+  // Rare drop for side quest completion
   const _sqLand = findLandByTileId(entry.tileId);
-  if (_sqLand) {
-    const _sqSlot = randFrom(['weapon','shield','accessory']);
-    awardEquipItem(student, pickEquipItem(_sqLand.name, _sqSlot, 'rare'));
-  }
+  if (_sqLand) awardFromPool(student, _sqLand.name, 'rare');
   showXPCelebration(quest.xp, levelsGained, newLevel, () => mount());
 }
 function getGuildCounts() {
@@ -1311,6 +1349,9 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               avStep:0, avGender:null, avClass:null, avVariant:null, avTone:null,
               customizeOpen:false, pendingTitle:null, pendingCompanion:undefined, custTab:"avatar",
               companionPickerOpen:false, companionPickerStudentId:null,
+              equipPickerOpen:false, equipPickerStudentId:null,
+              tgDialogueOpen:false, tgContinueReady:false,
+              bossLockedOpen:false,
               mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
               sideQuestModalOpen:false, sideQuestTileId:null, sideQuestSoloIdx:0, sideQuestCollabIdx:0,
               pendingSQAfterGrade:null, sqBoardOpen:false, sqBoardLandId:null,
@@ -1768,25 +1809,40 @@ function renderHub() {
   const equipped = getEquipped(STATE.student);
   const equippedSlots = getEquippedSlots(STATE.student);
   const equipInventory = getEquipInventory(STATE.student);
-  const invSlots = [...s.items, ...Array(Math.max(0,8-s.items.length)).fill(null)]
-    .map((it, idx) => {
-      if (!it) return `<div class="item-slot empty"></div>`;
-      const def = ITEMS[it] || { i:"❓", n: it };
-      const usable = ['health_potion', 'behavior_potion', 'stamina_potion'].includes(it);
-      const equippable = EQUIPPABLE.has(it);
-      const isEquipped = equippable && !!equipped[it];
-      const imgTag = def.img
-        ? `<img class="item-img" src="/icons/${def.img}" alt="${def.n}" width="64" height="64" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:22px">${def.i}</span>`
-        : `<span style="font-size:28px">${def.i}</span>`;
-      return `<div class="item-slot${usable?' item-usable':''}${isEquipped?' item-equipped':''}" title="${def.n}"
-        ${usable  ? `data-use-item="${it}" data-item-idx="${idx}"` : ''}
-        ${equippable ? `data-equip-item="${it}"` : ''}>
-        ${imgTag}
-        <span class="item-name">${def.n}</span>
-        ${usable     ? `<span class="item-use-lbl">Tap to Use</span>` : ''}
-        ${equippable ? `<span class="item-equip-lbl">${isEquipped ? '✓ Equipped' : 'Equip'}</span>` : ''}
-      </div>`;
-    }).join("");
+  const legacySlots = s.items.map((it, idx) => {
+    const def = ITEMS[it] || { i:"❓", n: it };
+    const usable = ['health_potion', 'behavior_potion', 'stamina_potion'].includes(it);
+    const equippable = EQUIPPABLE.has(it);
+    const isEquipped = equippable && !!equipped[it];
+    const imgTag = def.img
+      ? `<img class="item-img" src="/icons/${def.img}" alt="${def.n}" width="64" height="64" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:22px">${def.i}</span>`
+      : `<span style="font-size:28px">${def.i}</span>`;
+    return `<div class="item-slot${usable?' item-usable':''}${isEquipped?' item-equipped':''}" title="${def.n}"
+      ${usable  ? `data-use-item="${it}" data-item-idx="${idx}"` : ''}
+      ${equippable ? `data-equip-item="${it}"` : ''}>
+      ${imgTag}
+      <span class="item-name">${def.n}</span>
+      ${usable     ? `<span class="item-use-lbl">Tap to Use</span>` : ''}
+      ${equippable ? `<span class="item-equip-lbl">${isEquipped ? '✓ Equipped' : 'Equip'}</span>` : ''}
+    </div>`;
+  });
+  const equipSlots = equipInventory.map(id => {
+    const def = getEquipItemDef(id);
+    const isEq = equippedSlots[def.slotKey] === id;
+    return `<div class="item-slot item-equip-new${isEq?' item-equipped':''}" style="--tier-color:${def.tierColor};border-color:var(--tier-color)"
+      data-equip-slot-item="${id}" data-equip-slot-key="${def.slotKey}" title="${def.n}">
+      <span style="font-size:26px">${def.icon}</span>
+      <span class="item-name" style="color:var(--tier-color)">${def.n}</span>
+      <span class="item-equip-lbl">${isEq ? '✓ On' : 'Equip'}</span>
+    </div>`;
+  });
+  const totalSlots = Math.max(8, legacySlots.length + equipSlots.length);
+  const emptyCount = totalSlots - legacySlots.length - equipSlots.length;
+  const invSlots = [
+    ...legacySlots,
+    ...equipSlots,
+    ...Array(emptyCount).fill(`<div class="item-slot empty"></div>`)
+  ].join("");
 
   const equipSlotsHTML = EQUIP_SLOTS.map(({ label, icon, key, itemKey }) => {
     const newItemId = equippedSlots[key];
@@ -1911,7 +1967,19 @@ function renderHub() {
           </div>
         </div>
       </div>
-      <div class="hub-inv-bosses">
+      <div class="hub-actions enter" style="animation-delay:.2s">
+        <button class="btn btn-gold" id="continue-quest-btn">⚔️ Continue Quest</button>
+        <button class="btn ${STATE.helpFlagged?"btn-red btn-red-dim":"btn-red"}" id="help-btn" ${STATE.helpFlagged?"disabled":""}>
+          ${STATE.helpFlagged?"🙋 Help Requested!":"🚩 Flag for Help"}
+        </button>
+        ${(() => {
+          const invites = getSQInvites(STATE.student.id);
+          const pendingCount = Object.values(invites).filter(i => i.status === 'pending').length;
+          if (!pendingCount) return '';
+          return `<button class="btn sq-invite-badge" id="sq-invite-badge">📨 Quest Invite (${pendingCount})</button>`;
+        })()}
+      </div>
+      <div class="character-hub-two-col-row">
       <div class="hub-panel inv-panel-wrap enter" style="animation-delay:.12s">
         <div class="panel-title">🎒 Inventory</div>
         <div class="inv-grid">${invSlots}</div>
@@ -1968,37 +2036,8 @@ function renderHub() {
         <div class="panel-title">🏆 Bosses Defeated</div>
         <div class="boss-list">${bossRows}</div>
       </div>
-      ${equipInventory.length ? `
-      <div class="hub-panel equip-inv-panel enter" style="animation-delay:.19s;grid-column:1/-1">
-        <div class="panel-title">⚔️ Equipment</div>
-        <div class="equip-inv-grid">
-          ${equipInventory.map(id => {
-            const def = getEquipItemDef(id);
-            const isEquipped = equippedSlots[def.slotKey] === id;
-            return `<div class="equip-inv-card${isEquipped?' equip-inv-equipped':''}" style="--tier-color:${def.tierColor}"
-              data-equip-slot-item="${id}" data-equip-slot-key="${def.slotKey}" title="${def.n}">
-              <div class="equip-inv-icon">${def.icon}</div>
-              <div class="equip-inv-name">${def.n}</div>
-              <div class="equip-inv-badge">${def.tier.charAt(0).toUpperCase()+def.tier.slice(1)}</div>
-              ${isEquipped ? `<div class="equip-inv-eq-lbl">✓ On</div>` : ''}
-            </div>`;
-          }).join('')}
-        </div>
-      </div>` : ''}
       </div><!-- /hub-inv-bosses bottom -->
-      <div class="hub-actions enter" style="animation-delay:.2s">
-        <button class="btn btn-gold" id="continue-quest-btn">⚔️ Continue Quest</button>
-        <button class="btn ${STATE.helpFlagged?"btn-red btn-red-dim":"btn-red"}" id="help-btn" ${STATE.helpFlagged?"disabled":""}>
-          ${STATE.helpFlagged?"🙋 Help Requested!":"🚩 Flag for Help"}
-        </button>
-        ${(() => {
-          const invites = getSQInvites(STATE.student.id);
-          const pendingCount = Object.values(invites).filter(i => i.status === 'pending').length;
-          if (!pendingCount) return '';
-          return `<button class="btn sq-invite-badge" id="sq-invite-badge">📨 Quest Invite (${pendingCount})</button>`;
-        })()}
-      </div>
-      <div class="hub-2col-row">
+      <div class="character-hub-two-col-row">
         ${(() => {
           const activeSQ = getActiveSideQuests(STATE.student);
           const activeEntries = Object.entries(activeSQ);
@@ -2598,7 +2637,81 @@ function renderInviteNotifModal() {
   </div>`;
 }
 
+function renderTrainingGroundsTutorial() {
+  const tile    = STATE.lessonTile || {};
+  const land    = STATE.lessonLand || LAND0;
+  const student = STATE.student;
+  const pos     = student ? getLandPos(student) : {};
+  const isCompleted  = (pos.completed || []).includes(tile.id);
+  const isActionable = !isCompleted && pos.tile === tile.id;
+
+  const lumielleImg = (() => {
+    const npcs = CLASS_DATA?.npcs;
+    if (!npcs) return null;
+    for (const key of ['lumin_lore','lumin_hint','lumin_encouragement','lumin_easter']) {
+      if (npcs[key]?.image) return npcs[key].image;
+    }
+    return null;
+  })();
+
+  const npcClickable = isActionable && !STATE.tgContinueReady;
+
+  const npcDialogue = STATE.tgDialogueOpen ? `
+    <div class="npc-overlay" id="tg-npc-overlay">
+      <div class="npc-modal">
+        <button class="npc-modal-close" id="tg-npc-close" aria-label="Close">✕</button>
+        ${lumielleImg ? `<img class="npc-modal-portrait" src="${lumielleImg}" alt="Lumielle" style="border-color:#0891B2"/>` : ''}
+        <div class="npc-modal-name">Lumielle</div>
+        <div style="text-align:center;margin-bottom:16px">
+          <span class="npc-type-badge" style="background:rgba(8,145,178,.18);color:#0891B2;border:1.5px solid #0891B2">HINT</span>
+        </div>
+        <div class="npc-modal-dialogue">"There you go — that's all it takes. Every Lumin, Thornkin, and creature you meet works the same way. Keep your eyes open. Onward, hero."</div>
+        <div class="npc-modal-footer"><button id="tg-npc-close-btn">Close</button></div>
+      </div>
+    </div>` : '';
+
+  return `
+  <div class="screen ls-screen">
+    <div class="ls-wrap">
+      <div class="ls-nav enter">
+        <button class="btn-back" id="ls-back">← Quest Map</button>
+        <div class="ls-breadcrumb">
+          <span class="ls-bc-land">${land.name}</span>
+          <span class="ls-bc-sep">›</span>
+          <span class="ls-bc-tile">${tile.name || ""}</span>
+        </div>
+      </div>
+
+      <div class="tg-intro-card enter" style="animation-delay:.06s">
+        <p>Every hero needs a place to call home. This is yours — the quiet corner of the Realm where you'll return between every quest, every trial, every victory. And you're not alone here. The Lumin have lived in this village since before the Realm had a name.</p>
+      </div>
+
+      <div class="tg-npc-stage enter" style="animation-delay:1s">
+        <div class="tg-npc-figure${npcClickable ? ' tg-npc-clickable' : ''}" ${npcClickable ? 'id="tg-lumielle"' : ''}>
+          <div class="tg-npc-ring tg-npc-ring-outer"></div>
+          <div class="tg-npc-ring tg-npc-ring-inner"></div>
+          ${lumielleImg
+            ? `<img class="tg-npc-portrait" src="${lumielleImg}" alt="Lumielle"/>`
+            : `<div class="tg-npc-portrait tg-npc-fallback">👤</div>`}
+          <div class="tg-npc-name">Lumielle</div>
+        </div>
+        ${!isCompleted && !STATE.tgContinueReady ? `
+          <div class="tg-speech-bubble">
+            <p>Psst — over here! I'm Lumielle. You'll meet folks like me in every land you visit. Some of us know a helpful hint. Some of us just like to talk. Go on — give me a click and see what I say.</p>
+          </div>` : ''}
+      </div>
+
+      ${STATE.tgContinueReady || isCompleted ? `
+        <button class="ls-submit-btn enter" id="ls-submit" ${!isActionable ? 'disabled' : ''} data-completed="${!isActionable}" style="animation-delay:.1s">
+          ${!isActionable ? 'Quest Complete ✓' : 'Continue →'}
+        </button>` : ''}
+    </div>
+    ${npcDialogue}
+  </div>`;
+}
+
 function renderLessonStop() {
+  if ((STATE.lessonTile || {}).id === 5) return renderTrainingGroundsTutorial();
   const tile     = STATE.lessonTile || {};
   const land     = STATE.lessonLand || LANDS[0];
   const student  = STATE.student;
@@ -2996,6 +3109,19 @@ function renderWelcomeSplash() {
   </div>`;
 }
 
+function renderBossLockedModal() {
+  if (!STATE.bossLockedOpen) return "";
+  return `<div class="npc-overlay" id="boss-locked-overlay">
+    <div class="npc-modal" style="max-width:360px">
+      <button class="npc-modal-close" id="boss-locked-close">✕</button>
+      <div style="font-size:48px;text-align:center;margin-bottom:12px">🔒</div>
+      <div class="npc-modal-name" style="font-size:17px">Foe Not Yet Unlocked</div>
+      <div class="npc-modal-dialogue" style="margin-top:16px">"This foe is not yet ready to face you — or perhaps it is you who is not yet ready. Sharpen your skills with a side quest, or lend your strength to a fellow hero still finding their way."</div>
+      <div class="npc-modal-footer"><button id="boss-locked-close-btn">Understood</button></div>
+    </div>
+  </div>`;
+}
+
 function renderQuestMap() {
   const student = getMergedStudent(STATE.student);
   const pos     = getLandPos(STATE.student);
@@ -3082,6 +3208,7 @@ function renderQuestMap() {
     ${renderNpcModal()}
     ${renderSg0Modal()}
     ${renderGuildReveal()}
+    ${renderBossLockedModal()}
   </div>`;
 }
 
@@ -3419,6 +3546,7 @@ function renderTeacherDashboard() {
       </div>
       ${flg ? `<div class="flag-badge">🚩 ${formatFlagTime(flg.flaggedAt || flg)}${flg.message ? `<span class="flag-msg">${flg.message}</span>` : ''}</div>` : ""}
       <button class="t-award-companion-btn" data-award-companion="${s.id}">🐾 Award Companion</button>
+      <button class="t-award-companion-btn" data-award-equip="${s.id}">⚔️ Award Equipment</button>
     </div>`;
   }).join("");
 
@@ -3622,6 +3750,49 @@ function renderTeacherDashboard() {
               <span class="cp-rarity" style="color:${COMPANION_RARITY_BORDER[c.rarity]}">${COMPANION_RARITY_LABEL[c.rarity]}</span>
             </div>`).join("")}
         </div>
+      </div>
+    </div>`;
+  })() : ""}
+  ${STATE.equipPickerOpen ? (() => {
+    const pickerStudentName = (() => {
+      if (!STATE.equipPickerStudentId) return "Student";
+      for (const p of CLASS_DATA.periods) {
+        const found = p.students.find(s => s.id === STATE.equipPickerStudentId);
+        if (found) return found.displayName || found.name;
+      }
+      return "Student";
+    })();
+    const allItems = Object.entries(EQUIP_POOLS).flatMap(([landName, slots]) =>
+      Object.entries(slots).flatMap(([slotKey, tiers]) =>
+        Object.entries(tiers).flatMap(([tier, val]) => {
+          const ids = Array.isArray(val) ? val : [val];
+          return ids.map(id => ({ id, landName }));
+        })
+      )
+    );
+    const TIER_ORDER = ['legendary','epic','rare','common'];
+    allItems.sort((a, b) => {
+      const def_a = getEquipItemDef(a.id), def_b = getEquipItemDef(b.id);
+      const ti = TIER_ORDER.indexOf(def_a.tier) - TIER_ORDER.indexOf(def_b.tier);
+      if (ti !== 0) return ti;
+      return def_a.n.localeCompare(def_b.n);
+    });
+    const itemsHTML = allItems.map(({ id, landName }) => {
+      const def = getEquipItemDef(id);
+      return `<div class="cpicker-item equip-picker-item" data-epick="${id}" style="--tier-color:${def.tierColor}" title="${def.n} · ${landName}">
+        <div class="equip-picker-icon" style="color:${def.tierColor}">${def.icon}</div>
+        <span class="cp-name">${def.n}</span>
+        <span class="cp-rarity" style="color:${def.tierColor}">${def.tier.charAt(0).toUpperCase()+def.tier.slice(1)}</span>
+        <span class="equip-picker-land">${landName}</span>
+      </div>`;
+    }).join("");
+    return `<div class="cpicker-overlay" id="epicker-overlay">
+      <div class="cpicker-modal">
+        <div class="cpicker-hdr">
+          <span class="cpicker-title">⚔️ Award Equipment to ${pickerStudentName}</span>
+          <button class="cpicker-award-btn" id="epicker-close">✕</button>
+        </div>
+        <div class="cpicker-grid">${itemsHTML}</div>
       </div>
     </div>`;
   })() : ""}`;
@@ -4500,6 +4671,44 @@ function bindEvents() {
         });
       });
     }
+    // Award equipment buttons
+    document.querySelectorAll("[data-award-equip]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        STATE.equipPickerStudentId = parseInt(btn.dataset.awardEquip, 10);
+        STATE.equipPickerOpen = true;
+        mount();
+      });
+    });
+    // Equipment picker overlay
+    if (STATE.equipPickerOpen) {
+      $("epicker-close") && $("epicker-close").addEventListener("click", () => {
+        STATE.equipPickerOpen = false; STATE.equipPickerStudentId = null; mount();
+      });
+      $("epicker-overlay") && $("epicker-overlay").addEventListener("click", e => {
+        if (e.target === $("epicker-overlay")) { STATE.equipPickerOpen = false; STATE.equipPickerStudentId = null; mount(); }
+      });
+      document.querySelectorAll(".equip-picker-item").forEach(item => {
+        item.addEventListener("click", () => {
+          const itemId = item.dataset.epick;
+          const sid = STATE.equipPickerStudentId;
+          let targetStudent = null;
+          for (const p of CLASS_DATA.periods) {
+            const found = p.students.find(s => s.id === sid);
+            if (found) { targetStudent = found; break; }
+          }
+          if (targetStudent) awardEquipItem(targetStudent, itemId);
+          STATE.equipPickerOpen = false; STATE.equipPickerStudentId = null;
+          const def = getEquipItemDef(itemId);
+          const toast = document.createElement("div");
+          toast.className = "toast";
+          toast.textContent = `${def.icon} ${def.n} awarded!`;
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 2500);
+          mount();
+        });
+      });
+    }
   }
 
   /* TEACHER EDIT */
@@ -4715,7 +4924,10 @@ function bindEvents() {
       const land = getLandData(pos.land);
       const tile = land.tiles.find(t => t.id === tid);
       if (!tile) return;
-      if (tileState(tile, pos, false, land) === "locked") return;
+      if (tileState(tile, pos, false, land) === "locked") {
+        if (tile.type === "boss" || tile.type === "dungeon") { STATE.bossLockedOpen = true; mount(); }
+        return;
+      }
       if (tile.type === "sg") {
         // Tile 3: Guild Hall — trigger reveal animation for first-timers
         if (tile.id === 3) {
@@ -4726,6 +4938,15 @@ function bindEvents() {
             mount();
             return;
           }
+        }
+        // Tile 5: Training Grounds — NPC tutorial, goes to lesson-stop
+        if (tile.id === 5) {
+          STATE.lessonTile = tile;
+          STATE.lessonLand = land;
+          STATE.lessonOpenedAt = Date.now();
+          STATE.screen = "lesson-stop";
+          mount();
+          return;
         }
         STATE.sg0Open = true;
         STATE.sg0Tile = tile;
@@ -4758,6 +4979,13 @@ function bindEvents() {
         mount();
       }
     });
+    // Boss locked modal close
+    if (STATE.bossLockedOpen) {
+      const closeBossLocked = () => { STATE.bossLockedOpen = false; mount(); };
+      $("boss-locked-close")     && $("boss-locked-close").addEventListener("click", closeBossLocked);
+      $("boss-locked-close-btn") && $("boss-locked-close-btn").addEventListener("click", closeBossLocked);
+      $("boss-locked-overlay")   && $("boss-locked-overlay").addEventListener("click", e => { if (e.target === $("boss-locked-overlay")) closeBossLocked(); });
+    }
     // NPC modal close
     const closeNpc = () => { STATE.npcOpen = false; STATE.currentNpcKey = null; mount(); };
     $("npc-close")     && $("npc-close").addEventListener("click", closeNpc);
@@ -4912,14 +5140,13 @@ function bindEvents() {
       saveStudentOverride(student.id, { completedTiles: completed });
       logActivity(student.id, isDungeon ? '🏰' : '⚔️', `Defeated ${tile.name}!`);
       advanceStudentTile(student, land);
-      // Equipment drops
-      if (land && EQUIP_POOLS[land.name]) {
+      // Loot drops
+      const _bossLandName = land && land.name;
+      if (_bossLandName) {
         if (isDungeon) {
-          // Master Boss: award all three legendary items
-          ['weapon','shield','accessory'].forEach(slot => awardEquipItem(student, pickEquipItem(land.name, slot, 'legendary')));
+          awardFromPool(student, _bossLandName, 'legendary');
         } else {
-          // Overworld Boss: one random epic item
-          awardEquipItem(student, pickEquipItem(land.name, randFrom(['weapon','shield','accessory']), 'epic'));
+          awardFromPool(student, _bossLandName, 'epic');
         }
       }
       // Determine companion to award
@@ -4940,6 +5167,14 @@ function bindEvents() {
 
   if (STATE.screen === "lesson-stop") {
     $("ls-back") && $("ls-back").addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.screen = "quest-map"; mount(); });
+    // Training Grounds NPC tutorial
+    $("tg-lumielle") && $("tg-lumielle").addEventListener("click", () => { STATE.tgDialogueOpen = true; mount(); });
+    if (STATE.tgDialogueOpen) {
+      const closeTgDlg = () => { STATE.tgDialogueOpen = false; STATE.tgContinueReady = true; mount(); };
+      $("tg-npc-close")     && $("tg-npc-close").addEventListener("click", closeTgDlg);
+      $("tg-npc-close-btn") && $("tg-npc-close-btn").addEventListener("click", closeTgDlg);
+      $("tg-npc-overlay")   && $("tg-npc-overlay").addEventListener("click", e => { if (e.target === $("tg-npc-overlay")) closeTgDlg(); });
+    }
     // Partner picker modal
     if (STATE.sqPartnerPickOpen) {
       $("partner-pick-cancel") && $("partner-pick-cancel").addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.sqPartnerPickSelected = null; mount(); });
@@ -4993,10 +5228,15 @@ function bindEvents() {
       saveTileCompletion(STATE.student.id, tile.id, timeOnPage);
       const { levelsGained, newLevel } = awardXP(STATE.student, xpAmount);
       logActivity(STATE.student.id, '📖', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xpAmount} XP)`);
-      // Common equipment drop on lesson/loot tile completion
-      if (land && land.name && EQUIP_POOLS[land.name]) {
-        const _cSlot = randFrom(['weapon','shield','accessory']);
-        awardEquipItem(STATE.student, pickEquipItem(land.name, _cSlot, 'common'));
+      // Tiered loot drop based on task depth completed
+      const _poolLand = (land && land.name) || (LANDS[0] && LANDS[0].name);
+      if (_poolLand && (EQUIP_POOLS[_poolLand] || PET_POOLS[_poolLand])) {
+        const _shouldDone = (tile.shouldDo||[]).length > 0 && (tile.shouldDo||[]).every((_,i) => (prog.shouldDo||[])[i]);
+        const _aspireDone = (tile.aspireTo||[]).length > 0 && (tile.aspireTo||[]).every((_,i) => (prog.aspireTo||[])[i]);
+        const _dropTier = (_shouldDone && _aspireDone) ? 'rare'
+                        : _shouldDone ? (Math.random() < 0.15 ? 'rare' : 'common')
+                        : 'common';
+        awardFromPool(STATE.student, _poolLand, _dropTier);
       }
       if (levelsGained > 0) logActivity(STATE.student.id, '⬆️', `Reached Level ${newLevel}!`);
       const hasExitTicket = getExitTicketEnabled(tile.id);
