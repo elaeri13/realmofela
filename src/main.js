@@ -672,7 +672,7 @@ const LAND0 = {
     { id:5, type:"sg", name:"The Training Grounds",   x:455, y:630, sgModal:"lesson",
       flavor:"No hero charges into battle untrained. Walk through a practice session and prove you are ready for the real lessons that wait on the road ahead." },
     { id:6, type:"sg", name:"The Village Gate",       x:195, y:630, sgModal:"gate",
-      flavor:"The Starting Grounds are behind you now. The Verdant Vale stretches ahead, and with it your first true quest. Take a breath. Your adventure begins now." },
+      flavor:"You've chosen your class. You've found your guild. The Realm knows your name now.<br><br>Beyond this gate, the real trials begin — new lands, new challenges, and a legend still waiting to be written. Take a breath, hero. It's time." },
     { id:10, type:"npc", npcKey:"lumin_hint",          x:195,  y:210, landId:0 },
     { id:11, type:"npc", npcKey:"lumin_lore",          x:715,  y:210, landId:0 },
     { id:12, type:"npc", npcKey:"lumin_encouragement", x:975,  y:490, landId:0 },
@@ -2339,6 +2339,25 @@ function buildLandSVG(land, pos, board, extraSVG) {
   ${extraSVG||""}`;
 }
 
+function renderTravelScreen() {
+  const destName = STATE.travelDestName || "The Next Land";
+  const sparks = Array.from({length:8}, (_, i) => {
+    const x = 10 + (i * 11) % 80;
+    const y = 20 + (i * 17) % 60;
+    const delay = (i * 0.22).toFixed(2);
+    const dur   = (1.4 + (i % 3) * 0.4).toFixed(1);
+    return `<span class="travel-spark" style="left:${x}%;top:${y}%;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+  }).join("");
+  return `<div class="screen travel-screen">
+    ${sparks}
+    <div class="travel-inner">
+      <div class="travel-eyebrow">Traveling to</div>
+      <div class="travel-dest">${destName}</div>
+      <div class="travel-spinner"></div>
+    </div>
+  </div>`;
+}
+
 function renderArrivalScreen() {
   const land = STATE.arrivalLand || LANDS[0];
   return `<div class="screen arrival-screen">
@@ -2809,20 +2828,23 @@ function renderSg0Modal() {
       </div>
       <div class="sg-lesson-section">
         <div class="sg-lesson-label">🔴 Must Do</div>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I read or listened to the lesson</label>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I can explain the main idea in my own words</label>
+        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I watched the practice video all the way through</label>
+        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I can explain what "Must Do" means in my own words</label>
       </div>
       <div class="sg-lesson-section">
         <div class="sg-lesson-label">🟡 Should Do</div>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I used a text detail as evidence in my response</label>
+        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I found one detail in the practice video I'd use as evidence</label>
+        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I checked my Character Hub to see my starting stats</label>
       </div>
       <div class="sg-lesson-section">
         <div class="sg-lesson-label">🟢 Aspire To</div>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I connected this idea to something I already knew</label>
+        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I can explain the difference between Must Do, Should Do, and Aspire To to a partner</label>
+        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I found the Side Quest Board and read what's on it</label>
+        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I clicked on an NPC to see what they say</label>
       </div>
     </div>`;
   } else if (tile.sgModal === "gate") {
-    body += `<div class="sg-gate-banner">🗺 The Verdant Vale awaits beyond the gate.<br>Once you step through, your real quest begins!</div>`;
+    body += `<div class="sg-gate-banner">🗺️ Ahead of you: The Verdant Vale — six lessons, a Writing Event, and a Master Boss guarding its secrets.</div>`;
   }
 
   let footer = "";
@@ -2833,7 +2855,7 @@ function renderSg0Modal() {
       footer = `<button class="btn btn-purple" style="flex:1" id="sg-open-avatar">🎨 Customize Hero</button>
                 <button class="btn btn-purple" style="flex:1" id="sg-complete-btn">Continue →</button>`;
     } else {
-      const label = tile.sgModal === "gate" ? "Begin Adventure! 🗺" : "Mark Complete ✓";
+      const label = tile.sgModal === "gate" ? "Begin Adventure! 🗺️" : "Mark Complete ✓";
       footer = `<button class="btn btn-purple" id="sg-complete-btn">${label}</button>`;
     }
   } else {
@@ -3763,6 +3785,7 @@ function mount() {
   if (STATE.screen === "teacher-edit")   root.innerHTML = renderTeacherEdit();
   if (STATE.screen === "quest-map")      root.innerHTML = renderQuestMap();
   if (STATE.screen === "arrival-screen") root.innerHTML = renderArrivalScreen();
+  if (STATE.screen === "travel-screen")  root.innerHTML = renderTravelScreen();
   if (STATE.screen === "boss-screen")   root.innerHTML = renderBossScreen();
   if (STATE.screen === "lesson-stop")   root.innerHTML = renderLessonStop();
   if (STATE.screen === "writing-event")  root.innerHTML = renderWritingEvent();
@@ -4671,8 +4694,13 @@ function bindEvents() {
       STATE.sg0Open = false;
       STATE.sg0Tile = null;
       if (tile.id === 6) {
-        // Graduate to Land 1 — brief travel then show quest map
-        STATE.screen = "hub";
+        // Graduate to Land 1 — travel screen then hub
+        const nextLand = LANDS[0];
+        STATE.travelDestName = nextLand ? nextLand.name : "The Verdant Vale";
+        STATE.screen = "travel-screen";
+        mount();
+        setTimeout(() => { STATE.screen = "hub"; mount(); }, 2500);
+        return;
       }
       mount();
     });

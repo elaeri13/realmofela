@@ -477,6 +477,17 @@ input  { font-family: var(--font-body); }
 .we-teacher-cl-item .tt-check { font-size:11px; }
 
 /* Arrival Screen */
+/* Travel screen */
+.travel-screen { display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#1E1B4B 0%,#0F172A 100%); overflow:hidden; position:relative; }
+.travel-spark { position:absolute; width:4px; height:4px; border-radius:50%; background:var(--gold); opacity:0; animation:travel-spark-pulse 1.4s ease-in-out infinite; }
+@keyframes travel-spark-pulse { 0%,100%{opacity:0;transform:scale(.6)} 50%{opacity:.8;transform:scale(1.4)} }
+.travel-inner { display:flex; flex-direction:column; align-items:center; gap:14px; z-index:1; }
+.travel-eyebrow { font-size:12px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:rgba(255,255,255,.45); }
+.travel-dest { font-family:var(--font-display); font-size:clamp(22px,5vw,30px); font-weight:900; color:#fff; letter-spacing:.5px; animation:travel-dest-fade .6s ease both; }
+@keyframes travel-dest-fade { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.travel-spinner { width:36px; height:36px; border:3px solid rgba(255,255,255,.15); border-top-color:var(--gold); border-radius:50%; animation:travel-spin .8s linear infinite; margin-top:8px; }
+@keyframes travel-spin { to { transform:rotate(360deg); } }
+/* Arrival screen */
 .arrival-screen { padding: 0; display: flex; flex-direction: column; min-height: 100vh; background: linear-gradient(180deg,#06020F 0%,#0D0620 60%,#0A0518 100%); overflow-y: auto; }
 .arrival-banner { width: 100%; height: clamp(220px,40vw,340px); object-fit: cover; object-position: center top; display: block; }
 .arrival-body { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 32px 24px 56px; gap: 20px; max-width: 560px; margin: 0 auto; width: 100%; }
