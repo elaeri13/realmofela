@@ -2241,22 +2241,7 @@ function renderHub() {
         <!-- Right panel: Battle Stats -->
         <div class="hub-panel char-stats-panel enter" style="animation-delay:.08s">
           <div class="char-col-stats">
-            <div class="char-level-stat">⭐ Level ${s.level}</div>
-            ${(() => {
-              const _gOv = getOverrides().students[String(s.id)] || {};
-              const _gKey = _gOv.guild;
-              const _guilds = CLASS_DATA && CLASS_DATA.guilds;
-              if (!_gKey || !_guilds || !_guilds[_gKey]) return '';
-              const _g = _guilds[_gKey];
-              return `<div class="guild-banner" style="margin-top:8px;border-color:${_g.color};background:${_g.color}18">
-                <img class="guild-banner-crest" src="${_g.crest}" alt="${_g.name}" width="40" height="40" onerror="this.style.display='none'"/>
-                <div class="guild-banner-info">
-                  <span class="guild-banner-label">Guild</span>
-                  <span class="guild-banner-name" style="color:${_g.color}">${_g.name}</span>
-                </div>
-              </div>`;
-            })()}
-            <div class="char-col-hdr" style="margin-top:50px">Battle Stats</div>
+            <div class="char-col-hdr">Battle Stats</div>
             ${stats}
             <div class="xp-sect" style="margin-top:10px;padding-top:10px">
               <div class="xp-hdr"><span class="xp-lbl">✨ XP</span><span class="xp-nums">${s.xp} / ${s.xpNext}</span></div>
@@ -2269,6 +2254,20 @@ function renderHub() {
                 <button class="shop-open-btn" id="open-shop-btn">🏪 Shop</button>
               </div>
             </div>
+            <div class="stats-footer-divider"></div>
+            <div class="char-level-stat-compact">⭐ Level ${s.level}</div>
+            ${(() => {
+              const _gOv = getOverrides().students[String(s.id)] || {};
+              const _gKey = _gOv.guild;
+              const _guilds = CLASS_DATA && CLASS_DATA.guilds;
+              if (!_gKey || !_guilds || !_guilds[_gKey]) return '';
+              const _g = _guilds[_gKey];
+              return `<div class="guild-banner-compact" style="border-color:${_g.color};background:${_g.color}18">
+                <img class="guild-banner-crest-sm" src="${_g.crest}" alt="${_g.name}" width="24" height="24" onerror="this.style.display='none'"/>
+                <span class="guild-banner-label-sm">GUILD</span>
+                <span class="guild-banner-name-sm" style="color:${_g.color}">${_g.name}</span>
+              </div>`;
+            })()}
           </div>
         </div>
       </div>
