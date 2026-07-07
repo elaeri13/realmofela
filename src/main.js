@@ -3038,56 +3038,49 @@ function renderLessonStop() {
     </div>`;
   };
 
+  const loreText = tile.sessionLore || land.lore;
+  const loreSection = loreText ? `<div class="ls-lore">
+    <div class="ls-lore-inner">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="rgba(0,0,0,.38)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="ls-lore-icon" aria-hidden="true">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>
+      <p class="ls-lore-text">${loreText}</p>
+    </div>
+  </div>` : '';
+
   return `
   <div class="screen ls-screen">
-    <div class="ls-wrap">
-      <div class="ls-nav enter">
-        <button class="btn-back" id="ls-back">← Quest Map</button>
-        <div class="ls-breadcrumb">
-          <span class="ls-bc-land">${land.name}</span>
-          <span class="ls-bc-sep">›</span>
-          <span class="ls-bc-tile">${tile.name || ""}${tile.sessionTitle ? ` — ${tile.sessionTitle}` : ""}</span>
-        </div>
+    <div class="ls-card enter">
+      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
+      <div class="ls-breadcrumb" style="padding-right:28px;margin-bottom:4px">
+        <button class="ls-bc-back ls-back-btn">← Quest Map</button>
+        <span class="ls-bc-sep" style="margin:0 4px;opacity:.35">|</span>
+        <span class="ls-bc-land">${land.name}</span>
+        <span class="ls-bc-sep">›</span>
+        <span class="ls-bc-tile">${tile.name || ""}${tile.sessionTitle ? ` — ${tile.sessionTitle}` : ""}</span>
       </div>
-
-      <div class="ls-header-icon enter" style="text-align:center;padding:6px 0 2px;animation-delay:.03s" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <div style="text-align:center;padding:12px 0 4px" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="rgba(30,27,75,.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
           <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
         </svg>
       </div>
-
-      ${(() => {
-        const loreText = tile.sessionLore || land.lore;
-        if (!loreText) return '';
-        return `<div class="ls-lore enter" style="animation-delay:.05s">
-          <div class="ls-lore-inner">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="ls-lore-icon" aria-hidden="true">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-            </svg>
-            <p class="ls-lore-text">${loreText}</p>
-          </div>
-        </div>`;
-      })()}
-
-      <button class="ls-video-btn enter" id="ls-video-btn" style="animation-delay:.10s">
+      ${loreSection}
+      <button class="ls-video-btn" id="ls-video-btn">
         <span class="ls-play-icon">▶</span>
         <span>Open Video Lesson</span>
       </button>
-      <div class="ls-tiers enter" style="animation-delay:.12s">
+      <div class="ls-tiers">
         ${!videoOpened ? `<div class="ls-video-lock-hint">🔒 Watch the video first to unlock this checklist.</div>` : ''}
         ${tierHTML(mustDo, "mustDo", "ls-tier-must", "🔴", "Must Do", !videoOpened)}
         ${tierHTML(shouldDo, "shouldDo", "ls-tier-should", "🟡", "Should Do", !mustAllDone)}
         ${tierHTML(aspireTo, "aspireTo", "ls-tier-aspire", "🟢", "Aspire To", !mustAllDone)}
       </div>
-
-
-      <button class="ls-submit-btn enter" id="ls-submit" ${(!isActionable || !mustAllDone) ? "disabled" : ""} data-completed="${!isActionable}" style="animation-delay:.18s">
+      <button class="ls-submit-btn" id="ls-submit" ${(!isActionable || !mustAllDone) ? "disabled" : ""} data-completed="${!isActionable}">
         ${!isActionable ? "Quest Complete ✓" : mustAllDone ? "✅ I'm Ready!" : "🔒 Complete Must Do tasks to continue"}
       </button>
-
-      ${wbRef ? `<div class="ls-workbook enter" style="animation-delay:.20s">${wbRef}</div>` : ""}
+      ${wbRef ? `<div class="ls-workbook">${wbRef}</div>` : ""}
     </div>
     ${STATE.sideQuestModalOpen ? (() => {
       const tid = STATE.sideQuestTileId;
@@ -5602,7 +5595,7 @@ function bindEvents() {
   }
 
   if (STATE.screen === "lesson-stop") {
-    $("ls-back") && $("ls-back").addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.screen = "quest-map"; mount(); });
+    document.querySelectorAll(".ls-back-btn").forEach(btn => btn.addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.screen = "quest-map"; mount(); }));
     // Training Grounds NPC tutorial
     $("tg-lumielle") && $("tg-lumielle").addEventListener("click", () => { STATE.tgDialogueOpen = true; mount(); });
     if (STATE.tgDialogueOpen) {
