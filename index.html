@@ -368,13 +368,15 @@ input  { font-family: var(--font-body); }
 @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
 
 /* ── Lesson Stop ── */
-.ls-screen { padding: 16px 12px 48px; overflow-y: auto; }
+.ls-screen { padding: 16px 12px 48px; overflow-y: auto; background: #F5F4FC; }
 .ls-wrap { width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
 .ls-nav { display: flex; align-items: center; gap: 14px; padding-bottom: 4px; }
 .ls-breadcrumb { display: flex; align-items: center; gap: 6px; }
-.ls-bc-land { font-size: 11px; font-weight: 800; color: rgba(255,255,255,.45); letter-spacing: .8px; text-transform: uppercase; }
-.ls-bc-sep { color: rgba(255,255,255,.3); font-size: 12px; }
-.ls-bc-tile { font-family: var(--font-display); font-size: 14px; font-weight: 900; color: var(--gold); }
+.ls-bc-land { font-size: 11px; font-weight: 800; color: rgba(0,0,0,.38); letter-spacing: .8px; text-transform: uppercase; }
+.ls-bc-sep { color: rgba(0,0,0,.25); font-size: 12px; }
+.ls-bc-tile { font-family: var(--font-display); font-size: 14px; font-weight: 900; color: #1E1B4B; }
+.ls-screen .btn-back { background: rgba(0,0,0,.07); border-color: rgba(0,0,0,.15); color: #1E1B4B; }
+.ls-screen .btn-back:hover { background: rgba(0,0,0,.12); }
 .ls-video-btn { display: flex; align-items: center; justify-content: center; gap: 12px; background: linear-gradient(135deg, #6D28D9, #4C1D95); color: white; font-family: var(--font-display); font-size: 18px; font-weight: 900; padding: 22px 28px; border-radius: 16px; border: 3px solid var(--gold); box-shadow: 0 6px 28px rgba(109,40,217,.45), inset 0 1px 0 rgba(255,255,255,.15); cursor: pointer; width: 100%; transition: transform .15s, box-shadow .15s; letter-spacing: .5px; }
 .ls-video-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(109,40,217,.55), inset 0 1px 0 rgba(255,255,255,.15); }
 .ls-play-icon { font-size: 22px; }
@@ -382,20 +384,20 @@ input  { font-family: var(--font-body); }
 .ls-session-title { font-family: var(--font-display); font-size: 21px; font-weight: 900; color: var(--text-dark); margin-bottom: 5px; }
 .ls-session-desc { font-size: 14px; font-weight: 700; color: var(--text-mid); }
 .ls-tiers { display: flex; flex-direction: column; gap: 10px; }
-.ls-tier { border-radius: var(--card-radius); overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.13); }
-.ls-tier-must   { border: 3px solid #EF4444; }
-.ls-tier-should { border: 3px solid #F59E0B; }
-.ls-tier-aspire { border: 3px solid #10B981; }
-.ls-tier-header { display: flex; align-items: center; gap: 10px; padding: 13px 18px 11px; border-bottom: 2px solid rgba(0,0,0,.06); }
-.ls-tier-must   .ls-tier-header { background: #FEF2F2; }
-.ls-tier-should .ls-tier-header { background: #FFFBEB; }
-.ls-tier-aspire .ls-tier-header { background: #F0FDF4; }
-.ls-tier-icon { font-size: 18px; }
-.ls-tier-label { font-family: var(--font-display); font-size: 13px; font-weight: 900; letter-spacing: .6px; text-transform: uppercase; }
-.ls-tier-must   .ls-tier-label { color: #DC2626; }
-.ls-tier-should .ls-tier-label { color: #D97706; }
-.ls-tier-aspire .ls-tier-label { color: #059669; }
-.ls-tier-body { background: rgba(255,255,255,.8); border: 1.5px solid #C4B5FD; border-top: none; padding: 13px 18px 15px; display: flex; flex-direction: column; gap: 9px; }
+.ls-tier { border-radius: var(--card-radius); overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.ls-tier-must   { border: 2px solid rgba(239,68,68,.3); }
+.ls-tier-should { border: 2px solid rgba(245,158,11,.3); }
+.ls-tier-aspire { border: 2px solid rgba(16,185,129,.3); }
+.ls-tier-header { display: flex; align-items: center; gap: 10px; padding: 11px 16px 10px; border-bottom: 1px solid rgba(0,0,0,.06); }
+.ls-tier-must   .ls-tier-header { background: #FAFAFA; }
+.ls-tier-should .ls-tier-header { background: #FAFAFA; }
+.ls-tier-aspire .ls-tier-header { background: #FAFAFA; }
+.ls-tier-icon { font-size: 14px; }
+.ls-tier-label { font-family: var(--font-display); font-size: 11px; font-weight: 900; letter-spacing: 1.1px; text-transform: uppercase; color: rgba(0,0,0,.55); }
+.ls-tier-body { background: #fff; border-top: none; padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 9px; }
+.ls-tier-dimmed { opacity: .45; }
+.ls-tier-dimmed .ls-tier-header { background: #F5F5F5 !important; }
+.ls-tier-dimmed .ls-tier-label { color: rgba(0,0,0,.35) !important; }
 .ls-task { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; font-weight: 700; color: var(--text-dark); line-height: 1.45; cursor: pointer; user-select: none; border-radius: 8px; padding: 2px 4px; transition: background .1s; }
 .ls-task:hover { background: rgba(0,0,0,.04); }
 .ls-task input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; cursor: pointer; }
@@ -410,7 +412,7 @@ input  { font-family: var(--font-body); }
 .ls-submit-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 20px 28px; border-radius: 16px; font-family: var(--font-display); font-size: 18px; font-weight: 900; letter-spacing: .5px; cursor: pointer; transition: transform .15s, box-shadow .15s; border: 3px solid transparent; }
 .ls-submit-btn:not(:disabled) { background: linear-gradient(135deg,#059669,#047857); color: white; border-color: #34D399; box-shadow: 0 6px 28px rgba(5,150,105,.4); }
 .ls-submit-btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 12px 36px rgba(5,150,105,.55); }
-.ls-submit-btn:disabled { background: rgba(255,255,255,.08); color: rgba(255,255,255,.3); border-color: rgba(255,255,255,.12); cursor: not-allowed; }
+.ls-submit-btn:disabled { background: rgba(0,0,0,.06); color: rgba(0,0,0,.28); border-color: rgba(0,0,0,.1); cursor: not-allowed; }
 /* XP Celebration overlay */
 .xp-celebrate { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .xp-pop { display: flex; flex-direction: column; align-items: center; gap: 10px; animation: xpPop .45s cubic-bezier(.34,1.56,.64,1) both; }

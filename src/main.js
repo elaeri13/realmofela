@@ -94,6 +94,18 @@ const COLLAB_QUESTS = [
   { title:"Debate Knights",     desc:"Each of you takes a different side of a question from the text. Discuss!",        xp:15 },
   { title:"Echo Chamber",       desc:"Read your answer aloud to a partner. They echo back what they heard. Switch.",    xp:15 },
 ];
+const COLLAB_QUEST_TEMPLATES = [
+  { title:"Debate Knights",       template:"With a partner, pick opposite sides of a question from [TEXT] and each defend your view with one piece of evidence.", xp:15 },
+  { title:"Peer Forge",           template:"Trade your Must Do answer with a partner. Give one honest piece of feedback: what's strong, what's missing.", xp:15 },
+  { title:"Evidence Hunter",      template:"With a partner, find two different quotes that could each support the main idea — compare which one is stronger and why.", xp:15 },
+  { title:"Storyteller's Circle", template:"In a small group, retell [TEXT]'s key event in order — each person adds the next part.", xp:15 },
+];
+function resolveCollabQuest(tileId, tile) {
+  const idx = Math.abs(tileId * 17 + 31) % COLLAB_QUEST_TEMPLATES.length;
+  const tmpl = COLLAB_QUEST_TEMPLATES[idx];
+  const textRef = tile?.sessionTitle || tile?.name || "today's lesson";
+  return { title: tmpl.title, desc: tmpl.template.replace(/\[TEXT\]/g, textRef), xp: tmpl.xp };
+}
 function pickQuestIdx(pool, tileId, salt) {
   return Math.abs((tileId * 17 + salt * 31)) % pool.length;
 }
@@ -931,8 +943,9 @@ function completeSideQuest(student, key) {
   const sq = Object.assign({}, ov.sideQuests || {});
   const entry = sq[key];
   if (!entry) return;
-  const pool = entry.type === 'collab' ? COLLAB_QUESTS : SOLO_QUESTS;
-  const quest = pool[entry.questIdx] || pool[0];
+  const quest = entry.type === 'collab'
+    ? resolveCollabQuest(entry.tileId, findTileById(entry.tileId))
+    : (SOLO_QUESTS[entry.questIdx] || SOLO_QUESTS[0]);
   delete sq[key];
   const history = [...(ov.completedQuests || []), {
     key, title: quest.title, type: entry.type, xp: quest.xp, completedAt: new Date().toISOString()
@@ -1902,12 +1915,9 @@ function renderHub() {
           const completedKeys = new Set((completedSQ || []).map(c => c.key));
           const availQuests = [];
           if (questTile) {
-            const soloIdx  = pickQuestIdx(SOLO_QUESTS,  questTile.id, 1);
-            const collabIdx = pickQuestIdx(COLLAB_QUESTS, questTile.id, 2);
-            const soloKey  = `${questTile.id}_solo`;
             const collabKey = `${questTile.id}_collab`;
-            if (!activeSQ[soloKey]  && !completedKeys.has(soloKey))  availQuests.push({ key: soloKey,  q: SOLO_QUESTS[soloIdx],   type:'solo',  idx: soloIdx,  tileId: questTile.id });
-            if (!activeSQ[collabKey] && !completedKeys.has(collabKey)) availQuests.push({ key: collabKey, q: COLLAB_QUESTS[collabIdx], type:'collab', idx: collabIdx, tileId: questTile.id });
+            if (!activeSQ[collabKey] && !completedKeys.has(collabKey))
+              availQuests.push({ key: collabKey, q: resolveCollabQuest(questTile.id, questTile), type:'collab', tileId: questTile.id });
           }
           const tab = STATE.questJournalTab || 'active';
           const tabs = ['available','active','completed'].map(t =>
@@ -1915,10 +1925,11 @@ function renderHub() {
           ).join('');
           const activeContent = activeEntries.length
             ? activeEntries.map(([key, e]) => {
-                const pool = e.type === 'collab' ? COLLAB_QUESTS : SOLO_QUESTS;
-                const q = pool[e.questIdx] || pool[0];
-                const typeIcon = e.type === 'collab' ? '🤝' : '🗡️';
                 const activeTileId = parseInt(key.split('_')[0]);
+                const q = e.type === 'collab'
+                  ? resolveCollabQuest(activeTileId, findTileById(activeTileId))
+                  : (SOLO_QUESTS[e.questIdx] || SOLO_QUESTS[0]);
+                const typeIcon = e.type === 'collab' ? '🤝' : '🗡️';
                 return `<div class="sq-hub-card">
                   <div class="sq-hub-type">${typeIcon} ${e.type === 'collab' ? 'Collaborative' : 'Solo'}</div>
                   <div class="sq-hub-name">${q.title}</div>
@@ -1932,16 +1943,15 @@ function renderHub() {
               }).join('')
             : `<div class="sq-empty">No active quests — accept some from your current lesson!</div>`;
           const availContent = availQuests.length
-            ? availQuests.map(({key, q, type, idx, tileId}) => {
-                const typeIcon = type === 'collab' ? '🤝' : '🗡️';
+            ? availQuests.map(({key, q, type, tileId}) => {
                 return `<div class="sq-hub-card">
-                  <div class="sq-hub-type">${typeIcon} ${type === 'collab' ? 'Collaborative' : 'Solo'}</div>
+                  <div class="sq-hub-type">🤝 Collaborative</div>
                   <div class="sq-hub-name">${q.title}</div>
                   <div class="sq-hub-desc">${q.desc}</div>
                   <div class="sq-hub-footer">
                     <span class="sq-hub-xp">+${q.xp} XP</span>
                     <button class="sq-view-lesson-btn" data-sq-tile="${tileId}">📖 View Lesson</button>
-                    <button class="ls-sq-accept-btn" data-sq-key="${key}" data-sq-idx="${idx}" data-sq-type="${type}" data-sq-tile="${tileId}">Accept</button>
+                    <button class="ls-sq-accept-btn" data-sq-key="${key}" data-sq-idx="0" data-sq-type="${type}" data-sq-tile="${tileId}">Accept</button>
                   </div>
                 </div>`;
               }).join('')
@@ -2428,8 +2438,7 @@ function renderPartnerPickerModal() {
   const period = STATE.currentPeriod;
   if (!period) return '';
   const peers = period.students.filter(s => s.id !== STATE.student.id);
-  const pool = COLLAB_QUESTS;
-  const quest = pool[STATE.sqPartnerPickIdx] || pool[0];
+  const quest = resolveCollabQuest(STATE.sideQuestTileId || 0, findTileById(STATE.sideQuestTileId));
   return `<div class="grade-modal-overlay" id="partner-pick-overlay">
     <div class="grade-modal" style="max-width:400px">
       <div class="grade-modal-title">🤝 Invite a Partner</div>
@@ -2494,17 +2503,18 @@ function renderLessonStop() {
       : pos.tile === tile.id
   );
 
-  const tierHTML = (tasks, tier, cls, icon, label) => {
+  const tierHTML = (tasks, tier, cls, icon, label, tierLocked = false) => {
     if (!tasks.length) return "";
     const prog = progress[tier] || [];
+    const isDisabled = !videoOpened || tierLocked;
     const rows = tasks.map((t, i) => {
       const checked = prog[i] || false;
-      return `<label class="ls-task${checked ? " ls-task-done" : ""}${!videoOpened ? " ls-task-locked" : ""}">
-        <input type="checkbox" class="ls-check" data-tier="${tier}" data-idx="${i}" ${checked ? "checked" : ""} ${!videoOpened ? "disabled" : ""}/>
+      return `<label class="ls-task${checked ? " ls-task-done" : ""}${isDisabled ? " ls-task-locked" : ""}">
+        <input type="checkbox" class="ls-check" data-tier="${tier}" data-idx="${i}" ${checked ? "checked" : ""} ${isDisabled ? "disabled" : ""}/>
         <span>${t}</span>
       </label>`;
     }).join("");
-    return `<div class="ls-tier ${cls}">
+    return `<div class="ls-tier ${cls}${tierLocked ? " ls-tier-dimmed" : ""}">
       <div class="ls-tier-header">
         <span class="ls-tier-icon">${icon}</span>
         <span class="ls-tier-label">${label}</span>
@@ -2515,7 +2525,6 @@ function renderLessonStop() {
 
   return `
   <div class="screen ls-screen">
-    ${starsHTML()}
     <div class="ls-wrap">
       <div class="ls-nav enter">
         <button class="btn-back" id="ls-back">← Quest Map</button>
@@ -2544,6 +2553,8 @@ function renderLessonStop() {
       <div class="ls-tiers enter" style="animation-delay:.12s">
         ${!videoOpened ? `<div class="ls-video-lock-hint">🔒 Watch the video first to unlock this checklist.</div>` : ''}
         ${tierHTML(mustDo, "mustDo", "ls-tier-must", "🔴", "Must Do")}
+        ${tierHTML(shouldDo, "shouldDo", "ls-tier-should", "🟡", "Should Do", !mustAllDone)}
+        ${tierHTML(aspireTo, "aspireTo", "ls-tier-aspire", "🟢", "Aspire To", !mustAllDone)}
       </div>
 
 
@@ -2554,29 +2565,16 @@ function renderLessonStop() {
       ${wbRef ? `<div class="ls-workbook enter" style="animation-delay:.20s">${wbRef}</div>` : ""}
     </div>
     ${STATE.sideQuestModalOpen ? (() => {
-      const solo  = SOLO_QUESTS[STATE.sideQuestSoloIdx]  || SOLO_QUESTS[0];
-      const collab = COLLAB_QUESTS[STATE.sideQuestCollabIdx] || COLLAB_QUESTS[0];
       const tid = STATE.sideQuestTileId;
+      const tile = findTileById(tid);
+      const collab = resolveCollabQuest(tid, tile);
       const sq = STATE.student ? getActiveSideQuests(STATE.student) : {};
-      const soloKey  = `${tid}_solo`;
       const collabKey = `${tid}_collab`;
-      const soloAccepted  = !!sq[soloKey];
       const collabAccepted = !!sq[collabKey];
       return `<div class="sq-overlay" id="sq-overlay">
         <div class="sq-modal">
-          <div class="sq-title">⚔️ Side Quests Unlocked!</div>
-          <p class="sq-sub">Complete bonus challenges to earn extra XP!</p>
-          <div class="sq-card sq-solo">
-            <div class="sq-card-type">🗡️ Solo Quest</div>
-            <div class="sq-card-name">${solo.title}</div>
-            <div class="sq-card-desc">${solo.desc}</div>
-            <div class="sq-card-footer">
-              <span class="sq-xp">+${solo.xp} XP</span>
-              ${soloAccepted
-                ? `<span class="sq-accepted">✓ Accepted</span>`
-                : `<button class="btn-sq-accept" data-sq-key="${soloKey}" data-sq-idx="${STATE.sideQuestSoloIdx}" data-sq-type="solo">Accept</button>`}
-            </div>
-          </div>
+          <div class="sq-title">⚔️ Side Quest Unlocked!</div>
+          <p class="sq-sub">Complete this bonus challenge to earn extra XP!</p>
           <div class="sq-card sq-collab">
             <div class="sq-card-type">🤝 Collaborative Quest</div>
             <div class="sq-card-name">${collab.title}</div>
@@ -2585,7 +2583,7 @@ function renderLessonStop() {
               <span class="sq-xp">+${collab.xp} XP</span>
               ${collabAccepted
                 ? `<span class="sq-accepted">✓ Accepted</span>`
-                : `<button class="btn-sq-accept" data-sq-key="${collabKey}" data-sq-idx="${STATE.sideQuestCollabIdx}" data-sq-type="collab">Accept</button>`}
+                : `<button class="btn-sq-accept" data-sq-key="${collabKey}" data-sq-idx="0" data-sq-type="collab">Accept</button>`}
             </div>
           </div>
           <button class="btn-sq-close" id="sq-close">Continue to Quest Map →</button>
@@ -2904,33 +2902,26 @@ function renderQuestMap() {
     const activeSQ = getActiveSideQuests(STATE.student);
     const completedSQ = (getOverrides().students[String(STATE.student.id)] || {}).completedQuests || [];
     const rows = land.tiles.filter(t => t.type === 'lesson').map(t => {
-      const soloIdx   = pickQuestIdx(SOLO_QUESTS,  t.id, 1);
-      const collabIdx = pickQuestIdx(COLLAB_QUESTS, t.id, 2);
       const lessonDone = completed.includes(t.id);
-      return [
-        { q: SOLO_QUESTS[soloIdx],   type:'solo',  idx:soloIdx,   key:`${t.id}_solo`,  tileId:t.id, lessonDone, tileName:t.name },
-        { q: COLLAB_QUESTS[collabIdx], type:'collab', idx:collabIdx, key:`${t.id}_collab`, tileId:t.id, lessonDone, tileName:t.name },
-      ];
-    }).flat();
+      return { q: resolveCollabQuest(t.id, t), type:'collab', key:`${t.id}_collab`, tileId:t.id, lessonDone, tileName:t.name };
+    });
     return `<div class="sq-board-overlay" id="sq-board-overlay">
       <div class="sq-board-modal">
         <button class="crafting-close" id="sq-board-close">✕</button>
         <div class="sq-board-title">📜 Side Quest Board</div>
         <div class="sq-board-subtitle">${land.name}</div>
         <div class="sq-board-list">
-          ${rows.map(({ q, type, idx, key, tileId, lessonDone, tileName }) => {
+          ${rows.map(({ q, type, key, tileId, lessonDone, tileName }) => {
             const isActive    = !!activeSQ[key];
             const isDone      = completedSQ.some(c => c.key === key);
             const locked      = !lessonDone;
-            const typeIcon    = type === 'collab' ? '🤝' : '🗡️';
-            const isAvail = !isDone && !isActive && !locked;
             const statusBadge = isDone ? `<span class="sq-board-badge sq-board-done">✓ Done</span>`
               : isActive ? `<span class="sq-board-badge sq-board-active">⚡ Active</span>`
               : locked   ? `<span class="sq-board-badge sq-board-locked">🔒 Locked</span>`
-              :            `<button class="ls-sq-accept-btn sq-board-accept sq-board-badge sq-board-accept-badge" data-sq-key="${key}" data-sq-idx="${idx}" data-sq-type="${type}" data-sq-tile="${tileId}">Accept</button>`;
+              :            `<button class="ls-sq-accept-btn sq-board-accept sq-board-badge sq-board-accept-badge" data-sq-key="${key}" data-sq-idx="0" data-sq-type="${type}" data-sq-tile="${tileId}">Accept</button>`;
             return `<div class="sq-board-row${locked ? ' sq-board-row-locked' : ''}">
               <div class="sq-board-row-info">
-                <span class="sq-board-row-type">${typeIcon} ${type === 'collab' ? 'Collab' : 'Solo'}</span>
+                <span class="sq-board-row-type">🤝 Collab</span>
                 <span class="sq-board-row-name">${q.title}</span>
                 <span class="sq-board-row-xp">+${q.xp} XP</span>
               </div>
