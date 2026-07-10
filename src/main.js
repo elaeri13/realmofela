@@ -127,6 +127,95 @@ function getActiveSeasonalSet() {
   return SEASONAL_SETS.find(s => today >= s.startDate && today <= s.endDate) || null;
 }
 
+/* ─── COSMETICS MANIFEST ─── */
+const COSMETICS_MANIFEST = [
+  // ── Land frames (unlock on completing each land) ─────────────────────────
+  { id:'frame_land_1', displayName:'Verdant Vale Frame',    category:'land', assetPath:'/cosmetics/frames/land/verdant-vale.png',    unlockType:'land_complete', unlockValue:1 },
+  { id:'frame_land_2', displayName:'Stone Kingdoms Frame',  category:'land', assetPath:'/cosmetics/frames/land/stone-kingdoms.png',  unlockType:'land_complete', unlockValue:2 },
+  { id:'frame_land_3', displayName:'Drowned Depths Frame',  category:'land', assetPath:'/cosmetics/frames/land/drowned-depths.png',  unlockType:'land_complete', unlockValue:3 },
+  { id:'frame_land_4', displayName:'Thornwood Frame',       category:'land', assetPath:'/cosmetics/frames/land/thornwood.png',       unlockType:'land_complete', unlockValue:4 },
+  { id:'frame_land_5', displayName:'Ashen Hollows Frame',   category:'land', assetPath:'/cosmetics/frames/land/ashen-hollows.png',   unlockType:'land_complete', unlockValue:5 },
+  { id:'frame_land_6', displayName:'Stormspire Frame',      category:'land', assetPath:'/cosmetics/frames/land/stormspire.png',      unlockType:'land_complete', unlockValue:6 },
+  // ── Guild frames (unlock on guild assignment) ─────────────────────────────
+  { id:'frame_guild_crimson', displayName:'Crimson Guild Frame', category:'guild', assetPath:'/cosmetics/frames/guild/crimson.png', unlockType:'guild', unlockValue:'crimson' },
+  { id:'frame_guild_storm',   displayName:'Storm Guild Frame',   category:'guild', assetPath:'/cosmetics/frames/guild/storm.png',   unlockType:'guild', unlockValue:'storm'   },
+  { id:'frame_guild_ember',   displayName:'Ember Guild Frame',   category:'guild', assetPath:'/cosmetics/frames/guild/ember.png',   unlockType:'guild', unlockValue:'ember'   },
+  { id:'frame_guild_shadow',  displayName:'Shadow Guild Frame',  category:'guild', assetPath:'/cosmetics/frames/guild/shadow.png',  unlockType:'guild', unlockValue:'shadow'  },
+  // ── Rank frames (level threshold) ────────────────────────────────────────
+  { id:'frame_rank_5',  displayName:'Bronze Adventurer Frame', category:'rank', assetPath:'/cosmetics/frames/rank/bronze.png', unlockType:'level', unlockValue:5  },
+  { id:'frame_rank_10', displayName:'Silver Knight Frame',     category:'rank', assetPath:'/cosmetics/frames/rank/silver.png', unlockType:'level', unlockValue:10 },
+  { id:'frame_rank_15', displayName:'Gold Champion Frame',     category:'rank', assetPath:'/cosmetics/frames/rank/gold.png',   unlockType:'level', unlockValue:15 },
+  { id:'frame_rank_20', displayName:'Mythic Hero Frame',       category:'rank', assetPath:'/cosmetics/frames/rank/mythic.png', unlockType:'level', unlockValue:20 },
+  // ── Seasonal frames ───────────────────────────────────────────────────────
+  { id:'frame_seasonal_bts',          displayName:'Back to School Frame',  category:'seasonal', assetPath:'/cosmetics/frames/seasonal/back-to-school.png',   unlockType:'seasonal_window', unlockValue:{ start:'2026-08-01', end:'2026-09-30' } },
+  { id:'frame_seasonal_halloween',    displayName:'Halloween Frame',       category:'seasonal', assetPath:'/cosmetics/frames/seasonal/halloween.png',         unlockType:'seasonal_window', unlockValue:{ start:'2026-10-01', end:'2026-10-31' } },
+  { id:'frame_seasonal_thanksgiving', displayName:'Thanksgiving Frame',    category:'seasonal', assetPath:'/cosmetics/frames/seasonal/thanksgiving.png',      unlockType:'seasonal_window', unlockValue:{ start:'2026-11-01', end:'2026-11-30' } },
+  { id:'frame_seasonal_christmas',    displayName:'Christmas Frame',       category:'seasonal', assetPath:'/cosmetics/frames/seasonal/christmas.png',         unlockType:'seasonal_window', unlockValue:{ start:'2026-12-01', end:'2026-12-31' } },
+  { id:'frame_seasonal_nyw',          displayName:'New Year Frame',        category:'seasonal', assetPath:'/cosmetics/frames/seasonal/new-years.png',         unlockType:'seasonal_window', unlockValue:{ start:'2027-01-01', end:'2027-01-07' } },
+  { id:'frame_seasonal_valentines',   displayName:"Valentine's Frame",     category:'seasonal', assetPath:'/cosmetics/frames/seasonal/valentines.png',        unlockType:'seasonal_window', unlockValue:{ start:'2027-01-08', end:'2027-02-14' } },
+  { id:'frame_seasonal_stpat',        displayName:"St. Patrick's Frame",   category:'seasonal', assetPath:'/cosmetics/frames/seasonal/st-patricks-day.png',  unlockType:'seasonal_window', unlockValue:{ start:'2027-02-15', end:'2027-03-17' } },
+  { id:'frame_seasonal_easter',       displayName:'Easter Frame',          category:'seasonal', assetPath:'/cosmetics/frames/seasonal/easter.png',            unlockType:'seasonal_window', unlockValue:{ start:'2027-03-18', end:'2027-04-30' } },
+];
+// Special avatar overrides — one per dungeon boss defeat
+const COSMETIC_AVATARS = [
+  { id:'avatar_special_warden',    displayName:'Warden Knight',          category:'special', assetPath:'/cosmetics/avatars/avatar_special_warden.png',    unlockType:'boss_defeat', unlockValue:'The Warden of the Vale'  },
+  { id:'avatar_special_architect', displayName:'Eternal Architect',      category:'special', assetPath:'/cosmetics/avatars/avatar_special_architect.png', unlockType:'boss_defeat', unlockValue:'The Eternal Architect'   },
+  { id:'avatar_special_sovereign', displayName:'Abyssal Sovereign',      category:'special', assetPath:'/cosmetics/avatars/avatar_special_sovereign.png', unlockType:'boss_defeat', unlockValue:'The Abyssal Sovereign'   },
+  { id:'avatar_special_rootfather',displayName:'Rootborn Champion',      category:'special', assetPath:'/cosmetics/avatars/avatar_special_rootfather.png',unlockType:'boss_defeat', unlockValue:'The Rootfather'          },
+  { id:'avatar_special_hollow',    displayName:'Hollow Knight',          category:'special', assetPath:'/cosmetics/avatars/avatar_special_hollow.png',    unlockType:'boss_defeat', unlockValue:'The Hollow King'         },
+  { id:'avatar_special_voice',     displayName:'Voice of the Realm',     category:'special', assetPath:'/cosmetics/avatars/avatar_special_voice.png',     unlockType:'boss_defeat', unlockValue:'The Voice of the Realm'  },
+];
+
+/* ─── MYSTERY DROP POOL ─── */
+// Add entries here to extend the pool — no code change needed.
+const MYSTERY_POOL = [
+  // ── Special Avatars (actual files in /cosmetics/avatars/) ──────────────
+  { id:'mys_av_barbarian',      type:'avatar', displayName:'Barbarian',          assetPath:'/cosmetics/avatars/Barbarian_01_Idle_000.png',      flavorText:'A lone warrior walks out of the storm...' },
+  { id:'mys_av_dark_elf_1',     type:'avatar', displayName:'Dark Elf I',         assetPath:'/cosmetics/avatars/Dark_Elf_01_Idle_000.png',       flavorText:'From ancient shadows, an emissary arrives...' },
+  { id:'mys_av_dark_elf_2',     type:'avatar', displayName:'Dark Elf II',        assetPath:'/cosmetics/avatars/Dark_Elf_02_Idle_000.png',       flavorText:'A wandering spirit crosses the veil...' },
+  { id:'mys_av_dark_elf_3',     type:'avatar', displayName:'Dark Elf III',       assetPath:'/cosmetics/avatars/Dark_Elf_03_Idle_000.png',       flavorText:'The Realm stirs — a mystery arrival...' },
+  { id:'mys_av_demon_knight_1', type:'avatar', displayName:'Demon Knight I',     assetPath:'/cosmetics/avatars/Demon_Knight_01_Idle_000.png',   flavorText:'A fearsome presence materialises from the void...' },
+  { id:'mys_av_demon_knight_2', type:'avatar', displayName:'Demon Knight II',    assetPath:'/cosmetics/avatars/Demon_Knight_02_Idle_000.png',   flavorText:'Ancient armor echoes across the Realm...' },
+  { id:'mys_av_demon_knight_3', type:'avatar', displayName:'Demon Knight III',   assetPath:'/cosmetics/avatars/Demon_Knight_03_Idle_000.png',   flavorText:'The dark knight answers the call...' },
+  { id:'mys_av_druid',          type:'avatar', displayName:'Druid',              assetPath:'/cosmetics/avatars/Druid_02_Idle_000.png',          flavorText:'The forest speaks — and a guardian emerges...' },
+  { id:'mys_av_elemental_1',    type:'avatar', displayName:'Elemental I',        assetPath:'/cosmetics/avatars/Elemental_01_Idle_000.png',      flavorText:'Pure energy takes form in the Realm...' },
+  { id:'mys_av_elemental_2',    type:'avatar', displayName:'Elemental II',       assetPath:'/cosmetics/avatars/Elemental_02_Idle_000.png',      flavorText:'The elements converge on a wandering soul...' },
+  { id:'mys_av_elemental_3',    type:'avatar', displayName:'Elemental III',      assetPath:'/cosmetics/avatars/Elemental_03_Idle_000.png',      flavorText:'A mystery arrival blazes into being...' },
+  { id:'mys_av_goblin',         type:'avatar', displayName:'Goblin',             assetPath:'/cosmetics/avatars/Goblin_01_Idle_000.png',         flavorText:'A mischievous wanderer sneaks through...' },
+  { id:'mys_av_mummy_1',        type:'avatar', displayName:'Mummy I',            assetPath:'/cosmetics/avatars/Mummy_01_Idle_000.png',          flavorText:'Something stirs beneath the sands...' },
+  { id:'mys_av_mummy_2',        type:'avatar', displayName:'Mummy II',           assetPath:'/cosmetics/avatars/Mummy_02_Idle_000.png',          flavorText:'Ancient wrappings unwind in the Realm...' },
+  { id:'mys_av_mummy_3',        type:'avatar', displayName:'Mummy III',          assetPath:'/cosmetics/avatars/Mummy_03_Idle_000.png',          flavorText:'A wandering spirit crosses into the Realm...' },
+  { id:'mys_av_necromancer',    type:'avatar', displayName:'Necromancer',        assetPath:'/cosmetics/avatars/Necromancer_03_Idle_000.png',    flavorText:'The mystery arrival whispers of forgotten lore...' },
+  { id:'mys_av_ninja_1',        type:'avatar', displayName:'Ninja I',            assetPath:'/cosmetics/avatars/Ninja_01_Idle_000.png',          flavorText:'From the shadows, a silent figure emerges...' },
+  { id:'mys_av_ninja_2',        type:'avatar', displayName:'Ninja II',           assetPath:'/cosmetics/avatars/Ninja_02_Idle_000.png',          flavorText:'Quick as lightning, the wanderer appears...' },
+  { id:'mys_av_ninja_3',        type:'avatar', displayName:'Ninja III',          assetPath:'/cosmetics/avatars/Ninja_03_Idle_000.png',          flavorText:'The Realm holds its breath as they arrive...' },
+  { id:'mys_av_satyr_1',        type:'avatar', displayName:'Satyr I',            assetPath:'/cosmetics/avatars/Satyr_01_Idle_000.png',          flavorText:'Wild music drifts from an unknown wanderer...' },
+  { id:'mys_av_satyr_2',        type:'avatar', displayName:'Satyr II',           assetPath:'/cosmetics/avatars/Satyr_03_Idle_000.png',          flavorText:'The forest whispers a mystery arrival...' },
+  { id:'mys_av_skull_1',        type:'avatar', displayName:'Skull I',            assetPath:'/cosmetics/avatars/Skull_01_Idle_000.png',          flavorText:'A chilling presence drifts through the veil...' },
+  { id:'mys_av_skull_2',        type:'avatar', displayName:'Skull II',           assetPath:'/cosmetics/avatars/Skull_02_Idle_000.png',          flavorText:'The Realm shudders as the wanderer crosses...' },
+  { id:'mys_av_skull_3',        type:'avatar', displayName:'Skull III',          assetPath:'/cosmetics/avatars/Skull_03_Idle_000.png',          flavorText:'Mystery arrival: the veil thins...' },
+  { id:'mys_av_vampire_1',      type:'avatar', displayName:'Vampire I',          assetPath:'/cosmetics/avatars/Vampire_01_Idle_000.png',        flavorText:'Night falls early — a mysterious guest arrives...' },
+  { id:'mys_av_vampire_2',      type:'avatar', displayName:'Vampire II',         assetPath:'/cosmetics/avatars/Vampire_02_Idle_000.png',        flavorText:'The wandering spirit chooses you...' },
+  { id:'mys_av_vampire_3',      type:'avatar', displayName:'Vampire III',        assetPath:'/cosmetics/avatars/Vampire_03_Idle_000.png',        flavorText:'A mystery arrival stirs the Realm...' },
+  { id:'mys_av_wraith_1',       type:'avatar', displayName:'Wraith I',           assetPath:'/cosmetics/avatars/Wraith_01_Idle_000.png',         flavorText:'A spectral wanderer drifts through the mist...' },
+  { id:'mys_av_wraith_2',       type:'avatar', displayName:'Wraith II',          assetPath:'/cosmetics/avatars/Wraith_02_Idle_000.png',         flavorText:'The veil tears — and a wanderer steps through...' },
+  { id:'mys_av_wraith_3',       type:'avatar', displayName:'Wraith III',         assetPath:'/cosmetics/avatars/Wraith_03_Idle_000.png',         flavorText:'A mystery arrival echoes across the Realm...' },
+  // ── Legendary Frames ─────────────────────────────────────────────────────
+  { id:'mys_fr_ancient_relic',  type:'frame', displayName:'Ancient Relic Frame',  assetPath:'/cosmetics/frames/legendary/ancient-relic.png',  flavorText:'Forged in an age before memory...' },
+  { id:'mys_fr_dragon_scale',   type:'frame', displayName:'Dragon Scale Frame',   assetPath:'/cosmetics/frames/legendary/dragon-scale.png',   flavorText:'Shed by a wyrm that shook the Realm...' },
+  { id:'mys_fr_phoenix_flame',  type:'frame', displayName:'Phoenix Flame Frame',  assetPath:'/cosmetics/frames/legendary/phoenix-flame.png',  flavorText:'Born from ashes, reborn in glory...' },
+  { id:'mys_fr_starfall',       type:'frame', displayName:'Starfall Frame',       assetPath:'/cosmetics/frames/legendary/starfall.png',       flavorText:'A constellation descended just for you...' },
+  { id:'mys_fr_void_portal',    type:'frame', displayName:'Void Portal Frame',    assetPath:'/cosmetics/frames/legendary/void-portal.png',    flavorText:'A rift between worlds, captured in glass...' },
+];
+
+// Per-event mystery drop rates — tune these without touching drop logic
+const MYSTERY_DROP_RATES = {
+  lesson:     0.02,  // routine Must Do / loot path tile
+  boss:       0.05,  // boss or dungeon defeat
+  side_quest: 0.02,  // side quest completion
+  shop:       0.02,  // gold shop loot roll
+};
+
 const BOSS_ICON = {
   "Aldric the Unyielding":  "⚔️",
   "Seraphine of the Veil":  "🌙",
@@ -1021,6 +1110,16 @@ function saveStudentOverride(id, changes) {
   _overrides[sid] = Object.assign({}, _overrides[sid] || {}, changes);
   update(ref(db, `overrides/${sid}`), changes).catch(console.error);
 }
+function getBossStatus(student, bossKey) {
+  return ((_overrides[String(student.id)] || {}).bossStatus || {})[bossKey] || 'not_attempted';
+}
+function setBossStatus(studentId, bossKey, status) {
+  const sid = String(studentId);
+  if (!_overrides[sid]) _overrides[sid] = {};
+  if (!_overrides[sid].bossStatus) _overrides[sid].bossStatus = {};
+  _overrides[sid].bossStatus[bossKey] = status;
+  set(ref(db, `overrides/${sid}/bossStatus/${bossKey}`), status).catch(console.error);
+}
 function getHelpFlags() {
   return Object.assign({}, _helpflags);
 }
@@ -1243,7 +1342,10 @@ function completeSideQuest(student, key) {
   const _sqLand = entry.landId
     ? LANDS.find(l => l.id === entry.landId) || findLandByTileId(entry.tileId)
     : findLandByTileId(entry.tileId);
-  if (_sqLand) awardFromPool(student, _sqLand.name, 'rare');
+  if (_sqLand) {
+    const _doSQLoot = () => awardFromPool(student, _sqLand.name, 'rare');
+    if (!tryMysteryDrop(student, 'side_quest', _doSQLoot)) _doSQLoot();
+  }
   if (Math.random() < 0.5) awardSeasonalBadge(student);
   showXPCelebration(quest.xp, levelsGained, newLevel, () => mount());
 }
@@ -1270,6 +1372,7 @@ function assignGuild(studentId) {
   const tied = keys.filter(k => counts[k] === min);
   const chosen = tied[Math.floor(Math.random() * tied.length)];
   saveStudentOverride(studentId, { guild: chosen });
+  unlockCosmeticsForGuild(studentId, chosen);
   return chosen;
 }
 const GUILD_BLURBS = {
@@ -1467,8 +1570,15 @@ function awardXP(student, amount) {
   let xp    = (m.xp    || 0) + amount;
   let level = (m.level || 1);
   let levelsGained = 0;
+  const startLevel = level;
   while (xp >= threshold) { xp -= threshold; level++; levelsGained++; }
   saveStudentOverride(student.id, { xp, level });
+  // Unlock rank frames for each newly crossed level threshold
+  if (levelsGained > 0) {
+    for (let lvl = startLevel + 1; lvl <= level; lvl++) {
+      unlockCosmeticsForLevel(student, lvl);
+    }
+  }
   return { levelsGained, newLevel: level };
 }
 function showXPCelebration(amount, levelsGained, newLevel, onComplete, message = null) {
@@ -1531,6 +1641,80 @@ function setShopItemEnabled(itemId, enabled) {
   _settings.shopItems[itemId] = enabled;
   set(ref(db, `settings/shopItems/${itemId}`), enabled).catch(console.error);
 }
+/* ─── COSMETICS HELPERS ─── */
+function getEquippedFrame(student) {
+  return (_overrides[String(student.id)] || {}).equippedFrame || null;
+}
+function getEquippedAvatarOverride(student) {
+  return (_overrides[String(student.id)] || {}).equippedAvatarOverride || null;
+}
+function getUnlockedCosmetics(student) {
+  return (_overrides[String(student.id)] || {}).unlockedCosmetics || [];
+}
+function unlockCosmetic(student, cosmeticId) {
+  const owned = getUnlockedCosmetics(student);
+  if (!owned.includes(cosmeticId)) {
+    saveStudentOverride(student.id, { unlockedCosmetics: [...owned, cosmeticId] });
+  }
+}
+function isCosmeticUnlocked(student, cosmetic) {
+  const ov = _overrides[String(student.id)] || {};
+  // Teacher-granted always wins regardless of normal unlock condition
+  if ((ov.unlockedCosmetics || []).includes(cosmetic.id)) return true;
+  const s = getMergedStudent(student);
+  const pos = getLandPos(student);
+  const today = new Date().toISOString().slice(0, 10);
+  switch (cosmetic.unlockType) {
+    case 'land_complete':
+      return pos.land > cosmetic.unlockValue;
+    case 'level':
+      return s.level >= cosmetic.unlockValue;
+    case 'boss_defeat':
+      return (s.bosses || []).includes(cosmetic.unlockValue);
+    case 'seasonal_window':
+      return today >= cosmetic.unlockValue.start && today <= cosmetic.unlockValue.end;
+    case 'guild':
+      return (ov.guild || null) === cosmetic.unlockValue;
+    case 'shop':
+    case 'drop':
+      return (ov.unlockedCosmetics || []).includes(cosmetic.id);
+    default: return false;
+  }
+}
+function unlockCosmeticsForBoss(student, bossName) {
+  [...COSMETICS_MANIFEST, ...COSMETIC_AVATARS]
+    .filter(c => c.unlockType === 'boss_defeat' && c.unlockValue === bossName)
+    .forEach(c => unlockCosmetic(student, c.id));
+}
+function unlockCosmeticsForGuild(studentId, guildKey) {
+  const student = { id: studentId };
+  COSMETICS_MANIFEST
+    .filter(c => c.unlockType === 'guild' && c.unlockValue === guildKey)
+    .forEach(c => unlockCosmetic(student, c.id));
+}
+function unlockCosmeticsForLevel(student, newLevel) {
+  COSMETICS_MANIFEST
+    .filter(c => c.unlockType === 'level' && c.unlockValue === newLevel)
+    .forEach(c => unlockCosmetic(student, c.id));
+}
+function unlockCosmeticsForLandComplete(student, landId) {
+  COSMETICS_MANIFEST
+    .filter(c => c.unlockType === 'land_complete' && c.unlockValue === landId)
+    .forEach(c => unlockCosmetic(student, c.id));
+}
+function equipFrame(student, frameId) {
+  saveStudentOverride(student.id, { equippedFrame: frameId });
+}
+function unequipFrame(student) {
+  saveStudentOverride(student.id, { equippedFrame: null });
+}
+function equipAvatarOverride(student, avatarId) {
+  saveStudentOverride(student.id, { equippedAvatarOverride: avatarId });
+}
+function unequipAvatarOverride(student) {
+  saveStudentOverride(student.id, { equippedAvatarOverride: null });
+}
+
 function renderShopModal(student) {
   const gold = getGold(student);
   const confirmItem = STATE.shopConfirmItem ? SHOP_ITEMS.find(i => i.id === STATE.shopConfirmItem) : null;
@@ -1633,6 +1817,44 @@ function formatFlagTime(iso) {
   return new Date(iso).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
 }
 
+/* ─── MYSTERY DROP ─── */
+function tryMysteryDrop(student, eventType, onComplete) {
+  const rate = MYSTERY_DROP_RATES[eventType] ?? 0.02;
+  if (Math.random() >= rate) return false;
+  const owned = new Set(getUnlockedCosmetics(student));
+  const eligible = MYSTERY_POOL.filter(item => !owned.has(item.id));
+  if (!eligible.length) return false; // pool exhausted — caller falls through to normal tier
+  const item = randFrom(eligible);
+  unlockCosmetic(student, item.id);
+  logActivity(student.id, '✨', `Mystery Drop! Unlocked: ${item.displayName}`);
+  showMysteryReveal(item, onComplete);
+  return true;
+}
+function showMysteryReveal(item, onComplete) {
+  const isAvatar = item.type === 'avatar';
+  const el = document.createElement('div');
+  el.className = 'mystery-reveal-overlay';
+  el.innerHTML = `
+    <div class="mystery-reveal-card">
+      <div class="mystery-stars">✦ ✧ ✦ ✧ ✦</div>
+      <div class="mystery-reveal-eyebrow">${isAvatar ? '✨ Mystery Arrival' : '⭐ Legendary Frame'}</div>
+      <div class="mystery-reveal-img-wrap">
+        <img src="${item.assetPath}" alt="${item.displayName}" width="120" height="120"
+          onerror="this.style.opacity='.2'"/>
+        <div class="mystery-reveal-glow"></div>
+      </div>
+      <div class="mystery-reveal-name">${item.displayName}</div>
+      ${item.flavorText ? `<div class="mystery-reveal-flavor">"${item.flavorText}"</div>` : ''}
+      <div class="mystery-reveal-sub">Added to your Cosmetics tab</div>
+      <button class="mystery-reveal-btn">Claim It!</button>
+    </div>`;
+  document.body.appendChild(el);
+  el.querySelector('.mystery-reveal-btn').addEventListener('click', () => {
+    el.classList.add('mystery-reveal-out');
+    setTimeout(() => { el.remove(); if (onComplete) onComplete(); }, 350);
+  });
+}
+
 /* ─── TITLE OPTIONS ─── */
 const TITLE_OPTIONS = [
   "Apprentice Scholar","Keeper of Scrolls","Word Mender","Champion of Clarity",
@@ -1653,13 +1875,14 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               equipPickerOpen:false, equipPickerStudentId:null,
               tgDialogueOpen:false, tgContinueReady:false,
               bossLockedOpen:false,
-              weaponPickerOpen:false, shieldPickerOpen:false, collectiblesOpen:false, collectiblesTab:'collectibles',
+              weaponPickerOpen:false, shieldPickerOpen:false, collectiblesOpen:false, collectiblesTab:'collectibles', cosmTab:'frames',
               mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
               sideQuestModalOpen:false, sideQuestTileId:null, sideQuestSoloIdx:0, sideQuestCollabIdx:0,
               pendingSQAfterGrade:null, sqBoardOpen:false, sqBoardLandId:null,
               sqPartnerPickOpen:false, sqPartnerPickKey:null, sqPartnerPickIdx:0, sqPartnerPickType:null, sqPartnerPickTile:null, sqPartnerPickLand:null, sqPartnerPickSelected:null,
               shopOpen:false, shopConfirmItem:null, shopSuccess:false,
               teacherGoldShopOpen:false,
+              bossRosterPeriodIdx:0, bossRosterKey:null, bossRosterMarks:{},
               sqInviteNotifOpen:false,
               questJournalTab:'active',
               craftingOpen:false, craftingStep:1, craftingSelected:null,
@@ -1952,6 +2175,14 @@ function renderHub() {
   const savedHasNewFormat = savedClass && savedStyle && savedTone;
   const avatarFile = s.avatar || "avatar_blankchibi.png";
   const avatarUrl  = `/avatars/${savedHasNewFormat ? buildAvatarFile(savedGender, savedClass, savedStyle, savedTone) : avatarFile}`;
+  // Cosmetics overrides (independent of picker state)
+  const equippedFrameId         = getEquippedFrame(STATE.student);
+  const equippedAvatarOverrideId = getEquippedAvatarOverride(STATE.student);
+  const displayAvatarUrl = equippedAvatarOverrideId
+    ? (COSMETIC_AVATARS.find(a => a.id === equippedAvatarOverrideId) ||
+       MYSTERY_POOL.find(p => p.id === equippedAvatarOverrideId && p.type === 'avatar') ||
+       {}).assetPath || avatarUrl
+    : avatarUrl;
   const xpPct = Math.round((s.xp / s.xpNext) * 100);
 
   // Step breadcrumb
@@ -2166,7 +2397,7 @@ function renderHub() {
     _equipPickerSlot(shieldEquippedId, 'Shield', '🛡️', ownedShields, 'data-open-shield-picker', '/equipment/shield_valeguard_common.png'),
     `<div class="equip-slot equip-slot-collectibles${ownedCollectibles.length ? '' : ' equip-slot-empty'}" data-open-collectibles>
       <div class="equip-slot-img">
-        <img src="/equipment/accessory_bag.png" alt="Collectibles" style="object-fit:contain${ownedCollectibles.length ? '' : ';opacity:0.22'}" onerror="this.style.display='none'"/>
+        <img src="/equipment/accessory_bag.png" alt="Collectibles" style="object-fit:contain" onerror="this.style.display='none'"/>
       </div>
       ${ownedCollectibles.length ? `<span class="equip-slot-owned-badge">${ownedCollectibles.length}</span>` : ''}
     </div>`
@@ -2223,9 +2454,23 @@ function renderHub() {
               ${activeTitle ? `<div class="char-title-badge">👑 ${activeTitle}</div>` : ''}
               <div class="char-avatar-area">
                 <div class="char-avatar-wrap">
-                  <div class="avatar-ring-xl" style="overflow:hidden;padding:0">
-                    <img src="${avatarUrl}" class="hub-avatar-img" alt="Avatar" width="250" height="250"/>
-                  </div>
+                  ${(() => {
+                    const _frameDef = equippedFrameId
+                      ? (COSMETICS_MANIFEST.find(f => f.id === equippedFrameId) ||
+                         MYSTERY_POOL.find(p => p.id === equippedFrameId && p.type === 'frame') || null)
+                      : null;
+                    if (_frameDef) {
+                      const innerScale = _frameDef.innerScale || 0.70;
+                      const innerPct = Math.round(innerScale * 100) + '%';
+                      return `<div class="avatar-hub-frame-wrap">
+                        <img src="${displayAvatarUrl}" style="width:${innerPct};height:${innerPct};border-radius:50%;object-fit:contain;flex-shrink:0;z-index:1" alt="Avatar"/>
+                        <img src="${_frameDef.assetPath||''}" class="avatar-frame-overlay" alt="Frame" onerror="this.style.display='none'"/>
+                      </div>`;
+                    }
+                    return `<div class="avatar-ring-xl" style="overflow:hidden;padding:0;position:relative">
+                      <img src="${displayAvatarUrl}" class="hub-avatar-img" alt="Avatar" width="250" height="250"/>
+                    </div>`;
+                  })()}
                 </div>
                 <div class="char-companion-slot${activeCompanion ? '' : ' char-companion-empty'}" id="companion-slot-btn" title="Choose companion">
                   ${activeCompanion ? `<img src="/companions/${activeCompanion}" alt="companion" width="65" height="65"/>` : `<span style="font-size:22px;opacity:.35">🐾</span>`}
@@ -2568,6 +2813,52 @@ function renderHub() {
         }).join('')
         + '</div>';
 
+      // ── Tab: Cosmetics ─────────────────────────────────────────────────
+      const cosmSubTab = STATE.cosmTab || 'frames';
+      const equippedFrame   = getEquippedFrame(STATE.student);
+      const equippedAvatar  = getEquippedAvatarOverride(STATE.student);
+
+      const _ownedCosmetics = new Set(getUnlockedCosmetics(STATE.student));
+      const _cosmSlot = (id, assetPath, displayName, unlocked, isEquipped, equipAttr) =>
+        '<div class="cosm-slot' + (unlocked ? '' : ' cosm-locked') + (isEquipped ? ' cosm-equipped' : '') + '" '
+        + (unlocked ? equipAttr + '="' + id + '"' : '') + '>'
+        + '<div class="cosm-img-wrap">'
+        + '<img src="' + assetPath + '" alt="' + displayName + '" width="64" height="64" '
+        + 'style="object-fit:contain' + (unlocked ? '' : ';filter:grayscale(100%) opacity(35%)') + '" onerror="this.style.display=\'none\'">'
+        + (isEquipped ? '<span class="cosm-check">✓</span>' : '')
+        + '</div>'
+        + '<span class="cosm-name">' + (unlocked ? displayName : '???') + '</span>'
+        + (unlocked ? '<span class="cosm-action">' + (isEquipped ? 'Unequip' : 'Equip') + '</span>'
+                    : '<span class="cosm-locked-lbl">Locked</span>')
+        + '</div>';
+
+      const framesGrid = '<div class="cosm-grid">'
+        + COSMETICS_MANIFEST.map(c =>
+            _cosmSlot(c.id, c.assetPath, c.displayName, isCosmeticUnlocked(STATE.student, c), equippedFrame === c.id, 'data-equip-frame')
+          ).join('')
+        + MYSTERY_POOL.filter(p => p.type === 'frame').map(p =>
+            _cosmSlot(p.id, p.assetPath, p.displayName, _ownedCosmetics.has(p.id), equippedFrame === p.id, 'data-equip-frame')
+          ).join('')
+        + '</div>';
+
+      const revertBtn = equippedAvatar
+        ? '<button class="cosm-revert-btn" id="cosm-revert-avatar">↩ Revert to My Character</button>'
+        : '';
+      const avatarsGrid = revertBtn + '<div class="cosm-grid">'
+        + COSMETIC_AVATARS.map(av =>
+            _cosmSlot(av.id, av.assetPath, av.displayName, isCosmeticUnlocked(STATE.student, av), equippedAvatar === av.id, 'data-equip-avatar')
+          ).join('')
+        + MYSTERY_POOL.filter(p => p.type === 'avatar').map(p =>
+            _cosmSlot(p.id, p.assetPath, p.displayName, _ownedCosmetics.has(p.id), equippedAvatar === p.id, 'data-equip-avatar')
+          ).join('')
+        + '</div>';
+
+      const cosmSubToggle = '<div class="cosm-subtabs">'
+        + '<button class="cosm-subtab' + (cosmSubTab==='frames'?' cosm-subtab-active':'') + '" data-cosmtab="frames">🖼️ Frames</button>'
+        + '<button class="cosm-subtab' + (cosmSubTab==='avatars'?' cosm-subtab-active':'') + '" data-cosmtab="avatars">🧙 Avatars</button>'
+        + '</div>';
+      const cosmeticsContent = cosmSubToggle + (cosmSubTab === 'frames' ? framesGrid : avatarsGrid);
+
       return '<div class="equip-picker-overlay" id="collectibles-overlay">'
         + '<div class="equip-picker-box">'
         + '<button class="npc-modal-close" id="collectibles-close">✕</button>'
@@ -2575,9 +2866,10 @@ function renderHub() {
         + '<div class="coll-tabs">'
         + '<button class="coll-tab' + (tab==='collectibles'?' coll-tab-active':'') + '" data-colltab="collectibles">🏔️ Collectibles</button>'
         + '<button class="coll-tab' + (tab==='special'?' coll-tab-active':'') + '" data-colltab="special">🏅 Special</button>'
+        + '<button class="coll-tab' + (tab==='cosmetics'?' coll-tab-active':'') + '" data-colltab="cosmetics">✨ Cosmetics</button>'
         + '</div>'
         + '<div class="equip-picker-list" style="margin-top:0">'
-        + (tab === 'collectibles' ? collectiblesContent : specialContent)
+        + (tab === 'collectibles' ? collectiblesContent : tab === 'special' ? specialContent : cosmeticsContent)
         + '</div>'
         + '</div>'
         + '</div>';
@@ -2962,11 +3254,98 @@ function renderBossScreen() {
   const hp        = m.hp ?? 10;
   const hpLow     = hp < 5;
   const pos = getLandPos(student);
-  const alreadyDefeated = (pos.completed || []).includes(tile.id);
+
+  const bossKey = `${land.id}_${tile.id}`;
+  const bossStatus = getBossStatus(student, bossKey);
+  const alreadyConfirmed = bossStatus === 'confirmed' || (pos.completed || []).includes(tile.id);
 
   const hpDots = Array.from({length:10}, (_, i) =>
     `<span class="boss-hp-dot${i < hp ? " filled" : ""}"></span>`
   ).join("");
+
+  const portraitHTML = portrait
+    ? `<img class="boss-portrait" src="/bosses/${portrait}" alt="${bossName}" width="500" height="500"/>`
+    : `<div class="boss-portrait boss-portrait-fallback">${BOSS_ICON[bossName] || "👹"}</div>`;
+
+  const tombstoneHTML = `<img src="/bosses/defeated-tombstone.png" alt="Defeated" class="boss-portrait boss-tombstone" onerror="this.style.display='none'"/>`;
+
+  let bodyHTML = '';
+
+  if (alreadyConfirmed) {
+    // State 1 — Already confirmed/completed
+    bodyHTML = `
+      <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
+        ${tombstoneHTML}
+      </div>
+      <div class="boss-defeated-banner enter" style="animation-delay:.10s">⚔️ DEFEATED</div>
+      <div class="boss-identity enter" style="animation-delay:.12s">
+        <h1 class="boss-name boss-name-defeated">${bossName}</h1>
+        ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
+      </div>
+      <div style="text-align:center;font-size:13px;font-weight:700;color:rgba(255,255,255,.4);margin-top:8px">✓ Already defeated</div>`;
+  } else if (bossStatus === 'defeated') {
+    // State 2 — Teacher marked defeated, awaiting student confirmation
+    bodyHTML = `
+      <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
+        ${tombstoneHTML}
+      </div>
+      <div class="boss-defeated-banner enter" style="animation-delay:.10s">⚔️ DEFEATED</div>
+      <div class="boss-identity enter" style="animation-delay:.12s">
+        <h1 class="boss-name boss-name-defeated">${bossName}</h1>
+        ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
+      </div>
+      ${lore ? `
+      <div class="boss-lore-card enter" style="animation-delay:.16s">
+        <p class="boss-lore">${lore}</p>
+      </div>` : ""}
+      <button class="boss-confirm-btn enter" id="boss-confirm-btn" style="animation-delay:.20s">
+        📜 I Reviewed My Results — Claim Reward
+      </button>`;
+  } else if (bossStatus === 'retake') {
+    // State 3 — Teacher marked retake
+    bodyHTML = `
+      <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
+        ${portraitHTML}
+      </div>
+      <div class="boss-identity enter" style="animation-delay:.12s">
+        <h1 class="boss-name">${bossName}</h1>
+        ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
+      </div>
+      <div class="boss-retake-card enter" style="animation-delay:.16s">
+        <div class="boss-retake-title">↩ Retake Needed</div>
+        <p class="boss-retake-msg">Your teacher has reviewed your results. Some areas need more work. Complete the Craft Binder activity below, then use the Retake button.</p>
+      </div>
+      <button class="boss-fight-btn enter" id="boss-fight-btn" style="animation-delay:.22s">
+        ↩ Retake Boss Fight
+      </button>`;
+  } else {
+    // State 4 — Normal / not_attempted
+    bodyHTML = `
+      <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
+        ${portraitHTML}
+      </div>
+      <div class="boss-identity enter" style="animation-delay:.12s">
+        <h1 class="boss-name">${bossName}</h1>
+        ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
+      </div>
+      ${lore ? `
+      <div class="boss-lore-card enter" style="animation-delay:.16s">
+        <p class="boss-lore">${lore}</p>
+      </div>` : ""}
+      <div class="boss-hp-card enter" style="animation-delay:.20s">
+        <div class="boss-hp-label">❤️ Your HP</div>
+        <div class="boss-hp-dots">${hpDots}</div>
+        <div class="boss-hp-val">${hp} / 10</div>
+      </div>
+      ${hpLow ? `
+      <div class="boss-hp-warning enter" style="animation-delay:.22s">
+        ⚠️ Your HP is low! Complete a Side Quest before challenging this boss.
+      </div>` : ""}
+      <button class="boss-fight-btn enter" id="boss-fight-btn" style="animation-delay:.25s">
+        ⚔️ Begin Boss Fight
+      </button>
+      <p class="boss-awaiting-review enter" style="animation-delay:.30s">After completing your assessment, your teacher will review and update your status here.</p>`;
+  }
 
   return `
   <div class="screen boss-screen">
@@ -2982,41 +3361,7 @@ function renderBossScreen() {
         </div>
       </div>
 
-      <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
-        ${portrait
-          ? `<img class="boss-portrait" src="/bosses/${portrait}" alt="${bossName}" width="500" height="500"/>`
-          : `<div class="boss-portrait boss-portrait-fallback">${BOSS_ICON[bossName] || "👹"}</div>`}
-      </div>
-
-      <div class="boss-identity enter" style="animation-delay:.12s">
-        <h1 class="boss-name">${bossName}</h1>
-        ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
-      </div>
-
-      ${lore ? `
-      <div class="boss-lore-card enter" style="animation-delay:.16s">
-        <p class="boss-lore">${lore}</p>
-      </div>` : ""}
-
-      <div class="boss-hp-card enter" style="animation-delay:.20s">
-        <div class="boss-hp-label">❤️ Your HP</div>
-        <div class="boss-hp-dots">${hpDots}</div>
-        <div class="boss-hp-val">${hp} / 10</div>
-      </div>
-
-      ${hpLow ? `
-      <div class="boss-hp-warning enter" style="animation-delay:.22s">
-        ⚠️ Your HP is low! Complete a Side Quest before challenging this boss.
-      </div>` : ""}
-
-      <button class="boss-fight-btn enter" id="boss-fight-btn" style="animation-delay:.25s">
-        ⚔️ Begin Boss Fight
-      </button>
-      ${!alreadyDefeated ? `
-      <button class="boss-defeat-btn enter" id="boss-defeat-btn" style="animation-delay:.3s">
-        ✅ I Defeated It! — Claim Reward
-      </button>` : `
-      <div style="text-align:center;font-size:13px;font-weight:700;color:rgba(255,255,255,.4);margin-top:8px">✓ Already defeated</div>`}
+      ${bodyHTML}
 
     </div>
   </div>`;
@@ -4048,6 +4393,7 @@ function renderTeacherDashboard() {
           <button class="btn btn-outline-sm t-gold-shop-btn" id="t-gold-shop-btn">
             🪙 Gold Shop${(() => { const n = Object.keys(getShopPending()).length; return n ? `<span class="t-gold-badge">${n}</span>` : ''; })()}
           </button>
+          <button class="btn btn-outline-sm" id="t-boss-roster-btn">⚔️ Boss Roster</button>
           <button class="btn btn-outline-sm" id="t-board-view">📡 Board View</button>
           <button class="btn btn-outline-sm" id="t-dash-logout">Exit</button>
         </div>
@@ -4379,6 +4725,11 @@ function renderTeacherEdit() {
           <input class="t-xp-inp" id="xpnext-inp" type="number" min="1" max="99999" value="${edit.xpNext}" style="width:80px"/>
           <div class="t-stat-mini" style="background:#FEF9C3"><div class="t-stat-mini-fill" style="width:${xpPct}%;background:#F59E0B"></div></div>
         </div>
+        <div class="t-stat-row" style="margin-top:6px">
+          <span class="t-stat-icon">🪙</span>
+          <span class="t-stat-lbl">Gold</span>
+          <input class="t-xp-inp" id="gold-inp" type="number" min="0" max="99999" value="${getGold(s)}" style="width:100px"/>
+        </div>
       </div>
 
       <div class="t-section">
@@ -4458,6 +4809,54 @@ function renderTeacherEdit() {
         <div class="chip-row" id="boss-chips">${bossChips || '<span style="color:var(--text-light);font-size:13px;font-style:italic">No bosses defeated</span>'}</div>
         ${addableBosses.length > 0 ? `<select class="t-add-boss-sel" id="add-boss-sel"><option value="">+ Add boss…</option>${bossOpts}</select>` : ""}
       </div>
+
+      ${(() => {
+        const sOvComp = getOverrides().students[String(s.id)] || {};
+        const ownedCompanions = sOvComp.companions || [];
+        const rarityColor = { common:'#6B7280', uncommon:'#10B981', rare:'#8B5CF6' };
+        const companionChips = ownedCompanions.map(file => {
+          const c = companionByFile(file);
+          return `<span class="inv-chip" style="border-color:${rarityColor[c.rarity]||'#6B7280'}">${c.name}<button class="chip-x" data-remove-companion="${file}">×</button></span>`;
+        }).join('');
+        const addableCompanions = COMPANIONS.filter(c => !ownedCompanions.includes(c.file));
+        const compOpts = ['common','uncommon','rare'].map(r => {
+          const items = addableCompanions.filter(c => c.rarity === r);
+          if (!items.length) return '';
+          const lbl = r === 'uncommon' ? 'Uncommon' : r[0].toUpperCase() + r.slice(1);
+          return `<optgroup label="${lbl}">${items.map(c => `<option value="${c.file}">${c.name}</option>`).join('')}</optgroup>`;
+        }).join('');
+        return `<div class="t-section">
+          <div class="t-section-title">🐾 Companions</div>
+          <div class="chip-row">${companionChips || '<span style="color:var(--text-light);font-size:13px;font-style:italic">No companions</span>'}</div>
+          ${addableCompanions.length ? `<select class="t-add-sel" id="add-companion-sel"><option value="">+ Award companion…</option>${compOpts}</select>` : ''}
+        </div>`;
+      })()}
+
+      ${(() => {
+        const sOvCosm = getOverrides().students[String(s.id)] || {};
+        const awarded = sOvCosm.unlockedCosmetics || [];
+        const allCosmItems = [
+          ...COSMETICS_MANIFEST.map(c => ({ id:c.id, label:c.displayName, icon:'🖼', group: 'Frame — ' + c.category[0].toUpperCase() + c.category.slice(1) })),
+          ...COSMETIC_AVATARS.map(c => ({ id:c.id, label:c.displayName, icon:'🧑', group:'Avatar — Boss' })),
+          ...MYSTERY_POOL.map(p => ({ id:p.id, label:p.displayName, icon: p.type==='frame' ? '🖼' : '🧑', group: p.type==='frame' ? 'Frame — Legendary (Mystery)' : 'Avatar — Mystery' })),
+        ];
+        const cosmChips = awarded.map(id => {
+          const def = allCosmItems.find(x => x.id === id);
+          return `<span class="inv-chip inv-chip-cosm">${def ? def.icon : '✨'} ${def ? def.label : id}<button class="chip-x" data-remove-cosm="${id}">×</button></span>`;
+        }).join('');
+        const addable = allCosmItems.filter(c => !awarded.includes(c.id));
+        const groupMap = {};
+        addable.forEach(c => { (groupMap[c.group] = groupMap[c.group] || []).push(c); });
+        const cosmOpts = Object.entries(groupMap).map(([grp, items]) =>
+          `<optgroup label="${grp}">${items.map(c => `<option value="${c.id}">${c.icon} ${c.label}</option>`).join('')}</optgroup>`
+        ).join('');
+        return `<div class="t-section">
+          <div class="t-section-title">✨ Cosmetics</div>
+          <p class="t-cosm-note">Manually grant frames &amp; avatars. Land, guild, boss, level, and seasonal cosmetics also unlock automatically from gameplay.</p>
+          <div class="chip-row">${cosmChips || '<span style="color:var(--text-light);font-size:13px;font-style:italic">No manually awarded cosmetics</span>'}</div>
+          ${addable.length ? `<select class="t-add-sel" id="add-cosm-sel"><option value="">+ Award cosmetic…</option>${cosmOpts}</select>` : ''}
+        </div>`;
+      })()}
 
       ${(() => {
         const guilds = CLASS_DATA && CLASS_DATA.guilds;
@@ -4614,6 +5013,138 @@ function renderTeacherEdit() {
   </div>` : ""}`;
 }
 
+/* ─── BOSS ROSTER ─── */
+function renderBossRoster() {
+  const periods = CLASS_DATA.periods || [];
+
+  // Build boss options from all LANDS
+  const bossOptions = LANDS.flatMap(land =>
+    land.tiles
+      .filter(t => t.type === 'boss' || t.type === 'dungeon')
+      .map(t => ({
+        key: `${land.id}_${t.id}`,
+        label: `${land.name} — ${t.name}${t.skill ? ' (' + t.skill + ')' : ''}`,
+        landId: land.id,
+        tileId: t.id,
+        bossName: t.name
+      }))
+  );
+
+  // Initialize bossRosterKey if null
+  if (!STATE.bossRosterKey && bossOptions.length) {
+    STATE.bossRosterKey = bossOptions[0].key;
+  }
+  const currentKey = STATE.bossRosterKey || (bossOptions[0] && bossOptions[0].key) || '';
+  const currentOpt = bossOptions.find(o => o.key === currentKey);
+  const tileId = currentOpt ? currentOpt.tileId : null;
+
+  // Period tabs: -1 = All, 0..n-1 = specific
+  const pidx = STATE.bossRosterPeriodIdx;
+  const periodTabsHTML = [
+    `<button class="period-tab ${pidx === -1 ? 'active' : ''}" data-brs-pi="-1">All</button>`,
+    ...periods.map((p, i) =>
+      `<button class="period-tab ${pidx === i ? 'active' : ''}" data-brs-pi="${i}">${p.periodName}</button>`)
+  ].join('');
+
+  // Collect students for current period selection
+  let studentRows = [];
+  const showPeriodCol = pidx === -1 && periods.length > 1;
+  const displayPeriods = pidx === -1 ? periods : [periods[pidx]].filter(Boolean);
+
+  displayPeriods.forEach(period => {
+    (period.students || []).forEach(student => {
+      const m = getMergedStudent(student);
+      const pos = getLandPos(student);
+      const status = getBossStatus(student, currentKey);
+      const confirmed = status === 'confirmed' || (tileId && (pos.completed || []).includes(tileId));
+      const pendingMark = STATE.bossRosterMarks[student.id];
+
+      // Avatar snippet
+      const savedClass = (() => { const r = student.avatarClass || student.character || ''; return r === 'fairy' ? 'elf' : r; })();
+      const savedStyle = student.avatarStyle || student.variant || '';
+      const savedTone  = student.avatarSkinTone || student.skinTone || '';
+      const savedGender = student.avatarGender || 'female';
+      const avatarFile  = student.avatar || 'avatar_blankchibi.png';
+      const avatarUrl   = savedClass && savedStyle && savedTone
+        ? `/avatars/${buildAvatarFile(savedGender, savedClass, savedStyle, savedTone)}`
+        : `/avatars/${avatarFile}`;
+
+      const statusLabel = confirmed ? 'confirmed' : status;
+      const statusText  = confirmed ? '✓ Confirmed' : status === 'not_attempted' ? 'Not Attempted' : status.charAt(0).toUpperCase() + status.slice(1);
+      const statusCls   = confirmed ? 'confirmed' : status.replace('_', '-');
+
+      let buttonsHTML;
+      if (confirmed) {
+        buttonsHTML = `<span style="color:#9CA3AF;font-size:12px">—</span>`;
+      } else {
+        const dSel = pendingMark === 'defeated' ? ' brs-selected' : '';
+        const rSel = pendingMark === 'retake'   ? ' brs-selected' : '';
+        buttonsHTML = `
+          <button class="brs-btn brs-btn-defeated${dSel}" data-brs-sid="${student.id}" data-brs-mark="defeated">✅ Defeated</button>
+          <button class="brs-btn brs-btn-retake${rSel}" data-brs-sid="${student.id}" data-brs-mark="retake">↩ Retake</button>`;
+      }
+
+      studentRows.push(`
+        <tr>
+          ${showPeriodCol ? `<td style="font-size:11px;color:#6B7280">${period.periodName}</td>` : ''}
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <img src="${avatarUrl}" width="24" height="24" style="border-radius:50%;object-fit:cover" onerror="this.style.display='none'"/>
+              <span style="font-weight:700">${m.displayName || student.name}</span>
+            </div>
+          </td>
+          <td><span class="brs-status ${statusCls}">${statusText}</span></td>
+          <td>
+            <div style="display:flex;gap:8px;align-items:center">
+              ${buttonsHTML}
+            </div>
+          </td>
+        </tr>`);
+    });
+  });
+
+  // Build boss dropdown with optgroups per land
+  const dropdownHTML = `<select class="boss-roster-sel" id="boss-roster-sel">` +
+    LANDS.map(land => {
+      const landBosses = bossOptions.filter(o => o.landId === land.id);
+      if (!landBosses.length) return '';
+      return `<optgroup label="${land.name}">` +
+        landBosses.map(o => `<option value="${o.key}" ${o.key === currentKey ? 'selected' : ''}>${o.label}</option>`).join('') +
+        `</optgroup>`;
+    }).join('') +
+    `</select>`;
+
+  const changedCount = Object.values(STATE.bossRosterMarks).filter(v => v !== null && v !== undefined).length;
+
+  return `
+  <div class="screen boss-roster-screen">
+    <div class="boss-roster-wrap">
+      <div class="boss-roster-hdr">
+        <button class="btn-back" id="brs-back">← Dashboard</button>
+        <span class="boss-roster-title">⚔️ Boss Roster</span>
+      </div>
+      <div class="period-tabs">${periodTabsHTML}</div>
+      ${dropdownHTML}
+      <table class="boss-roster-table">
+        <thead>
+          <tr>
+            ${showPeriodCol ? '<th>Period</th>' : ''}
+            <th>Student</th>
+            <th>Status</th>
+            <th>Mark</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${studentRows.join('') || '<tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:20px">No students found.</td></tr>'}
+        </tbody>
+      </table>
+      <button class="boss-roster-submit" id="brs-submit" ${!changedCount ? 'disabled' : ''}>
+        💾 Submit Results (${changedCount} change${changedCount !== 1 ? 's' : ''})
+      </button>
+    </div>
+  </div>`;
+}
+
 /* ─── MOUNT & EVENTS ─── */
 function mount() {
   const root = document.getElementById("root");
@@ -4635,6 +5166,7 @@ function mount() {
   if (STATE.screen === "teacher-tile")   root.innerHTML = renderTeacherTileView();
   if (STATE.screen === "welcome-splash") root.innerHTML = renderWelcomeSplash();
   if (STATE.screen === "board-view")     root.innerHTML = renderBoardView();
+  if (STATE.screen === "teacher-boss-roster") root.innerHTML = renderBossRoster();
 
   // No scroll needed for land map (fits on screen)
 
@@ -4933,6 +5465,33 @@ function bindEvents() {
       document.querySelectorAll(".coll-tab").forEach(btn => {
         btn.addEventListener("click", () => { STATE.collectiblesTab = btn.dataset.colltab; mount(); });
       });
+      // Cosmetics sub-tab toggles
+      document.querySelectorAll(".cosm-subtab").forEach(btn => {
+        btn.addEventListener("click", () => { STATE.cosmTab = btn.dataset.cosmtab; mount(); });
+      });
+      // Frame equip/unequip
+      document.querySelectorAll("[data-equip-frame]").forEach(slot => {
+        slot.addEventListener("click", () => {
+          const id = slot.dataset.equipFrame;
+          if (getEquippedFrame(STATE.student) === id) unequipFrame(STATE.student);
+          else equipFrame(STATE.student, id);
+          mount();
+        });
+      });
+      // Avatar equip/unequip
+      document.querySelectorAll("[data-equip-avatar]").forEach(slot => {
+        slot.addEventListener("click", () => {
+          const id = slot.dataset.equipAvatar;
+          if (getEquippedAvatarOverride(STATE.student) === id) unequipAvatarOverride(STATE.student);
+          else equipAvatarOverride(STATE.student, id);
+          mount();
+        });
+      });
+      // Revert to custom character
+      $("cosm-revert-avatar") && $("cosm-revert-avatar").addEventListener("click", () => {
+        unequipAvatarOverride(STATE.student);
+        mount();
+      });
     }
 
     // Student companion picker
@@ -5149,7 +5708,8 @@ function bindEvents() {
           const poolLand = land && land.name;
           STATE.shopConfirmItem = null; STATE.shopOpen = false;
           if (poolLand && (EQUIP_POOLS[poolLand] || PET_POOLS[poolLand])) {
-            awardFromPool(student, poolLand, 'rare', () => mount());
+            const _doShopLoot = () => awardFromPool(student, poolLand, 'rare', () => mount());
+            if (!tryMysteryDrop(student, 'shop', _doShopLoot)) _doShopLoot();
           } else {
             mount();
           }
@@ -5190,6 +5750,11 @@ function bindEvents() {
     $("t-dash-logout") && $("t-dash-logout").addEventListener("click", () => { STATE.screen = "code"; mount(); });
     $("t-board-view") && $("t-board-view").addEventListener("click", () => { STATE.screen = "board-view"; mount(); });
     $("t-gold-shop-btn") && $("t-gold-shop-btn").addEventListener("click", () => { STATE.teacherGoldShopOpen = true; mount(); });
+    $("t-boss-roster-btn") && $("t-boss-roster-btn").addEventListener("click", () => {
+      STATE.screen = "teacher-boss-roster";
+      STATE.bossRosterMarks = {};
+      mount();
+    });
     if (STATE.teacherGoldShopOpen) {
       const closeTGS = () => { STATE.teacherGoldShopOpen = false; mount(); };
       $("tgs-close") && $("tgs-close").addEventListener("click", closeTGS);
@@ -5517,6 +6082,40 @@ function bindEvents() {
       }
     });
 
+    /* Gold input — live save on change */
+    $("gold-inp") && $("gold-inp").addEventListener("change", e => {
+      const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+      saveStudentOverride(STATE.teacherStudent.id, { gold: val });
+    });
+
+    /* Remove companion chip */
+    document.querySelectorAll(".chip-x[data-remove-companion]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const file = btn.dataset.removeCompanion;
+        const ov = getOverrides().students[String(STATE.teacherStudent.id)] || {};
+        saveStudentOverride(STATE.teacherStudent.id, { companions: (ov.companions || []).filter(f => f !== file) });
+        mount();
+      });
+    });
+    /* Add companion */
+    $("add-companion-sel") && $("add-companion-sel").addEventListener("change", e => {
+      if (e.target.value) { awardCompanion(STATE.teacherStudent, e.target.value); mount(); }
+    });
+
+    /* Remove cosmetic chip */
+    document.querySelectorAll(".chip-x[data-remove-cosm]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.removeCosm;
+        const ov = getOverrides().students[String(STATE.teacherStudent.id)] || {};
+        saveStudentOverride(STATE.teacherStudent.id, { unlockedCosmetics: (ov.unlockedCosmetics || []).filter(c => c !== id) });
+        mount();
+      });
+    });
+    /* Add cosmetic */
+    $("add-cosm-sel") && $("add-cosm-sel").addEventListener("change", e => {
+      if (e.target.value) { unlockCosmetic(STATE.teacherStudent, e.target.value); mount(); }
+    });
+
     /* Clear help flag */
     $("clear-flag-btn") && $("clear-flag-btn").addEventListener("click", () => {
       clearHelpFlag(STATE.teacherStudent.id); mount();
@@ -5534,6 +6133,9 @@ function bindEvents() {
       const extraOverrides = landVal === 0 ? { completedLand0: false } : {};
       const guildSel = $("guild-sel");
       const guildVal = guildSel ? guildSel.value : undefined;
+      const _prevOv = getOverrides().students[String(STATE.teacherStudent.id)] || {};
+      const prevLand = _prevOv.currentLand || 0;
+      const prevGuild = _prevOv.guild || null;
       saveStudentOverride(STATE.teacherStudent.id, {
         hp: STATE.teacherEdit.hp,
         mp: STATE.teacherEdit.mp,
@@ -5548,6 +6150,17 @@ function bindEvents() {
         ...(guildVal !== undefined ? { guild: guildVal || null } : {}),
         ...extraOverrides,
       });
+      // Unlock land frames for any lands the student has now passed
+      if (landVal > prevLand) {
+        const stub = { id: STATE.teacherStudent.id };
+        for (let lid = prevLand; lid < landVal; lid++) {
+          if (lid >= 1) unlockCosmeticsForLandComplete(stub, lid);
+        }
+      }
+      // Unlock guild frame if guild was just assigned (changed from previous)
+      if (guildVal && guildVal !== prevGuild) {
+        unlockCosmeticsForGuild(STATE.teacherStudent.id, guildVal);
+      }
       STATE.screen = "teacher-dash";
       const toast = document.createElement("div");
       toast.className = "toast"; toast.textContent = "✅ Changes saved for " + STATE.teacherStudent.displayName;
@@ -5796,6 +6409,56 @@ function bindEvents() {
     });
   }
 
+  if (STATE.screen === "teacher-boss-roster") {
+    $("brs-back") && $("brs-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; mount(); });
+    // Period tabs
+    document.querySelectorAll("[data-brs-pi]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        STATE.bossRosterPeriodIdx = parseInt(btn.dataset.brsPi, 10);
+        STATE.bossRosterMarks = {};
+        mount();
+      });
+    });
+    // Boss selector
+    const brsSel = $("boss-roster-sel");
+    brsSel && brsSel.addEventListener("change", () => {
+      STATE.bossRosterKey = brsSel.value;
+      STATE.bossRosterMarks = {};
+      mount();
+    });
+    // Defeated / Retake per-student buttons
+    document.querySelectorAll("[data-brs-sid]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sid = btn.dataset.brsSid;
+        const mark = btn.dataset.brsMark;
+        // Toggle off if already selected
+        if (STATE.bossRosterMarks[sid] === mark) {
+          STATE.bossRosterMarks[sid] = null;
+        } else {
+          STATE.bossRosterMarks[sid] = mark;
+        }
+        mount();
+      });
+    });
+    // Submit
+    $("brs-submit") && $("brs-submit").addEventListener("click", () => {
+      const key = STATE.bossRosterKey;
+      if (!key) return;
+      const entries = Object.entries(STATE.bossRosterMarks).filter(([, v]) => v !== null && v !== undefined);
+      entries.forEach(([sid, mark]) => setBossStatus(sid, key, mark));
+      const count = entries.length;
+      STATE.bossRosterMarks = {};
+      STATE.screen = "teacher-dash";
+      mount();
+      // Show toast notification
+      const toast = document.createElement("div");
+      toast.className = "gold-toast";
+      toast.innerHTML = `<div class="gold-pop">✅ Boss results saved for ${count} student${count !== 1 ? 's' : ''}!</div>`;
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.classList.add("gold-toast-out"); setTimeout(() => toast.remove(), 380); }, 2000);
+    });
+  }
+
   if (STATE.screen === "writing-event") {
     $("we-back") && $("we-back").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
 
@@ -5872,12 +6535,15 @@ function bindEvents() {
       const url = STATE.bossTile?.pearUrl || "https://app.peardeck.com";
       window.open(url, "_blank", "noopener");
     });
-    $("boss-defeat-btn") && $("boss-defeat-btn").addEventListener("click", () => {
+    $("boss-confirm-btn") && $("boss-confirm-btn").addEventListener("click", () => {
       const tile = STATE.bossTile;
       const land = STATE.bossLand || LANDS[0];
       const student = STATE.student;
+      const bossKey = `${land.id}_${tile.id}`;
       const isDungeon = tile.type === "dungeon";
       const isFirstBoss = !hasCompletedAnyBoss(student);
+      // Mark confirmed
+      setBossStatus(student.id, bossKey, 'confirmed');
       // Advance the student past this tile
       const pos = getLandPos(student);
       const completed = [...(pos.completed||[])];
@@ -5885,33 +6551,34 @@ function bindEvents() {
       saveStudentOverride(student.id, { completedTiles: completed });
       logActivity(student.id, isDungeon ? '🏰' : '⚔️', `Defeated ${tile.name}!`);
       advanceStudentTile(student, land);
+      // Cosmetics unlock for boss/dungeon defeat
+      unlockCosmeticsForBoss(student, tile.name);
       // Loot drops
       const _bossLandName = land && land.name;
-      if (_bossLandName) {
-        if (isDungeon) {
-          awardFromPool(student, _bossLandName, 'legendary');
-        } else {
-          awardFromPool(student, _bossLandName, 'epic');
-        }
-        awardSeasonalBadge(student);
-        checkAndAwardSpecialBadges(student);
-      }
-      // Determine companion to award
+      awardGold(student, 20);
+      logActivity(student.id, '🪙', `Earned 20 Gold for defeating ${tile.name}!`);
+      const _afterBossGold = () => { STATE.screen = "quest-map"; mount(); };
       let companionFile = null;
       if (isDungeon) {
         companionFile = randFrom(companionsByRarity("rare")).file;
       } else if (isFirstBoss) {
         companionFile = randFrom(companionsByRarity("common")).file;
       }
-      awardGold(student, 20);
-      logActivity(student.id, '🪙', `Earned 20 Gold for defeating ${tile.name}!`);
-      const _afterBossGold = () => { STATE.screen = "quest-map"; mount(); };
-      if (companionFile) {
-        awardCompanion(student, companionFile);
-        showCompanionReveal(companionFile, () => showGoldToast(20, _afterBossGold));
-      } else {
-        showGoldToast(20, _afterBossGold);
-      }
+      const _doBossLoot = () => {
+        if (_bossLandName) {
+          if (isDungeon) awardFromPool(student, _bossLandName, 'legendary');
+          else awardFromPool(student, _bossLandName, 'epic');
+          awardSeasonalBadge(student);
+          checkAndAwardSpecialBadges(student);
+        }
+        if (companionFile) {
+          awardCompanion(student, companionFile);
+          showCompanionReveal(companionFile, () => showGoldToast(20, _afterBossGold));
+        } else {
+          showGoldToast(20, _afterBossGold);
+        }
+      };
+      if (!tryMysteryDrop(student, 'boss', _doBossLoot)) _doBossLoot();
     });
   }
 
@@ -6029,22 +6696,25 @@ function bindEvents() {
                       : _shouldDone ? 0.35
                       : 0.15;
       const _hasPool = _poolLand && (EQUIP_POOLS[_poolLand] || PET_POOLS[_poolLand]);
-      if (_hasPool && Math.random() < _dropRate) {
-        const _dropTier = (_shouldDone && _aspireDone) ? 'rare' : 'common';
-        if (Math.random() < 0.2) awardSeasonalBadge(STATE.student);
-        checkAndAwardSpecialBadges(STATE.student);
-        // Show loot popup first, then XP — with 2500ms fallback (FIX 1)
-        let _xpFired = false;
-        const _showXPOnce = () => { if (!_xpFired) { _xpFired = true; _showMainXP(); } };
-        setTimeout(_showXPOnce, 2500);
-        awardFromPool(STATE.student, _poolLand, _dropTier, _showXPOnce);
-      } else {
-        if (_hasPool) {
+      const _doNormalLoot = () => {
+        if (_hasPool && Math.random() < _dropRate) {
+          const _dropTier = (_shouldDone && _aspireDone) ? 'rare' : 'common';
           if (Math.random() < 0.2) awardSeasonalBadge(STATE.student);
           checkAndAwardSpecialBadges(STATE.student);
+          // Show loot popup first, then XP — with 2500ms fallback (FIX 1)
+          let _xpFired = false;
+          const _showXPOnce = () => { if (!_xpFired) { _xpFired = true; _showMainXP(); } };
+          setTimeout(_showXPOnce, 2500);
+          awardFromPool(STATE.student, _poolLand, _dropTier, _showXPOnce);
+        } else {
+          if (_hasPool) {
+            if (Math.random() < 0.2) awardSeasonalBadge(STATE.student);
+            checkAndAwardSpecialBadges(STATE.student);
+          }
+          _showMainXP();
         }
-        _showMainXP();
-      }
+      };
+      if (!tryMysteryDrop(STATE.student, 'lesson', _doNormalLoot)) _doNormalLoot();
     });
     document.querySelectorAll(".ls-check").forEach(cb => {
       cb.addEventListener("change", () => {
