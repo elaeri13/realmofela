@@ -2460,7 +2460,10 @@ function renderHub() {
                          MYSTERY_POOL.find(p => p.id === equippedFrameId && p.type === 'frame') || null)
                       : null;
                     if (_frameDef) {
-                      const innerScale = _frameDef.innerScale || 0.70;
+                      const isSpecialAvatar = !!equippedAvatarOverrideId;
+                      const innerScale = isSpecialAvatar
+                        ? (_frameDef.specialAvatarInnerScale || 0.87)
+                        : (_frameDef.innerScale || 0.70);
                       const innerPct = Math.round(innerScale * 100) + '%';
                       return `<div class="avatar-hub-frame-wrap">
                         <img src="${displayAvatarUrl}" style="width:${innerPct};height:${innerPct};border-radius:50%;object-fit:contain;flex-shrink:0;z-index:1" alt="Avatar"/>
