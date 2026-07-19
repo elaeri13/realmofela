@@ -1019,6 +1019,14 @@ const LANDS = [
     pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,26,27],
   },
 ];
+/* ─── SCRIBE'S SANCTUM TILES ─── */
+const SANCTUM_TILES = [
+  { id:1, name:"Planning Table",   img:"/tiles/01-planning-table.png",  flavor:"Gather your thoughts before the ink flows." },
+  { id:2, name:"Drafting Desk",    img:"/tiles/02-drafting-desk.png",   flavor:"Let your first words take shape upon the page." },
+  { id:3, name:"Revision Mirror",  img:"/tiles/03-revision-mirror.png", flavor:"See your work through honest, critical eyes." },
+  { id:4, name:"Editing Quill",    img:"/tiles/04-editing-quill.png",   flavor:"Polish every sentence to its finest form." },
+  { id:5, name:"Scribe's Podium",  img:"/tiles/05-scribes-podium.png",  flavor:"Present your masterwork to the Ancient Scribe." },
+];
 /* ─── LAND 0: THE STARTING GROUNDS (Prologue) ─── */
 const LAND0 = {
   id:0, name:"The Starting Grounds", subtitle:"Prologue", biome:0,
@@ -1136,6 +1144,24 @@ function savePreEventPosition(studentId, landId, tileId) {
 function getPreEventPosition(student) {
   const ov = _overrides[String(student.id)] || {};
   return { landId: ov.preEventLandId || null, tileId: ov.preEventTileId || null };
+}
+function getSanctumProgress(student, landId) {
+  const ov = _overrides[String(student.id)] || {};
+  return (ov.sanctumProgress || {})[String(landId)] || 0;
+}
+function setSanctumProgress(studentId, landId, progress) {
+  const sid = String(studentId);
+  if (!_overrides[sid]) _overrides[sid] = {};
+  if (!_overrides[sid].sanctumProgress) _overrides[sid].sanctumProgress = {};
+  _overrides[sid].sanctumProgress[String(landId)] = progress;
+  set(ref(db, `overrides/${sid}/sanctumProgress/${landId}`), progress).catch(console.error);
+}
+function isInSanctum(student) {
+  const ov = _overrides[String(student.id)] || {};
+  const preLand = ov.preEventLandId;
+  if (!preLand) return null;
+  const ws = (ov.bossStatus || {})[`event_${preLand}`] || 'not_attempted';
+  return ws === 'confirmed' ? null : preLand;
 }
 function getHelpFlags() {
   return Object.assign({}, _helpflags);
@@ -1912,7 +1938,8 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               scribeIntroOpen: false, bossIntroOpen: false,
               writingHoldIdx: 0, bossHoldIdx: 0,
               writingTransportDir: 'in',
-              sanctumReturnOpen: false, sanctumReturnLandId: null };
+              sanctumReturnOpen: false, sanctumReturnLandId: null,
+              sanctumLand: null, sanctumTileOpen: null, writingEventReturnTo: 'quest-map' };
 
 /* ─── CHIBI SVG ─── */
 function chibiSVG(cls, size) {
@@ -3260,6 +3287,112 @@ function renderArrivalScreen() {
       </div>
       <button class="arrival-btn" id="arrival-begin">Begin Your Quest! ⚔️</button>
     </div>
+  </div>`;
+}
+
+function renderSanctumMap() {
+  const land = STATE.sanctumLand || STATE.lessonLand || LANDS[0];
+  const landId = land.id;
+  const student = STATE.student;
+  const we = CLASS_DATA && CLASS_DATA.writingEvents && CLASS_DATA.writingEvents["land" + landId];
+  const writeStatus = getWriteStatus(student, landId);
+  const progress = getSanctumProgress(student, landId);
+
+  // Tile positions on 1200×680 canvas — gentle arc
+  const POSITIONS = [
+    {x:64,  y:380}, {x:290, y:230}, {x:572, y:175},
+    {x:854, y:230}, {x:1080,y:380},
+  ];
+
+  // Per-tile state: done < progress, current = progress+1 (or podium when progress>=4), else locked
+  const tileNodes = SANCTUM_TILES.map((st, i) => {
+    const {x, y} = POSITIONS[i];
+    let state;
+    const isPodium = st.id === 5;
+    if (isPodium) {
+      if (writeStatus === 'submitted' || writeStatus === 'approved' || writeStatus === 'revision') state = 'submitted';
+      else if (writeStatus === 'confirmed') state = 'done';
+      else if (progress >= 4) state = 'current';
+      else state = 'locked';
+    } else {
+      if (i + 1 <= progress) state = 'done';
+      else if (i + 1 === progress + 1) state = 'current';
+      else state = 'locked';
+    }
+    const clickable = state === 'current' || state === 'done' || state === 'submitted' || state === 'approved' || state === 'revision';
+    return `<div class="st-tile st-tile-${state}${clickable ? ' st-tile-click' : ''}" style="left:${x}px;top:${y}px"${clickable ? ` data-st="${st.id}"` : ''}>
+      <div class="st-tile-img-wrap">
+        <img src="${st.img}" alt="${st.name}" width="112" height="112" onerror="this.style.display='none'"/>
+        ${state === 'done' ? '<div class="st-done-badge">✓</div>' : ''}
+        ${state === 'current' ? '<div class="st-pulse"></div>' : ''}
+        ${state === 'submitted' ? '<div class="st-pulse st-pulse-gold"></div>' : ''}
+        ${state === 'approved' ? '<div class="st-done-badge st-done-badge-green">✓</div>' : ''}
+        ${state === 'revision' ? '<div class="st-done-badge st-done-badge-orange">✍</div>' : ''}
+      </div>
+      <div class="st-tile-label">${st.name}</div>
+    </div>`;
+  }).join('');
+
+  // SVG path
+  const pts = POSITIONS.map(p => `${p.x + 56},${p.y + 56}`);
+  const pathD = `M ${pts.join(' L ')}`;
+
+  // Scribe intro overlay
+  const bossName = (we && we.boss) ? we.boss : 'The Ancient Scribe';
+  const bossSrc  = we && we.portrait ? `/bosses/${we.portrait}` : null;
+  const introOverlay = STATE.scribeIntroOpen ? `
+    <div class="boss-intro-overlay" id="scribe-intro-overlay">
+      <div class="boss-intro-card">
+        <div class="boss-intro-eyebrow">✦ The Scribe's Sanctum ✦</div>
+        ${bossSrc ? `<img class="boss-intro-portrait" src="${bossSrc}" onerror="this.style.display='none'"/>` : `<div style="font-size:48px;margin:0 auto 12px;text-align:center">📜</div>`}
+        <div class="boss-intro-name">${bossName}</div>
+        <p class="boss-intro-text">"Welcome, young author. A great work stirs within you. Make your way through the Sanctum — each station will guide your craft."</p>
+        <button class="boss-intro-btn" id="scribe-intro-close">Answer the Calling →</button>
+      </div>
+    </div>` : '';
+
+  // Station modal (tiles 1–4 click)
+  const openSt = STATE.sanctumTileOpen ? SANCTUM_TILES.find(t => t.id === STATE.sanctumTileOpen) : null;
+  const stModal = (openSt && openSt.id < 5) ? `
+    <div class="boss-intro-overlay" id="st-modal-overlay">
+      <div class="boss-intro-card">
+        <div class="boss-intro-eyebrow">✦ Station ${openSt.id} of 5 ✦</div>
+        <img src="${openSt.img}" style="width:96px;height:96px;object-fit:contain;margin:0 auto 12px;display:block" onerror="this.style.display='none'"/>
+        <div class="boss-intro-name">${openSt.name}</div>
+        <p class="boss-intro-text">"${openSt.flavor}"</p>
+        <button class="boss-intro-btn" id="st-continue-btn">Continue →</button>
+      </div>
+    </div>` : '';
+
+  // Status bar beneath the map
+  const statusBars = {
+    submitted: `<div class="sanctum-status-bar sb-wait">⏳ Awaiting the Scribe's review — your teacher will update your status here.</div>`,
+    approved:  `<div class="sanctum-status-bar sb-ok">✅ The Scribe is Pleased — visit the Podium to claim your reward!</div>`,
+    revision:  `<div class="sanctum-status-bar sb-rev">📝 Revision requested — visit the Podium to view feedback and resubmit.</div>`,
+  };
+
+  return `<div class="screen sanctum-screen">
+    <div class="sanctum-bg" style="background-image:url('/tiles/scribes-sanctum-bg.png')"></div>
+    <div class="sanctum-nav">
+      <button class="btn-back" id="sanctum-back">← Return to Map</button>
+      <div class="ls-breadcrumb">
+        <span class="ls-bc-land">${land.name}</span>
+        <span class="ls-bc-sep">›</span>
+        <span class="ls-bc-tile">Scribe's Sanctum</span>
+      </div>
+    </div>
+    <div class="sanctum-map-outer">
+      <div class="sanctum-map-inner">
+        <svg class="st-path-svg" viewBox="0 0 1200 680" preserveAspectRatio="xMidYMid meet">
+          <path d="${pathD}" fill="none" stroke="rgba(245,224,144,.15)" stroke-width="10"/>
+          <path d="${pathD}" fill="none" stroke="rgba(245,224,144,.45)" stroke-width="3" stroke-dasharray="10 6"/>
+        </svg>
+        ${tileNodes}
+      </div>
+    </div>
+    ${statusBars[writeStatus] || ''}
+    ${introOverlay}
+    ${stModal}
   </div>`;
 }
 
@@ -5360,6 +5493,7 @@ function mount() {
   if (STATE.screen === "travel-screen")  root.innerHTML = renderTravelScreen();
   if (STATE.screen === "boss-screen")   root.innerHTML = renderBossScreen();
   if (STATE.screen === "writing-transport") root.innerHTML = renderWritingTransport();
+  if (STATE.screen === "sanctum-map")    root.innerHTML = renderSanctumMap();
   if (STATE.screen === "lesson-stop")   root.innerHTML = renderLessonStop();
   if (STATE.screen === "writing-event")  root.innerHTML = renderWritingEvent();
   if (STATE.screen === "teacher-tile")   root.innerHTML = renderTeacherTileView();
@@ -5429,7 +5563,21 @@ function bindEvents() {
             if (STATE.pin === STATE.student.pin) {
               const _pos = getLandPos(STATE.student);
               const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0;
-              STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
+              const _inSanctumLand = isInSanctum(STATE.student);
+              if (_inSanctumLand) {
+                const _sLand = LANDS.find(l => l.id === _inSanctumLand);
+                if (_sLand) {
+                  STATE.sanctumLand = _sLand;
+                  STATE.lessonLand  = _sLand;
+                  STATE.lessonTile  = _sLand.tiles.find(t => t.type === 'event') || null;
+                  STATE.writingEventReturnTo = 'sanctum-map';
+                  STATE.screen = "sanctum-map";
+                } else {
+                  STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
+                }
+              } else {
+                STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
+              }
               STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false; mount();
             } else {
               STATE.pinError = "Incorrect secret number! Try again, brave adventurer.";
@@ -6518,14 +6666,17 @@ function bindEvents() {
       } else if (tile.type === "event") {
         const _evPos = getLandPos(STATE.student);
         savePreEventPosition(STATE.student.id, land.id, _evPos.tile);
+        STATE.sanctumLand = land;
         STATE.lessonTile = tile;
         STATE.lessonLand = land;
         STATE.lessonOpenedAt = Date.now();
         STATE.scribeIntroOpen = true;
+        STATE.sanctumTileOpen = null;
+        STATE.writingEventReturnTo = 'sanctum-map';
         STATE.writingTransportDir = 'in';
         STATE.screen = "writing-transport";
         mount();
-        setTimeout(() => { if (STATE.screen === "writing-transport") { STATE.screen = "writing-event"; mount(); } }, 2600);
+        setTimeout(() => { if (STATE.screen === "writing-transport") { STATE.screen = "sanctum-map"; mount(); } }, 2600);
       } else if (tile.type === "lesson" || (tile.type === "loot" && tile.parentTileId)) {
         STATE.lessonTile = tile;
         STATE.lessonLand = land;
@@ -6672,7 +6823,10 @@ function bindEvents() {
   }
 
   if (STATE.screen === "writing-event") {
-    $("we-back") && $("we-back").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
+    $("we-back") && $("we-back").addEventListener("click", () => {
+      STATE.screen = STATE.writingEventReturnTo === 'sanctum-map' ? "sanctum-map" : "quest-map";
+      mount();
+    });
 
     // Scribe intro overlay close
     $("scribe-intro-close") && $("scribe-intro-close").addEventListener("click", () => { STATE.scribeIntroOpen = false; mount(); });
@@ -6736,9 +6890,13 @@ function bindEvents() {
       STATE.sanctumReturnOpen = true;
       STATE.sanctumReturnLandId = land.id;
       showXPCelebration(tileXP(tile), levelsGained, newLevel, () => {
-        STATE.screen = "writing-transport";
-        mount();
-        setTimeout(() => { if (STATE.screen === "writing-transport") { STATE.screen = "quest-map"; mount(); } }, 2600);
+        STATE.screen = "writing-transport"; mount();
+        setTimeout(() => {
+          if (STATE.screen === "writing-transport") {
+            STATE.writingEventReturnTo = 'quest-map';
+            STATE.screen = "quest-map"; mount();
+          }
+        }, 2600);
       });
     });
 
@@ -6746,6 +6904,48 @@ function bindEvents() {
       const land = STATE.lessonLand || LANDS[0];
       setWriteStatus(STATE.student.id, land.id, 'not_attempted');
       mount();
+    });
+  }
+
+  if (STATE.screen === "sanctum-map") {
+    $("sanctum-back") && $("sanctum-back").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
+
+    $("scribe-intro-close") && $("scribe-intro-close").addEventListener("click", () => { STATE.scribeIntroOpen = false; mount(); });
+    $("scribe-intro-overlay") && $("scribe-intro-overlay").addEventListener("click", e => {
+      if (e.target === $("scribe-intro-overlay")) { STATE.scribeIntroOpen = false; mount(); }
+    });
+
+    // Station tile clicks
+    document.querySelectorAll(".st-tile-click[data-st]").forEach(el => {
+      el.addEventListener("click", () => {
+        const stId = parseInt(el.dataset.st, 10);
+        const land = STATE.sanctumLand || STATE.lessonLand || LANDS[0];
+        if (stId === 5) {
+          // Podium — open writing-event
+          STATE.writingEventReturnTo = 'sanctum-map';
+          STATE.screen = "writing-event";
+          mount();
+        } else {
+          // Stations 1–4 — show flavor modal
+          STATE.sanctumTileOpen = stId;
+          mount();
+        }
+      });
+    });
+
+    // Station continue button (advances progress)
+    $("st-continue-btn") && $("st-continue-btn").addEventListener("click", () => {
+      const land = STATE.sanctumLand || STATE.lessonLand || LANDS[0];
+      const stId = STATE.sanctumTileOpen;
+      if (!stId) return;
+      const current = getSanctumProgress(STATE.student, land.id);
+      if (stId > current) setSanctumProgress(STATE.student.id, land.id, stId);
+      STATE.sanctumTileOpen = null;
+      mount();
+    });
+
+    $("st-modal-overlay") && $("st-modal-overlay").addEventListener("click", e => {
+      if (e.target === $("st-modal-overlay")) { STATE.sanctumTileOpen = null; mount(); }
     });
   }
 
