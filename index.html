@@ -1427,6 +1427,42 @@ input  { font-family: var(--font-body); }
 /* Frame overlay on avatar */
 .avatar-frame-overlay { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; pointer-events:none; z-index:2; }
 .avatar-hub-frame-wrap { position:relative; width:250px; height:250px; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+/* ── Writing Transport ── */
+.wt-screen { position:fixed; inset:0; z-index:8000; background:#0a0517; display:flex; align-items:center; justify-content:center; flex-direction:column; }
+.wt-inkblast { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+@keyframes wt-swirl { 0% { transform:scale(0) rotate(0deg); opacity:0; } 40% { opacity:.8; } 100% { transform:scale(60) rotate(720deg); opacity:0; } }
+.wt-title-card { position:relative; z-index:2; text-align:center; animation:wt-fade-in 1s ease .8s both; }
+.wt-title-card h1 { font-family:var(--font-display); font-size:clamp(28px,6vw,52px); color:#F5E090; text-shadow:0 0 40px rgba(245,224,144,.6); margin:0; }
+.wt-title-card p { color:rgba(255,255,255,.55); font-size:16px; margin-top:12px; }
+@keyframes wt-fade-in { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:none; } }
+/* ── Boss / Scribe intro popup ── */
+.boss-intro-overlay { position:fixed; inset:0; z-index:8500; display:flex; align-items:center; justify-content:center; background:rgba(10,5,30,.82); backdrop-filter:blur(6px); }
+.boss-intro-card { background:linear-gradient(160deg,#1e103a 0%,#0d1f3c 100%); border:2px solid rgba(168,139,250,.45); border-radius:20px; padding:32px 28px; max-width:420px; width:90%; text-align:center; animation:mystery-card-pop .35s cubic-bezier(.34,1.56,.64,1); }
+.boss-intro-eyebrow { font-size:11px; font-weight:800; letter-spacing:2px; color:rgba(168,139,250,.7); text-transform:uppercase; margin-bottom:12px; }
+.boss-intro-portrait { width:120px; height:120px; object-fit:contain; margin:0 auto 12px; display:block; border-radius:50%; }
+.boss-intro-name { font-family:var(--font-display); font-size:24px; font-weight:900; color:#fff; margin-bottom:8px; }
+.boss-intro-text { font-size:14px; color:rgba(255,255,255,.75); line-height:1.6; margin-bottom:20px; font-style:italic; }
+.boss-intro-btn { background:linear-gradient(135deg,#7C3AED,#5B21B6); color:#fff; border:none; border-radius:12px; padding:12px 28px; font-size:14px; font-weight:700; cursor:pointer; transition:background .2s; }
+.boss-intro-btn:hover { background:linear-gradient(135deg,#8B5CF6,#6D28D9); }
+/* ── Boss submitted / holding state ── */
+.boss-holding-card { background:rgba(168,139,250,.08); border:2px solid rgba(168,139,250,.2); border-radius:16px; padding:20px 24px; margin:16px 0; text-align:center; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.boss-holding-spinner { width:36px; height:36px; border:3px solid rgba(168,139,250,.2); border-top-color:#A78BFA; border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 10px; }
+.boss-holding-label { font-size:11px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:rgba(168,139,250,.6); margin-bottom:8px; }
+.boss-holding-text { font-size:14px; color:rgba(255,255,255,.7); line-height:1.6; font-style:italic; }
+/* ── Scribe approval ── */
+.scribe-approved-banner { font-family:var(--font-display); font-size:22px; font-weight:900; color:#34D399; text-align:center; margin:6px 0; }
+.scribe-approved-glow { color:#34D399; filter:drop-shadow(0 0 20px rgba(52,211,153,.5)); font-size:44px; display:block; text-align:center; margin-bottom:4px; }
+/* ── Writing submitted state ── */
+.we-submitted-card { background:rgba(168,139,250,.08); border:2px solid rgba(168,139,250,.2); border-radius:16px; padding:20px 24px; margin:16px 0; text-align:center; }
+.we-submitted-icon { font-size:36px; display:block; margin-bottom:10px; }
+.we-submitted-title { font-family:var(--font-display); font-size:18px; color:#A78BFA; margin-bottom:8px; }
+.we-submitted-body { font-size:14px; color:rgba(255,255,255,.7); line-height:1.6; font-style:italic; }
+/* ── Sanctum return popup ── */
+.sanctum-return-overlay { position:fixed; inset:0; z-index:8500; display:flex; align-items:center; justify-content:center; background:rgba(10,5,30,.80); backdrop-filter:blur(6px); }
+.sanctum-return-card { background:linear-gradient(160deg,#1e103a 0%,#0d1f3c 100%); border:2px solid rgba(245,158,11,.45); border-radius:20px; padding:28px; max-width:380px; width:90%; text-align:center; animation:mystery-card-pop .35s cubic-bezier(.34,1.56,.64,1); }
+.sanctum-return-card h2 { font-family:var(--font-display); font-size:20px; color:#F59E0B; margin:0 0 12px; }
+.sanctum-return-card p { font-size:14px; color:rgba(255,255,255,.75); line-height:1.6; margin-bottom:20px; font-style:italic; }
 /* Mystery Drop reveal overlay */
 .mystery-reveal-overlay { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; background:rgba(10,5,30,.75); backdrop-filter:blur(6px); animation:mystery-fade-in .3s ease; }
 .mystery-reveal-overlay.mystery-reveal-out { animation:mystery-fade-out .35s ease forwards; }

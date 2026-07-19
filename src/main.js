@@ -1120,6 +1120,23 @@ function setBossStatus(studentId, bossKey, status) {
   _overrides[sid].bossStatus[bossKey] = status;
   set(ref(db, `overrides/${sid}/bossStatus/${bossKey}`), status).catch(console.error);
 }
+function getWriteStatus(student, landId) {
+  return getBossStatus(student, `event_${landId}`);
+}
+function setWriteStatus(studentId, landId, status) {
+  setBossStatus(studentId, `event_${landId}`, status);
+}
+function savePreEventPosition(studentId, landId, tileId) {
+  const sid = String(studentId);
+  if (!_overrides[sid]) _overrides[sid] = {};
+  _overrides[sid].preEventLandId = landId;
+  _overrides[sid].preEventTileId = tileId;
+  update(ref(db, `overrides/${sid}`), { preEventLandId: landId, preEventTileId: tileId }).catch(console.error);
+}
+function getPreEventPosition(student) {
+  const ov = _overrides[String(student.id)] || {};
+  return { landId: ov.preEventLandId || null, tileId: ov.preEventTileId || null };
+}
 function getHelpFlags() {
   return Object.assign({}, _helpflags);
 }
@@ -1891,7 +1908,11 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               sg0Open:false, sg0Tile:null,
               sg0GuildReveal:null,
               catchUpModalOpen:false, gradeFromCatchUp:false,
-              teacherResetConfirm:false };
+              teacherResetConfirm:false,
+              scribeIntroOpen: false, bossIntroOpen: false,
+              writingHoldIdx: 0, bossHoldIdx: 0,
+              writingTransportDir: 'in',
+              sanctumReturnOpen: false, sanctumReturnLandId: null };
 
 /* ─── CHIBI SVG ─── */
 function chibiSVG(cls, size) {
@@ -3242,6 +3263,24 @@ function renderArrivalScreen() {
   </div>`;
 }
 
+function renderWritingTransport() {
+  const isReturn = STATE.writingTransportDir === 'out';
+  const accentRgb = isReturn ? '245,158,11' : '90,40,160';
+  const particles = Array.from({length:22}, (_,i) => {
+    const x = 5 + ((i*37+13)%85), y = 5 + ((i*53+17)%85);
+    const size = 6 + (i%5)*7, delay = (i*0.07).toFixed(2);
+    return `<span style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;animation-delay:${delay}s;position:absolute;border-radius:50%;background:rgba(${accentRgb},.45);animation:wt-swirl 1.9s ease-in-out ${delay}s forwards;"></span>`;
+  }).join('');
+  return `<div class="screen wt-screen">
+    <div class="wt-inkblast">${particles}</div>
+    <div class="wt-title-card">
+      <div style="font-size:11px;font-weight:800;letter-spacing:2px;color:rgba(168,139,250,.75);text-transform:uppercase;margin-bottom:16px">✦ ${isReturn ? 'RETURNING HOME' : 'WRITING EVENT'} ✦</div>
+      <h1>${isReturn ? 'The Calling Answered' : "The Scribe's Calling"}</h1>
+      <p>${isReturn ? 'Your land awaits...' : 'The Sanctum awaits...'}</p>
+    </div>
+  </div>`;
+}
+
 function renderBossScreen() {
   const tile    = STATE.bossTile  || {};
   const land    = STATE.bossLand  || LANDS[0];
@@ -3271,6 +3310,17 @@ function renderBossScreen() {
     : `<div class="boss-portrait boss-portrait-fallback">${BOSS_ICON[bossName] || "👹"}</div>`;
 
   const tombstoneHTML = `<img src="/bosses/defeated-tombstone.png" alt="Defeated" class="boss-portrait boss-tombstone" onerror="this.style.display='none'"/>`;
+
+  const introOverlay = (STATE.bossIntroOpen && bossStatus === 'not_attempted') ? `
+    <div class="boss-intro-overlay" id="boss-intro-overlay">
+      <div class="boss-intro-card">
+        <div class="boss-intro-eyebrow">⚔ Boss Encounter ⚔</div>
+        ${portrait ? `<img class="boss-intro-portrait" src="/bosses/${portrait}" onerror="this.style.display='none'"/>` : `<div style="font-size:48px;text-align:center;margin:12px auto">${BOSS_ICON[bossName] || '👹'}</div>`}
+        <div class="boss-intro-name">${bossName}</div>
+        <p class="boss-intro-text">"Before your skills can be judged, you must face the assessment. Study the lore well — your knowledge will carry you through."</p>
+        <button class="boss-intro-btn" id="boss-intro-close">Enter the Battle →</button>
+      </div>
+    </div>` : '';
 
   let bodyHTML = '';
 
@@ -3321,6 +3371,27 @@ function renderBossScreen() {
       <button class="boss-fight-btn enter" id="boss-fight-btn" style="animation-delay:.22s">
         ↩ Retake Boss Fight
       </button>`;
+  } else if (bossStatus === 'submitted') {
+    const holdLines = [
+      '"The ancient chamber awaits your results..."',
+      '"Your teacher is reviewing the scrolls..."',
+      '"Patience, young scholar. Judgment comes..."',
+    ];
+    const holdText = holdLines[Math.floor(Date.now()/4000) % holdLines.length];
+    bodyHTML = `
+      <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
+        ${portraitHTML}
+      </div>
+      <div class="boss-identity enter" style="animation-delay:.12s">
+        <h1 class="boss-name">${bossName}</h1>
+        ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ''}</div>` : ''}
+      </div>
+      <div class="boss-holding-card enter" style="animation-delay:.16s">
+        <div class="boss-holding-label">⏳ Awaiting Judgment</div>
+        <div class="boss-holding-spinner"></div>
+        <div class="boss-holding-text">${holdText}</div>
+      </div>
+      <p class="boss-awaiting-review enter" style="animation-delay:.22s">Your teacher will review your results and update your status here.</p>`;
   } else {
     // State 4 — Normal / not_attempted
     bodyHTML = `
@@ -3347,7 +3418,10 @@ function renderBossScreen() {
       <button class="boss-fight-btn enter" id="boss-fight-btn" style="animation-delay:.25s">
         ⚔️ Begin Boss Fight
       </button>
-      <p class="boss-awaiting-review enter" style="animation-delay:.30s">After completing your assessment, your teacher will review and update your status here.</p>`;
+      <button class="boss-fight-btn enter" id="boss-complete-btn" style="animation-delay:.28s;background:linear-gradient(135deg,#059669,#047857);margin-top:8px">
+        ✅ My Battle Is Complete
+      </button>
+      <p class="boss-awaiting-review enter" style="animation-delay:.32s">Complete the assessment above, then tap "My Battle Is Complete" — your teacher will review and confirm your results.</p>`;
   }
 
   return `
@@ -3367,7 +3441,8 @@ function renderBossScreen() {
       ${bodyHTML}
 
     </div>
-  </div>`;
+  </div>
+  ${introOverlay}`;
 }
 
 function renderPartnerPickerModal() {
@@ -3644,47 +3719,141 @@ function renderNpcModal() {
 function renderWritingEvent() {
   const tile = STATE.lessonTile;
   const land = STATE.lessonLand || LANDS[0];
+  const student = STATE.student;
   const we   = CLASS_DATA && CLASS_DATA.writingEvents && CLASS_DATA.writingEvents["land" + land.id];
-  const prog = tile ? getTaskProgress(STATE.student.id, tile.id) : {};
+  const writeStatus = getWriteStatus(student, land.id);
+
+  const particles = Array.from({length:16}, (_,i) => {
+    const x=3+((i*67)%94), y=3+((i*137)%94), size=1.5+(i%4);
+    const delay=((i*0.38)%3.2).toFixed(2), dur=(2.2+(i%4)*.6).toFixed(1);
+    return `<span class="we-particle" style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
+  }).join('');
+
+  const bossName = (we && we.boss) ? we.boss : 'The Ancient Scribe';
+  const bossSrc  = we && we.portrait ? `/bosses/${we.portrait}` : null;
+  const bossPortrait = bossSrc
+    ? `<div class="boss-portrait-wrap" style="margin:12px 0 4px"><img class="boss-portrait" src="${bossSrc}" alt="${bossName}" width="200" height="200" style="width:clamp(140px,35vw,200px);height:clamp(140px,35vw,200px)" onerror="this.parentNode.innerHTML='<div class=\\'boss-portrait boss-portrait-fallback\\'>📜</div>'"/></div>`
+    : `<div style="font-size:56px;text-align:center;margin:12px 0">📜</div>`;
+
+  const introOverlay = STATE.scribeIntroOpen ? `
+    <div class="boss-intro-overlay" id="scribe-intro-overlay">
+      <div class="boss-intro-card">
+        <div class="boss-intro-eyebrow">✦ The Scribe's Sanctum ✦</div>
+        ${bossSrc ? `<img class="boss-intro-portrait" src="${bossSrc}" onerror="this.style.display='none'"/>` : `<div style="font-size:48px;margin:0 auto 12px;text-align:center">📜</div>`}
+        <div class="boss-intro-name">${bossName}</div>
+        <p class="boss-intro-text">"Welcome, young author. A great work stirs within you. Gather your thoughts, hone your craft, and let the story emerge. The Sanctum is yours."</p>
+        <button class="boss-intro-btn" id="scribe-intro-close">Answer the Calling →</button>
+      </div>
+    </div>` : '';
+
+  if (writeStatus === 'confirmed') {
+    return `<div class="screen we-screen">${particles}
+      <a class="we-return" id="we-back">← Return to Map</a>
+      <div class="we-inner">
+        <div class="we-header">
+          <div class="we-title">⚔ THE SCRIBE'S SANCTUM ⚔</div>
+          ${bossPortrait}
+          <div class="we-boss scribe-approved-banner">✅ The Scribe is Pleased</div>
+        </div>
+        <div style="text-align:center;font-size:13px;font-weight:700;color:rgba(255,255,255,.4);margin-top:8px">✓ Writing task completed</div>
+      </div>${introOverlay}
+    </div>`;
+  }
+
+  if (writeStatus === 'approved') {
+    return `<div class="screen we-screen">${particles}
+      <a class="we-return" id="we-back">← Return to Map</a>
+      <div class="we-inner">
+        <div class="we-header">
+          <div class="we-title">⚔ THE SCRIBE'S SANCTUM ⚔</div>
+          ${bossPortrait}
+          <span class="scribe-approved-glow">✅</span>
+          <div class="scribe-approved-banner">The Scribe is Pleased!</div>
+          <div class="we-boss" style="color:rgba(255,255,255,.65)">${bossName}</div>
+        </div>
+        <div class="we-submitted-card" style="background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.25)">
+          <div class="we-submitted-body">"Your words have found their strength. The Sanctum acknowledges your effort. Claim your reward, young author — you have earned it."</div>
+        </div>
+        <button class="we-ready-btn enter" id="we-confirm-btn" style="background:linear-gradient(135deg,#059669,#047857)">
+          📜 Claim My Reward
+        </button>
+      </div>${introOverlay}
+    </div>`;
+  }
+
+  if (writeStatus === 'submitted') {
+    const holdLines = [
+      '"The Scribe studies your words with careful eyes..."',
+      '"Your story echoes through the halls of the Sanctum..."',
+      '"Patience, young author. The judgment comes in time..."',
+    ];
+    const holdText = holdLines[Math.floor(Date.now()/4000) % holdLines.length];
+    return `<div class="screen we-screen">${particles}
+      <a class="we-return" id="we-back">← Return to Map</a>
+      <div class="we-inner">
+        <div class="we-header">
+          <div class="we-title">⚔ THE SCRIBE'S SANCTUM ⚔</div>
+          ${bossPortrait}
+          <div class="we-boss">${bossName}</div>
+        </div>
+        <div class="we-submitted-card">
+          <span class="we-submitted-icon">⏳</span>
+          <div class="we-submitted-title">The Scribe Reviews Your Work</div>
+          <div class="we-submitted-body">${holdText}</div>
+        </div>
+        <p class="boss-awaiting-review" style="margin-top:12px">Your teacher will review your writing and update your status here.</p>
+      </div>${introOverlay}
+    </div>`;
+  }
+
+  if (writeStatus === 'revision') {
+    return `<div class="screen we-screen">${particles}
+      <a class="we-return" id="we-back">← Return to Map</a>
+      <div class="we-inner">
+        <div class="we-header">
+          <div class="we-title">⚔ THE SCRIBE'S SANCTUM ⚔</div>
+          ${bossPortrait}
+          <div class="we-boss">${bossName}</div>
+        </div>
+        <div class="boss-retake-card enter">
+          <div class="boss-retake-title">📝 Revision Requested</div>
+          <p class="boss-retake-msg">Your teacher has reviewed your writing and has some feedback. Revise your work in the Craft Binder, then resubmit when ready.</p>
+        </div>
+        <button class="we-ready-btn enter" id="we-resubmit-btn" style="background:linear-gradient(135deg,#7C3AED,#5B21B6)">
+          ✍ Resubmit My Writing
+        </button>
+      </div>${introOverlay}
+    </div>`;
+  }
+
+  // not_attempted — normal checklist UI
+  const prog = tile ? getTaskProgress(student.id, tile.id) : {};
   const checks = prog.event || [];
   const checklist = we ? we.checklist : [];
-  const allDone = checklist.length > 0 && checklist.every((_, i) => checks[i]);
-
-  const particles = Array.from({length:16}, (_, i) => {
-    const x = 3 + ((i * 67) % 94);
-    const y = 3 + ((i * 137) % 94);
-    const size = 1.5 + (i % 4);
-    const delay = ((i * 0.38) % 3.2).toFixed(2);
-    const dur   = (2.2 + (i % 4) * 0.6).toFixed(1);
-    return `<span class="we-particle" style="left:${x}%;top:${y}%;width:${size}px;height:${size}px;animation-delay:${delay}s;animation-duration:${dur}s"></span>`;
-  }).join("");
-
-  const checkItems = checklist.map((item, i) => {
+  const allDone = checklist.length > 0 && checklist.every((_,i) => checks[i]);
+  const checkItems = checklist.map((item,i) => {
     const checked = checks[i] || false;
     return `<label class="we-check-item${checked?" checked":""}">
       <input type="checkbox" class="we-cb" data-idx="${i}"${checked?" checked":""}>
       <span class="we-check-icon">${checked?"✓":""}</span>
       <span>${item}</span>
     </label>`;
-  }).join("") || `<p style="color:rgba(255,255,255,.4);text-align:center;font-size:13px">Checklist coming soon.</p>`;
+  }).join('') || `<p style="color:rgba(255,255,255,.4);text-align:center;font-size:13px">Checklist coming soon.</p>`;
 
-  return `<div class="screen we-screen">
-    ${particles}
+  return `<div class="screen we-screen">${particles}
     <a class="we-return" id="we-back">← Return to Map</a>
     <div class="we-inner">
       <div class="we-header">
-        <div class="we-title">⚔ THE SCRIBE'S CALLING ⚔</div>
-        ${we && we.portrait
-          ? `<div class="boss-portrait-wrap" style="margin:12px 0 4px">
-               <img class="boss-portrait" src="/bosses/${we.portrait}" alt="${we.boss}" width="260" height="260"
-                    style="width:clamp(160px,40vw,260px);height:clamp(160px,40vw,260px)"
-                    onerror="this.parentNode.innerHTML='<div class=\\'boss-portrait boss-portrait-fallback\\' style=\\'width:clamp(160px,40vw,260px);height:clamp(160px,40vw,260px)\\'>📜</div>'"/>
-             </div>`
-          : ""}
-        <div class="we-boss">${we ? we.boss + " awaits..." : "The Scribe awaits..."}</div>
+        <div class="we-title">⚔ THE SCRIBE'S SANCTUM ⚔</div>
+        ${we && we.portrait ? `<div class="boss-portrait-wrap" style="margin:12px 0 4px">
+          <img class="boss-portrait" src="/bosses/${we.portrait}" alt="${bossName}" width="260" height="260"
+               style="width:clamp(160px,40vw,260px);height:clamp(160px,40vw,260px)"
+               onerror="this.parentNode.innerHTML='<div class=\\'boss-portrait boss-portrait-fallback\\' style=\\'width:clamp(160px,40vw,260px);height:clamp(160px,40vw,260px)\\'>📜</div>'"/>
+        </div>` : ''}
+        <div class="we-boss">${bossName} awaits...</div>
         <div class="we-badges">
-          ${we ? `<span class="we-badge we-badge-type">${we.type.toUpperCase()}</span>` : ""}
-          ${we ? `<span class="we-badge we-badge-std">${we.standard}</span>` : ""}
+          ${we ? `<span class="we-badge we-badge-type">${we.type.toUpperCase()}</span>` : ''}
+          ${we ? `<span class="we-badge we-badge-std">${we.standard}</span>` : ''}
         </div>
       </div>
       <div class="we-prompt-card">
@@ -3693,14 +3862,13 @@ function renderWritingEvent() {
       </div>
       <div class="we-checklist-section">
         <div class="we-cl-title">Writer's Checklist</div>
-        <div class="we-checklist" id="we-checklist">
-          ${checkItems}
-        </div>
-        <button class="we-ready-btn${allDone?"":" disabled"}" id="we-ready-btn"${allDone?"":" disabled"}>
-          ${allDone ? "✍ I Am Ready to Write" : "Check off all items to continue"}
+        <div class="we-checklist" id="we-checklist">${checkItems}</div>
+        <button class="we-ready-btn${allDone?'':" disabled"}" id="we-ready-btn"${allDone?'':' disabled'}>
+          ${allDone ? '⚔ My Battle Is Complete' : 'Check off all items to continue'}
         </button>
       </div>
     </div>
+    ${introOverlay}
   </div>`;
 }
 
@@ -4046,6 +4214,18 @@ function renderQuestMap() {
     ${renderSg0Modal()}
     ${renderGuildReveal()}
     ${renderBossLockedModal()}
+    ${STATE.sanctumReturnOpen ? (() => {
+      const sanctumLand = LANDS.find(l => l.id === STATE.sanctumReturnLandId) || LANDS[0];
+      const dungeonTile = sanctumLand.tiles.find(t => t.type === 'dungeon');
+      const dungeonName = dungeonTile ? dungeonTile.name : 'the dungeon';
+      return `<div class="sanctum-return-overlay" id="sanctum-return-popup">
+        <div class="sanctum-return-card">
+          <h2>⚔ ${dungeonName}</h2>
+          <p>"${dungeonName} senses your newfound power... The dungeon awaits."</p>
+          <button class="boss-intro-btn" id="sanctum-return-close">Return to the Map</button>
+        </div>
+      </div>`;
+    })() : ''}
   </div>`;
 }
 
@@ -5021,17 +5201,22 @@ function renderBossRoster() {
   const periods = CLASS_DATA.periods || [];
 
   // Build boss options from all LANDS
-  const bossOptions = LANDS.flatMap(land =>
-    land.tiles
+  const bossOptions = LANDS.flatMap(land => [
+    ...land.tiles
       .filter(t => t.type === 'boss' || t.type === 'dungeon')
       .map(t => ({
         key: `${land.id}_${t.id}`,
         label: `${land.name} — ${t.name}${t.skill ? ' (' + t.skill + ')' : ''}`,
-        landId: land.id,
-        tileId: t.id,
-        bossName: t.name
-      }))
-  );
+        landId: land.id, tileId: t.id, bossName: t.name, isWriting: false,
+      })),
+    ...land.tiles
+      .filter(t => t.type === 'event')
+      .map(t => ({
+        key: `event_${land.id}`,
+        label: `${land.name} — ${t.name} (Writing)`,
+        landId: land.id, tileId: t.id, bossName: t.name, isWriting: true,
+      })),
+  ]);
 
   // Initialize bossRosterKey if null
   if (!STATE.bossRosterKey && bossOptions.length) {
@@ -5079,6 +5264,16 @@ function renderBossRoster() {
       let buttonsHTML;
       if (confirmed) {
         buttonsHTML = `<span style="color:#9CA3AF;font-size:12px">—</span>`;
+      } else if (currentOpt && currentOpt.isWriting) {
+        if (status === 'submitted') {
+          const aSel = pendingMark === 'approved'  ? ' brs-selected' : '';
+          const vSel = pendingMark === 'revision'  ? ' brs-selected' : '';
+          buttonsHTML = `
+            <button class="brs-btn brs-btn-defeated${aSel}" data-brs-sid="${student.id}" data-brs-mark="approved">✅ Approve</button>
+            <button class="brs-btn brs-btn-retake${vSel}" data-brs-sid="${student.id}" data-brs-mark="revision">📝 Needs Revision</button>`;
+        } else {
+          buttonsHTML = `<span style="color:#9CA3AF;font-size:12px;font-style:italic">${status === 'not_attempted' ? 'Not submitted' : status}</span>`;
+        }
       } else {
         const dSel = pendingMark === 'defeated' ? ' brs-selected' : '';
         const rSel = pendingMark === 'retake'   ? ' brs-selected' : '';
@@ -5164,6 +5359,7 @@ function mount() {
   if (STATE.screen === "arrival-screen") root.innerHTML = renderArrivalScreen();
   if (STATE.screen === "travel-screen")  root.innerHTML = renderTravelScreen();
   if (STATE.screen === "boss-screen")   root.innerHTML = renderBossScreen();
+  if (STATE.screen === "writing-transport") root.innerHTML = renderWritingTransport();
   if (STATE.screen === "lesson-stop")   root.innerHTML = renderLessonStop();
   if (STATE.screen === "writing-event")  root.innerHTML = renderWritingEvent();
   if (STATE.screen === "teacher-tile")   root.innerHTML = renderTeacherTileView();
@@ -6202,6 +6398,12 @@ function bindEvents() {
   /* QUEST MAP */
   if (STATE.screen === "quest-map") {
     $("qm-back") && $("qm-back").addEventListener("click", () => { STATE.screen = "hub"; mount(); });
+    // Sanctum return popup close
+    $("sanctum-return-close") && $("sanctum-return-close").addEventListener("click", () => {
+      STATE.sanctumReturnOpen = false;
+      STATE.sanctumReturnLandId = null;
+      mount();
+    });
     $("sq-board-btn") && $("sq-board-btn").addEventListener("click", () => {
       const pos = getLandPos(STATE.student);
       const land = getLandData(pos.land);
@@ -6314,11 +6516,16 @@ function bindEvents() {
         STATE.screen = "arrival-screen";
         mount();
       } else if (tile.type === "event") {
+        const _evPos = getLandPos(STATE.student);
+        savePreEventPosition(STATE.student.id, land.id, _evPos.tile);
         STATE.lessonTile = tile;
         STATE.lessonLand = land;
         STATE.lessonOpenedAt = Date.now();
-        STATE.screen = "writing-event";
+        STATE.scribeIntroOpen = true;
+        STATE.writingTransportDir = 'in';
+        STATE.screen = "writing-transport";
         mount();
+        setTimeout(() => { if (STATE.screen === "writing-transport") { STATE.screen = "writing-event"; mount(); } }, 2600);
       } else if (tile.type === "lesson" || (tile.type === "loot" && tile.parentTileId)) {
         STATE.lessonTile = tile;
         STATE.lessonLand = land;
@@ -6328,6 +6535,8 @@ function bindEvents() {
       } else if (tile.type === "boss" || tile.type === "dungeon") {
         STATE.bossTile = tile;
         STATE.bossLand = land;
+        const _bkIntro = `${land.id}_${tile.id}`;
+        STATE.bossIntroOpen = getBossStatus(STATE.student, _bkIntro) === 'not_attempted';
         STATE.screen = "boss-screen";
         mount();
       }
@@ -6465,6 +6674,10 @@ function bindEvents() {
   if (STATE.screen === "writing-event") {
     $("we-back") && $("we-back").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
 
+    // Scribe intro overlay close
+    $("scribe-intro-close") && $("scribe-intro-close").addEventListener("click", () => { STATE.scribeIntroOpen = false; mount(); });
+    $("scribe-intro-overlay") && $("scribe-intro-overlay").addEventListener("click", e => { if (e.target === $("scribe-intro-overlay")) { STATE.scribeIntroOpen = false; mount(); } });
+
     // Checkbox toggle — save state and re-render button live
     document.querySelectorAll(".we-cb").forEach(cb => {
       cb.addEventListener("change", () => {
@@ -6488,7 +6701,7 @@ function bindEvents() {
         if (btn) {
           btn.disabled = !allDone;
           btn.classList.toggle("disabled", !allDone);
-          btn.textContent = allDone ? "✍ I Am Ready to Write" : "Check off all items to continue";
+          btn.textContent = allDone ? '⚔ My Battle Is Complete' : 'Check off all items to continue';
         }
       });
     });
@@ -6502,14 +6715,37 @@ function bindEvents() {
       const checks = prog.event || [];
       const allDone = we && we.checklist.every((_, i) => checks[i]);
       if (!allDone) return;
+      setWriteStatus(STATE.student.id, land.id, 'submitted');
+      mount();
+    });
+
+    $("we-confirm-btn") && $("we-confirm-btn").addEventListener("click", () => {
+      const tile = STATE.lessonTile;
+      const land = STATE.lessonLand || LANDS[0];
+      const student = STATE.student;
+      if (!tile) return;
+      setWriteStatus(student.id, land.id, 'confirmed');
       const timeOnPage = Math.round((Date.now() - (STATE.lessonOpenedAt || Date.now())) / 1000);
-      const { levelsGained, newLevel } = awardXP(STATE.student, tileXP(tile));
-      saveTileCompletion(STATE.student.id, tile.id, timeOnPage);
-      completeBranchTile(STATE.student, tile.id);
-      advanceStudentTile(STATE.student, land);
+      const { levelsGained, newLevel } = awardXP(student, tileXP(tile));
+      saveTileCompletion(student.id, tile.id, timeOnPage);
+      completeBranchTile(student, tile.id);
+      advanceStudentTile(student, land);
+      awardGold(student, 15);
+      logActivity(student.id, '📜', `Completed The Scribe's Calling on ${land.name}!`);
+      STATE.writingTransportDir = 'out';
+      STATE.sanctumReturnOpen = true;
+      STATE.sanctumReturnLandId = land.id;
       showXPCelebration(tileXP(tile), levelsGained, newLevel, () => {
-        STATE.screen = "quest-map"; mount();
+        STATE.screen = "writing-transport";
+        mount();
+        setTimeout(() => { if (STATE.screen === "writing-transport") { STATE.screen = "quest-map"; mount(); } }, 2600);
       });
+    });
+
+    $("we-resubmit-btn") && $("we-resubmit-btn").addEventListener("click", () => {
+      const land = STATE.lessonLand || LANDS[0];
+      setWriteStatus(STATE.student.id, land.id, 'not_attempted');
+      mount();
     });
   }
 
@@ -6534,6 +6770,17 @@ function bindEvents() {
 
   if (STATE.screen === "boss-screen") {
     $("boss-back") && $("boss-back").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
+    // Boss intro overlay close
+    $("boss-intro-close") && $("boss-intro-close").addEventListener("click", () => { STATE.bossIntroOpen = false; mount(); });
+    $("boss-intro-overlay") && $("boss-intro-overlay").addEventListener("click", e => { if (e.target === $("boss-intro-overlay")) { STATE.bossIntroOpen = false; mount(); } });
+    // "My Battle Is Complete" — submit for teacher review
+    $("boss-complete-btn") && $("boss-complete-btn").addEventListener("click", () => {
+      const tile = STATE.bossTile;
+      const land = STATE.bossLand || LANDS[0];
+      if (!tile) return;
+      setBossStatus(STATE.student.id, `${land.id}_${tile.id}`, 'submitted');
+      mount();
+    });
     $("boss-fight-btn") && $("boss-fight-btn").addEventListener("click", () => {
       const url = STATE.bossTile?.pearUrl || "https://app.peardeck.com";
       window.open(url, "_blank", "noopener");
