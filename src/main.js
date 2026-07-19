@@ -1021,11 +1021,46 @@ const LANDS = [
 ];
 /* ─── SCRIBE'S SANCTUM TILES ─── */
 const SANCTUM_TILES = [
-  { id:1, name:"Planning Table",   img:"/tiles/01-planning-table.png",  flavor:"Gather your thoughts before the ink flows." },
-  { id:2, name:"Drafting Desk",    img:"/tiles/02-drafting-desk.png",   flavor:"Let your first words take shape upon the page." },
-  { id:3, name:"Revision Mirror",  img:"/tiles/03-revision-mirror.png", flavor:"See your work through honest, critical eyes." },
-  { id:4, name:"Editing Quill",    img:"/tiles/04-editing-quill.png",   flavor:"Polish every sentence to its finest form." },
-  { id:5, name:"Scribe's Podium",  img:"/tiles/05-scribes-podium.png",  flavor:"Present your masterwork to the Ancient Scribe." },
+  { id:1, name:"Planning Table",  img:"/tiles/01-planning-table.png",  action:"Plan",
+    checklist:[
+      "I read the writing prompt carefully",
+      "I know what type of writing this is asking for",
+      "I identified my topic or main idea",
+      "I thought about my audience and purpose",
+      "I brainstormed ideas before I started writing",
+    ]},
+  { id:2, name:"Drafting Desk",   img:"/tiles/02-drafting-desk.png",   action:"Outline",
+    checklist:[
+      "I created an outline for my writing",
+      "My outline has an introduction, body, and conclusion",
+      "I identified my main points or plot events",
+      "I know what evidence or details I will use",
+      "My outline follows the prompt requirements",
+    ]},
+  { id:3, name:"Revision Mirror", img:"/tiles/03-revision-mirror.png", action:"Write",
+    checklist:[
+      "I used my outline to write my draft",
+      "I wrote a strong introduction",
+      "Each paragraph has a main idea and supporting details",
+      "I used transition words to connect my ideas",
+      "I wrote a conclusion that wraps up my writing",
+    ]},
+  { id:4, name:"Editing Quill",   img:"/tiles/04-editing-quill.png",   action:"Edit",
+    checklist:[
+      "I checked my spelling",
+      "I checked my punctuation and capitalization",
+      "I read my writing aloud to catch errors",
+      "My sentences are complete and make sense",
+      "I made corrections to my draft",
+    ]},
+  { id:5, name:"Scribe's Podium", img:"/tiles/05-scribes-podium.png",  action:"Revise",
+    checklist:[
+      "I reread my entire piece from beginning to end",
+      "My writing clearly answers the prompt",
+      "I strengthened any weak sentences or ideas",
+      "I am proud of this piece and ready to submit",
+      "I clicked \"My Battle Is Complete\" to notify my teacher",
+    ]},
 ];
 /* ─── LAND 0: THE STARTING GROUNDS (Prologue) ─── */
 const LAND0 = {
@@ -1076,6 +1111,13 @@ function findTileById(tileId) {
 }
 
 const LAND_EMOJIS = ["🌿","⛏️","🌊","🌿","🕯️","⚡"];
+const LAND_TRAVEL_COPY = {
+  2: "Ancient power sleeps in these halls.",
+  3: "Something stirs beneath the waves.",
+  4: "The forest does not welcome strangers.",
+  5: "Not all shadows are empty.",
+  6: "The final reckoning awaits.",
+};
 /* Grid: CW=140 RH=200 X0=70 Y0=70
    Fork1 TOP:   loops below boss1(490,70)  → rejoins tile5(630,70)
    Fork2 RIGHT: loops right of boss2(770,270) → rejoins tile15(630,470)
@@ -1155,6 +1197,18 @@ function setSanctumProgress(studentId, landId, progress) {
   if (!_overrides[sid].sanctumProgress) _overrides[sid].sanctumProgress = {};
   _overrides[sid].sanctumProgress[String(landId)] = progress;
   set(ref(db, `overrides/${sid}/sanctumProgress/${landId}`), progress).catch(console.error);
+}
+function getSanctumChecklist(student, landId, tileId) {
+  const ov = _overrides[String(student.id)] || {};
+  return ((ov.sanctumChecklist || {})[String(landId)] || {})[String(tileId)] || 0;
+}
+function setSanctumChecklist(studentId, landId, tileId, bits) {
+  const sid = String(studentId);
+  if (!_overrides[sid]) _overrides[sid] = {};
+  if (!_overrides[sid].sanctumChecklist) _overrides[sid].sanctumChecklist = {};
+  if (!_overrides[sid].sanctumChecklist[String(landId)]) _overrides[sid].sanctumChecklist[String(landId)] = {};
+  _overrides[sid].sanctumChecklist[String(landId)][String(tileId)] = bits;
+  set(ref(db, `overrides/${sid}/sanctumChecklist/${landId}/${tileId}`), bits).catch(console.error);
 }
 function isInSanctum(student) {
   const ov = _overrides[String(student.id)] || {};
@@ -1596,6 +1650,28 @@ function advanceStudentTile(student, land) {
   if (!completed.includes(pos.tile)) completed.push(pos.tile);
   saveStudentOverride(student.id, { currentTile: nextId, completedTiles: completed });
 }
+function triggerLandTravel(student, fromLand) {
+  const nextIdx = LANDS.findIndex(l => l.id === fromLand.id) + 1;
+  if (nextIdx >= LANDS.length) {
+    // Land 6 complete — realm end screen
+    STATE.screen = "realm-complete";
+    mount();
+    return;
+  }
+  const nextLand = LANDS[nextIdx];
+  const firstTileId = (nextLand.pathOrder || [])[0] || 1;
+  saveStudentOverride(student.id, {
+    currentLand: nextLand.id,
+    currentTile: firstTileId,
+    completedTiles: [],
+  });
+  STATE.travelDestName = nextLand.name;
+  STATE.travelDestDesc = LAND_TRAVEL_COPY[nextLand.id] || "";
+  STATE.screen = "land-travel";
+  mount();
+  // Title card visible 1.0–3.8s; map fades in at 4.8s
+  setTimeout(() => { STATE.screen = "quest-map"; mount(); }, 4800);
+}
 function completeBranchTile(student, tileId) {
   const pos = getLandPos(student);
   const completed = (pos.completed || []).slice();
@@ -1939,7 +2015,8 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               writingHoldIdx: 0, bossHoldIdx: 0,
               writingTransportDir: 'in',
               sanctumReturnOpen: false, sanctumReturnLandId: null,
-              sanctumLand: null, sanctumTileOpen: null, writingEventReturnTo: 'quest-map' };
+              sanctumLand: null, sanctumTileOpen: null, writingEventReturnTo: 'quest-map',
+              travelDestDesc: null };
 
 /* ─── CHIBI SVG ─── */
 function chibiSVG(cls, size) {
@@ -3271,6 +3348,49 @@ function renderTravelScreen() {
   </div>`;
 }
 
+function renderLandTravelScreen() {
+  const destName = STATE.travelDestName || "The Next Land";
+  const destDesc = STATE.travelDestDesc || "";
+  // Stars: mix of streaks (wide) and dots, scattered across the full screen
+  const stars = Array.from({length:40}, (_, i) => {
+    const x = (i * 7.3 + 3) % 100;
+    const y = (i * 11.7 + 5) % 100;
+    const len = 6 + (i % 5) * 10;
+    const delay = ((i * 0.09) % 1.8).toFixed(2);
+    const dur   = (0.5 + (i % 4) * 0.18).toFixed(2);
+    const opacity = 0.35 + (i % 5) * 0.13;
+    return `<span class="lt-star" style="left:${x}%;top:${y}%;width:${len}px;animation-delay:${delay}s;animation-duration:${dur}s;opacity:${opacity}"></span>`;
+  }).join("");
+  return `<div class="screen lt-screen">
+    <div class="lt-starfield">${stars}</div>
+    <div class="lt-title-card">
+      <div class="lt-eyebrow">Now entering</div>
+      <div class="lt-land-name">${destName}</div>
+      ${destDesc ? `<div class="lt-land-desc">${destDesc}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderRealmComplete() {
+  const student = STATE.student;
+  const name = student ? (student.name || "Hero") : "Hero";
+  return `<div class="screen rc-screen">
+    <div class="rc-starfield">${Array.from({length:30},(_,i)=>{
+      const x=(i*9.1+4)%100, y=(i*13.3+6)%100;
+      const d=((i*0.12)%2).toFixed(2), s=(0.6+(i%4)*0.25).toFixed(2);
+      return `<span class="lt-star" style="left:${x}%;top:${y}%;width:${4+(i%4)*8}px;animation-delay:${d}s;animation-duration:${s}s;opacity:${0.3+(i%5)*0.12}"></span>`;
+    }).join('')}</div>
+    <div class="rc-content">
+      <div class="rc-eyebrow">✦ The Realm is Complete ✦</div>
+      <h1 class="rc-title">You Have Conquered the Realm</h1>
+      <p class="rc-hero">${name}</p>
+      <p class="rc-body">Six lands. Every darkness faced. Every page mastered.<br>The Realm of ELA bows before its champion.</p>
+      <div class="rc-crest">⚔️</div>
+      <button class="boss-intro-btn rc-btn" id="rc-return-btn">Return to the Realm →</button>
+    </div>
+  </div>`;
+}
+
 function renderArrivalScreen() {
   const land = STATE.arrivalLand || LANDS[0];
   return `<div class="screen arrival-screen">
@@ -3351,18 +3471,36 @@ function renderSanctumMap() {
       </div>
     </div>` : '';
 
-  // Station modal (tiles 1–4 click)
+  // Station modal (all tile clicks — checklist)
   const openSt = STATE.sanctumTileOpen ? SANCTUM_TILES.find(t => t.id === STATE.sanctumTileOpen) : null;
-  const stModal = (openSt && openSt.id < 5) ? `
-    <div class="boss-intro-overlay" id="st-modal-overlay">
-      <div class="boss-intro-card">
-        <div class="boss-intro-eyebrow">✦ Station ${openSt.id} of 5 ✦</div>
-        <img src="${openSt.img}" style="width:96px;height:96px;object-fit:contain;margin:0 auto 12px;display:block" onerror="this.style.display='none'"/>
-        <div class="boss-intro-name">${openSt.name}</div>
-        <p class="boss-intro-text">"${openSt.flavor}"</p>
-        <button class="boss-intro-btn" id="st-continue-btn">Continue →</button>
+  const stModal = openSt ? (() => {
+    const bits = getSanctumChecklist(student, landId, openSt.id);
+    const allChecked = bits === 31;
+    const isPodium = openSt.id === 5;
+    const checkItems = openSt.checklist.map((text, idx) => {
+      const checked = !!(bits & (1 << idx));
+      return `<li class="st-check-item">
+        <label class="st-check-label">
+          <input type="checkbox" class="st-checkbox" data-idx="${idx}" ${checked ? 'checked' : ''}/>
+          <span class="st-check-text${checked ? ' st-check-done' : ''}">${text}</span>
+        </label>
+      </li>`;
+    }).join('');
+    const btnLabel = allChecked
+      ? (isPodium ? 'Submit to the Scribe ✦' : 'Mark Complete ✓')
+      : 'Complete the checklist to continue';
+    return `<div class="boss-intro-overlay" id="st-modal-overlay">
+      <div class="st-checklist-card">
+        <div class="boss-intro-eyebrow">✦ Station ${openSt.id} of 5 — ${openSt.action} ✦</div>
+        <img src="${openSt.img}" style="width:72px;height:72px;object-fit:contain;margin:0 auto 10px;display:block" onerror="this.style.display='none'"/>
+        <div class="boss-intro-name" style="margin-bottom:16px">${openSt.name}</div>
+        <ul class="st-checklist">
+          ${checkItems}
+        </ul>
+        <button class="boss-intro-btn" id="st-continue-btn" ${allChecked ? '' : 'disabled'}>${btnLabel}</button>
       </div>
-    </div>` : '';
+    </div>`;
+  })() : '';
 
   // Status bar beneath the map
   const statusBars = {
@@ -5494,6 +5632,8 @@ function mount() {
   if (STATE.screen === "boss-screen")   root.innerHTML = renderBossScreen();
   if (STATE.screen === "writing-transport") root.innerHTML = renderWritingTransport();
   if (STATE.screen === "sanctum-map")    root.innerHTML = renderSanctumMap();
+  if (STATE.screen === "land-travel")    root.innerHTML = renderLandTravelScreen();
+  if (STATE.screen === "realm-complete") root.innerHTML = renderRealmComplete();
   if (STATE.screen === "lesson-stop")   root.innerHTML = renderLessonStop();
   if (STATE.screen === "writing-event")  root.innerHTML = renderWritingEvent();
   if (STATE.screen === "teacher-tile")   root.innerHTML = renderTeacherTileView();
@@ -6921,27 +7061,55 @@ function bindEvents() {
         const stId = parseInt(el.dataset.st, 10);
         const land = STATE.sanctumLand || STATE.lessonLand || LANDS[0];
         if (stId === 5) {
-          // Podium — open writing-event
-          STATE.writingEventReturnTo = 'sanctum-map';
-          STATE.screen = "writing-event";
-          mount();
-        } else {
-          // Stations 1–4 — show flavor modal
-          STATE.sanctumTileOpen = stId;
-          mount();
+          const ws = getWriteStatus(STATE.student, land.id);
+          if (ws === 'submitted' || ws === 'approved' || ws === 'revision') {
+            // Teacher has responded — go to writing-event to see status
+            STATE.writingEventReturnTo = 'sanctum-map';
+            STATE.screen = "writing-event";
+            mount();
+            return;
+          }
         }
+        STATE.sanctumTileOpen = stId;
+        mount();
       });
     });
 
-    // Station continue button (advances progress)
+    // Checklist checkbox toggles — persist bit and re-render
+    document.querySelectorAll(".st-checkbox").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const land = STATE.sanctumLand || STATE.lessonLand || LANDS[0];
+        const stId = STATE.sanctumTileOpen;
+        if (!stId) return;
+        let bits = getSanctumChecklist(STATE.student, land.id, stId);
+        const idx = parseInt(cb.dataset.idx, 10);
+        if (cb.checked) bits |= (1 << idx);
+        else bits &= ~(1 << idx);
+        setSanctumChecklist(STATE.student.id, land.id, stId, bits);
+        mount();
+      });
+    });
+
+    // Station continue button
     $("st-continue-btn") && $("st-continue-btn").addEventListener("click", () => {
       const land = STATE.sanctumLand || STATE.lessonLand || LANDS[0];
       const stId = STATE.sanctumTileOpen;
       if (!stId) return;
-      const current = getSanctumProgress(STATE.student, land.id);
-      if (stId > current) setSanctumProgress(STATE.student.id, land.id, stId);
-      STATE.sanctumTileOpen = null;
-      mount();
+      const bits = getSanctumChecklist(STATE.student, land.id, stId);
+      if (bits !== 31) return;
+      if (stId === 5) {
+        // Tile 5 complete — submit to scribe (triggers holding state)
+        setWriteStatus(STATE.student.id, land.id, 'submitted');
+        const cur = getSanctumProgress(STATE.student, land.id);
+        if (5 > cur) setSanctumProgress(STATE.student.id, land.id, 5);
+        STATE.sanctumTileOpen = null;
+        mount();
+      } else {
+        const cur = getSanctumProgress(STATE.student, land.id);
+        if (stId > cur) setSanctumProgress(STATE.student.id, land.id, stId);
+        STATE.sanctumTileOpen = null;
+        mount();
+      }
     });
 
     $("st-modal-overlay") && $("st-modal-overlay").addEventListener("click", e => {
@@ -6966,6 +7134,10 @@ function bindEvents() {
         STATE.screen = "quest-map"; mount();
       }
     });
+  }
+
+  if (STATE.screen === "realm-complete") {
+    $("rc-return-btn") && $("rc-return-btn").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
   }
 
   if (STATE.screen === "boss-screen") {
@@ -7000,6 +7172,9 @@ function bindEvents() {
       if (!completed.includes(tile.id)) completed.push(tile.id);
       saveStudentOverride(student.id, { completedTiles: completed });
       logActivity(student.id, isDungeon ? '🏰' : '⚔️', `Defeated ${tile.name}!`);
+      // Detect final land boss (last tile in pathOrder)
+      const _pathOrder = land.pathOrder || [];
+      const _isFinalBoss = _pathOrder.length > 0 && tile.id === _pathOrder[_pathOrder.length - 1];
       advanceStudentTile(student, land);
       // Cosmetics unlock for boss/dungeon defeat
       unlockCosmeticsForBoss(student, tile.name);
@@ -7007,7 +7182,9 @@ function bindEvents() {
       const _bossLandName = land && land.name;
       awardGold(student, 20);
       logActivity(student.id, '🪙', `Earned 20 Gold for defeating ${tile.name}!`);
-      const _afterBossGold = () => { STATE.screen = "quest-map"; mount(); };
+      const _afterBossGold = _isFinalBoss
+        ? () => triggerLandTravel(student, land)
+        : () => { STATE.screen = "quest-map"; mount(); };
       let companionFile = null;
       if (isDungeon) {
         companionFile = randFrom(companionsByRarity("rare")).file;
