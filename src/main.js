@@ -3521,6 +3521,7 @@ function renderSanctumMap() {
     </div>
     <div class="sanctum-map-outer">
       <div class="sanctum-map-inner">
+        <img class="sanctum-boss-portrait" src="/bosses/boss_kaeltharion_bg.png" alt="" aria-hidden="true" onerror="this.style.display='none'"/>
         <svg class="st-path-svg" viewBox="0 0 1200 680" preserveAspectRatio="xMidYMid meet">
           <path d="${pathD}" fill="none" stroke="rgba(245,224,144,.15)" stroke-width="10"/>
           <path d="${pathD}" fill="none" stroke="rgba(245,224,144,.45)" stroke-width="3" stroke-dasharray="10 6"/>
@@ -3584,12 +3585,16 @@ function renderBossScreen() {
 
   const introOverlay = (STATE.bossIntroOpen && bossStatus === 'not_attempted') ? `
     <div class="boss-intro-overlay" id="boss-intro-overlay">
-      <div class="boss-intro-card">
-        <div class="boss-intro-eyebrow">⚔ Boss Encounter ⚔</div>
-        ${portrait ? `<img class="boss-intro-portrait" src="/bosses/${portrait}" onerror="this.style.display='none'"/>` : `<div style="font-size:48px;text-align:center;margin:12px auto">${BOSS_ICON[bossName] || '👹'}</div>`}
-        <div class="boss-intro-name">${bossName}</div>
-        <p class="boss-intro-text">"Before your skills can be judged, you must face the assessment. Study the lore well — your knowledge will carry you through."</p>
-        <button class="boss-intro-btn" id="boss-intro-close">Enter the Battle →</button>
+      <div class="boss-encounter-card${portrait ? '' : ' boss-encounter-card-fallback'}"${portrait ? ` style="background-image:url('/bosses/${portrait}')"` : ''}>
+        <div class="bec-eyebrow-bar">
+          <div class="boss-intro-eyebrow">⚔ Boss Encounter ⚔</div>
+        </div>
+        <div class="bec-content">
+          ${!portrait ? `<div class="bec-fallback-icon">${BOSS_ICON[bossName] || '👹'}</div>` : ''}
+          <div class="boss-intro-name">${bossName}</div>
+          <p class="boss-intro-text">"Before your skills can be judged, you must face the assessment. Study the lore well — your knowledge will carry you through."</p>
+          <button class="boss-intro-btn" id="boss-intro-close">Enter the Battle →</button>
+        </div>
       </div>
     </div>` : '';
 
