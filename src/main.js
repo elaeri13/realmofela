@@ -2226,16 +2226,6 @@ function renderError(msg) {
 }
 
 function renderCode() {
-  const digits = STATE.studentNumEntry || "";
-  const slots = [0,1,2].map(i =>
-    `<div class="pin-dot${digits.length > i ? " on" : ""}">${digits[i] || "·"}</div>`
-  ).join("");
-  const keys = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
-  const pad = keys.map(k => {
-    if (!k) return `<div class="num-empty"></div>`;
-    if (k === "⌫") return `<button class="num-btn num-del" id="num-del" ${digits.length===0?"disabled":""}>⌫</button>`;
-    return `<button class="num-btn" data-digit="${k}">${k}</button>`;
-  }).join("");
   return `
   <div class="screen screen-center">
     ${starsHTML()}
@@ -2253,10 +2243,16 @@ function renderCode() {
       <p class="logo-sub">Where Stories Come to Life</p>
       <p class="logo-school-sub">A 5th grade English Language Arts learning platform · Lake Charles Charter Academy</p>
       <div class="divider">✦ ✦ ✦</div>
-      <p class="form-hint">Enter your student number</p>
-      <div class="pin-dots" style="margin:1rem auto 0.25rem">${slots}</div>
+      <p class="form-hint">Enter your class code to begin your adventure!</p>
+      <div class="input-wrap" id="code-wrap">
+        <span class="input-icon">🗝️</span>
+        <input id="code-inp" class="code-input" type="text" placeholder="CLASS CODE" maxlength="20" autocomplete="off" spellcheck="false"/>
+      </div>
       ${STATE.pinError ? `<p class="error-box">⚠️ ${STATE.pinError}</p>` : ""}
-      <div class="numpad" style="margin:0.5rem auto 1rem">${pad}</div>
+      <button class="btn btn-purple btn-lg" id="code-btn">
+        <span>Enter the Realm</span><span class="btn-arrow">→</span>
+      </button>
+      <p class="footer-tip">💡 Ask your teacher for the class code</p>
       <button class="teacher-link" id="teacher-link-btn">🔐 Teacher Access</button>
       <p class="login-page-footer">Built and operated by Amber Odom, 5th Grade ELA, Lake Charles Charter Academy. This site stores no student-identifying information. <a href="/privacy" class="login-page-footer-link">Privacy</a></p>
     </div>
@@ -2266,19 +2262,21 @@ function renderCode() {
 function renderGrid() {
   const p = STATE.currentPeriod;
   const tiles = p.students.map((s, i) => {
-    const m   = getMergedStudent(s);
-    const cls = clsKey(s, m);
-    const av  = m.avatar || "avatar_blankchibi.png";
+    const m    = getMergedStudent(s);
+    const cls  = clsKey(s, m);
+    const av   = m.avatar || "avatar_blankchibi.png";
+    const charName = m.characterName;
+    const label = charName ? `${s.id} – ${charName}` : `${s.id}`;
     return `
     <button class="student-tile enter" style="animation-delay:${i*0.05}s" data-id="${s.id}">
       <div class="avatar-ring" style="border-color:${CLS_COLOR[cls]};padding:0">
-        <img src="/avatars/${av}" alt="${s.name}" width="130" height="130" loading="lazy"/>
+        <img src="/avatars/${av}" alt="${label}" width="130" height="130" loading="lazy"/>
       </div>
       <div>
-        <div class="tile-name">${s.name}</div>
-        <div class="tile-cls" style="color:${CLS_COLOR[cls]}">Lv.${s.level} ${CLS_LABEL[cls]}</div>
+        <div class="tile-name">${label}</div>
+        <div class="tile-cls" style="color:${CLS_COLOR[cls]}">Lv.${m.level} ${CLS_LABEL[cls]}</div>
       </div>
-      <span class="tile-lvl" style="background:${CLS_COLOR[cls]}">⭐ ${s.level}</span>
+      <span class="tile-lvl" style="background:${CLS_COLOR[cls]}">⭐ ${m.level}</span>
     </button>`;
   }).join("");
 
@@ -5838,62 +5836,24 @@ function mount() {
 function bindEvents() {
   const $ = id => document.getElementById(id);
 
-  /* STUDENT NUMBER ENTRY */
+  /* CLASS CODE */
   if (STATE.screen === "code") {
-    const _submitNumber = () => {
-      const num = parseInt(STATE.studentNumEntry, 10);
-      if (!isValidStudentNumber(num)) {
-        STATE.pinError = "That's not a valid student number. Ask your teacher!";
-        STATE.studentNumEntry = "";
-        mount();
-        return;
-      }
-      STATE.student = makeStudentBase(num);
-      STATE.currentPeriod = CLASS_DATA.periods.find(p => p.id === Math.floor(num / 100)) || null;
-      STATE.pinError = "";
-      const claimed = !!(_overrides[String(num)] && _overrides[String(num)].claimed);
-      if (!claimed) {
-        STATE.charNameReturnScreen = "welcome-splash";
-        STATE.screen = "char-name";
+    const inp = $("code-inp");
+    inp && inp.focus();
+    $("code-btn") && $("code-btn").addEventListener("click", () => {
+      const v = (inp ? inp.value : "").trim().toUpperCase();
+      const period = CLASS_DATA.periods.find(p => p.classCode.toUpperCase() === v);
+      if (period) {
+        STATE.currentPeriod = period; STATE.screen = "grid"; STATE.pinError = ""; mount();
       } else {
-        const _pos = getLandPos(STATE.student);
-        const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0;
-        const _inSanctumLand = isInSanctum(STATE.student);
-        if (_inSanctumLand) {
-          const _sLand = LANDS.find(l => l.id === _inSanctumLand);
-          if (_sLand) {
-            STATE.sanctumLand = _sLand;
-            STATE.lessonLand  = _sLand;
-            STATE.lessonTile  = _sLand.tiles.find(t => t.type === 'event') || null;
-            STATE.writingEventReturnTo = 'sanctum-map';
-            STATE.screen = "sanctum-map";
-          } else {
-            STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
-          }
-        } else {
-          STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
-        }
-      }
-      STATE.studentNumEntry = "";
-      mount();
-    };
-
-    $("num-del") && $("num-del").addEventListener("click", () => {
-      STATE.studentNumEntry = STATE.studentNumEntry.slice(0, -1);
-      STATE.pinError = "";
-      mount();
-    });
-    document.querySelectorAll("[data-digit]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        if (STATE.studentNumEntry.length >= 3) return;
-        STATE.studentNumEntry += btn.dataset.digit;
-        STATE.pinError = "";
+        STATE.pinError = "That class code isn't recognized. Ask your teacher!";
+        const w = document.getElementById("code-wrap");
+        w && w.classList.add("shake");
+        setTimeout(() => w && w.classList.remove("shake"), 600);
         mount();
-        if (STATE.studentNumEntry.length === 3) {
-          setTimeout(_submitNumber, 200);
-        }
-      });
+      }
     });
+    inp && inp.addEventListener("keydown", e => { if (e.key === "Enter") $("code-btn") && $("code-btn").click(); });
   }
 
   /* NAME GRID */
