@@ -1,4 +1,4 @@
-import { db, ref, set, get, update, onValue, push, query, limitToLast } from './firebaseClient.js'
+import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, signInAnonymously } from './firebaseClient.js'
 
 /* ═══════════════════════════════════════════════
    REALM OF ELA  —  Pure Vanilla JS
@@ -1230,6 +1230,59 @@ function clearHelpFlag(id) {
   delete _helpflags[sid];
   set(ref(db, `helpflags/${sid}`), null).catch(console.error);
 }
+function _countSchoolDays(fromIso, toDate) {
+  if (!fromIso) return 0;
+  const from = new Date(fromIso); from.setHours(0,0,0,0);
+  const to = new Date(toDate); to.setHours(0,0,0,0);
+  let count = 0;
+  const cur = new Date(from); cur.setDate(cur.getDate() + 1);
+  while (cur <= to) {
+    const dow = cur.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+function getStudentFlags(student) {
+  const flags = [];
+  const sid = String(student.id);
+  const ov = _overrides[sid] || {};
+  const ts = ov.taskTimestamps || {};
+  const completed = (ov.completedTiles || student.completedTiles || []).map(Number);
+  const bossStatus = ov.bossStatus || {};
+  const today = new Date();
+  // ⚡ RUSHED — any completed tile under 120s
+  const rushedTileId = completed.find(tid => {
+    const t = ts[String(tid)];
+    return t && t.timeOnPage !== undefined && t.timeOnPage !== null && t.timeOnPage < 120;
+  });
+  if (rushedTileId !== undefined) {
+    flags.push({ key:'rushed', icon:'⚡', color:'#CA8A04', tip:'Completed a tile in under 2 minutes' });
+  }
+  // 🚩 STUCK — no advancement in 3+ school days
+  if (completed.length > 0) {
+    const lastTileId = completed[completed.length - 1];
+    const lastTs = ts[String(lastTileId)];
+    const schoolDays = _countSchoolDays(lastTs ? lastTs.completedAt : null, today);
+    if (schoolDays >= 3) {
+      flags.push({ key:'stuck', icon:'🚩', color:'#DC2626', tip:`No tile advancement in ${schoolDays} school days` });
+    }
+  }
+  // ❌ FAILED BOSS — any bossStatus === 'retake'
+  if (Object.values(bossStatus).some(v => v === 'retake')) {
+    flags.push({ key:'failed_boss', icon:'❌', color:'#7F1D1D', tip:'Failed a boss fight — needs to retake' });
+  }
+  // ⏳ AWAITING JUDGMENT — any bossStatus === 'submitted'
+  if (Object.values(bossStatus).some(v => v === 'submitted')) {
+    flags.push({ key:'awaiting', icon:'⏳', color:'#7C3AED', tip:'Submitted work awaiting teacher review' });
+  }
+  // 🤚 NEEDS HELP
+  if (_helpflags[sid]) {
+    const msg = _helpflags[sid].message;
+    flags.push({ key:'help', icon:'🤚', color:'#EA580C', tip:`Needs help${msg ? ': ' + msg : ''}` });
+  }
+  return flags;
+}
 function gradeToHP(grade) {
   const g = Math.max(0, Math.min(100, Math.round(grade)));
   return Math.min(10, Math.floor(g / 10) + 1);
@@ -1302,7 +1355,7 @@ function getSQInvites(studentId) {
 function sendQuestInvite(fromStudent, recipientId, questKey, questName, tileId, type, idx, landId = null) {
   const invite = {
     fromStudentId: fromStudent.id,
-    fromStudentName: fromStudent.displayName || fromStudent.name || 'A classmate',
+    fromStudentName: getCharName(fromStudent),
     questKey,
     questName,
     tileId,
@@ -1584,6 +1637,25 @@ function getMergedStudent(base) {
   }
   return merged;
 }
+function getCharName(student) {
+  return (getMergedStudent(student).characterName) || student.displayName;
+}
+function migrateCharacterNames() {
+  if (!CLASS_DATA) return;
+  const writes = {};
+  for (const p of CLASS_DATA.periods) {
+    for (const s of p.students) {
+      const sid = String(s.id);
+      const ov = _overrides[sid] || {};
+      if (Object.keys(ov).length > 0 && !ov.characterName) {
+        writes[`overrides/${sid}/characterName`] = s.displayName;
+      }
+    }
+  }
+  if (Object.keys(writes).length > 0) {
+    update(ref(db), writes).catch(console.error);
+  }
+}
 function getTaskProgress(studentId, tileId) {
   const ov = getOverrides().students[String(studentId)] || {};
   return (ov.taskProgress || {})[String(tileId)] || {};
@@ -1744,7 +1816,7 @@ function showGoldToast(amount, onComplete) {
 function getShopPending() { return Object.assign({}, _shopPending); }
 function addShopPending(student, item) {
   const key = `${String(student.id)}_${Date.now()}`;
-  const entry = { studentId: String(student.id), studentName: student.displayName || student.name || 'Student', itemId: item.id, itemName: item.label, cost: item.cost, timestamp: new Date().toISOString() };
+  const entry = { studentId: String(student.id), studentName: getCharName(student), itemId: item.id, itemName: item.label, cost: item.cost, timestamp: new Date().toISOString() };
   _shopPending[key] = entry;
   set(ref(db, `shopPending/${key}`), entry).catch(console.error);
 }
@@ -2016,7 +2088,8 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               writingTransportDir: 'in',
               sanctumReturnOpen: false, sanctumReturnLandId: null,
               sanctumLand: null, sanctumTileOpen: null, writingEventReturnTo: 'quest-map',
-              travelDestDesc: null };
+              travelDestDesc: null, classSettingsOpen: false, cardMenuSid: null,
+              charNameReturnScreen: null };
 
 /* ─── CHIBI SVG ─── */
 function chibiSVG(cls, size) {
@@ -2135,6 +2208,7 @@ function renderCode() {
       <span class="logo-icon">⚔️</span>
       <h1 class="logo-title">The Realm of ELA</h1>
       <p class="logo-sub">Where Stories Come to Life</p>
+      <p class="logo-school-sub">A 5th grade English Language Arts learning platform · Lake Charles Charter Academy</p>
       <div class="divider">✦ ✦ ✦</div>
       <p class="form-hint">Enter your class code to begin your adventure!</p>
       <div class="input-wrap" id="code-wrap">
@@ -2147,6 +2221,7 @@ function renderCode() {
       </button>
       <p class="footer-tip">💡 Ask your teacher for the class code</p>
       <button class="teacher-link" id="teacher-link-btn">🔐 Teacher Access</button>
+      <p class="login-page-footer">Built and operated by Amber Odom, 5th Grade ELA, Lake Charles Charter Academy. This site stores no student-identifying information. <a href="/privacy" class="login-page-footer-link">Privacy</a></p>
     </div>
   </div>`;
 }
@@ -2201,8 +2276,8 @@ function renderPin() {
     <div class="pin-card enter">
       <button class="btn-back" id="pin-back">← Back</button>
       <div class="pin-avatar">
-        <div class="avatar-ring-lg" style="overflow:hidden;padding:0"><img src="/avatars/${getMergedStudent(s).avatar||'avatar_blankchibi.png'}" style="width:122px;height:122px;object-fit:cover;border-radius:50%;display:block" alt="${s.displayName}" width="122" height="122" loading="lazy"/></div>
-        <div class="pin-name">${s.displayName}</div>
+        <div class="avatar-ring-lg" style="overflow:hidden;padding:0"><img src="/avatars/${getMergedStudent(s).avatar||'avatar_blankchibi.png'}" style="width:122px;height:122px;object-fit:cover;border-radius:50%;display:block" alt="${getCharName(s)}" width="122" height="122" loading="lazy"/></div>
+        <div class="pin-name">${getCharName(s)}</div>
         <div class="pin-title">"${s.title}"</div>
       </div>
       <p class="pin-hint">🔐 Enter your secret number</p>
@@ -2269,6 +2344,26 @@ function renderCatchUpModal() {
       <div class="grade-modal-btns" style="margin-top:16px">
         <button class="btn btn-outline-sm" id="catchup-close">Close</button>
       </div>
+    </div>
+  </div>`;
+}
+
+function renderCharName() {
+  return `
+  <div class="screen screen-center">
+    ${starsHTML()}
+    <div class="login-card enter">
+      <span class="logo-icon">⚔️</span>
+      <h2 class="logo-title" style="font-size:clamp(1.4rem,5vw,2rem)">Choose Your Name</h2>
+      <p class="logo-sub" style="font-size:0.95rem;margin-bottom:1.2rem">This is the name the Realm will know you by.<br>Choose wisely — it cannot be changed.</p>
+      <div class="input-wrap" id="char-name-wrap">
+        <span class="input-icon">✨</span>
+        <input id="char-name-inp" class="code-input" type="text" placeholder="YOUR CHARACTER NAME" maxlength="30" autocomplete="off" spellcheck="false"/>
+      </div>
+      <p id="char-name-err" class="error-box" style="display:none"></p>
+      <button class="btn btn-purple btn-lg" id="char-name-btn">
+        <span>Begin My Journey</span><span class="btn-arrow">→</span>
+      </button>
     </div>
   </div>`;
 }
@@ -2571,7 +2666,7 @@ function renderHub() {
           <div class="char-card-cols">
             <div class="char-col-identity">
               <div class="char-name-row">
-                <div class="char-name">${s.displayName}</div>
+                <div class="char-name">${getCharName(STATE.student)}</div>
                 <button class="id-cust-btn" id="cust-btn" title="Customize Character">
                   <img src="/icons/icon_pencil.png" alt="Customize" width="18" height="18"/>
                 </button>
@@ -3736,7 +3831,7 @@ function renderPartnerPickerModal() {
           const m = getMergedStudent(p);
           const sel = STATE.sqPartnerPickSelected === p.id;
           return `<button class="partner-row${sel ? ' partner-row-sel' : ''}" data-partner-id="${p.id}">
-            <span class="partner-name">${m.displayName || p.name}</span>
+            <span class="partner-name">${getCharName(p)}</span>
             ${sel ? '<span class="partner-check">✓</span>' : ''}
           </button>`;
         }).join('') : '<p style="color:#94A3B8;text-align:center;font-size:13px">No classmates found.</p>'}
@@ -4368,7 +4463,7 @@ function renderSg0Modal() {
 }
 
 function renderWelcomeSplash() {
-  const firstName = (STATE.student.displayName || "Adventurer").split(" ")[0];
+  const firstName = (getCharName(STATE.student) || "Adventurer").split(" ")[0];
   const particles = Array.from({length:22}, (_,i) => {
     const x = (i * 4.7 + 2) % 100;
     const y = 10 + (i * 8.3) % 85;
@@ -4478,6 +4573,9 @@ function renderQuestMap() {
         ${buildLandSVG(land,pos,false,"")}
       </svg>
     </div>
+    <button class="qm-help-btn${STATE.helpFlagged?' flagged':''}" id="qm-help-btn" ${STATE.helpFlagged?'disabled':''}>
+      ${STATE.helpFlagged?'🙋 Help Requested':'🤚 Need Help'}
+    </button>
     ${completedInLand ? `
     <button class="sq-board-banner" id="sq-board-btn">
       <span class="sq-board-banner-scroll">📜</span>
@@ -4581,7 +4679,7 @@ function renderTeacherTileView() {
       <div class="tt-student-header">
         <div class="tt-av" style="border-color:${cc}"><img src="/avatars/${av}" alt="" width="40" height="40" loading="lazy"/></div>
         <div>
-          <div class="tt-name">${s.displayName}</div>
+          <div class="tt-name">${getCharName(s)}</div>
           <div class="tt-cls" style="color:${cc}">Lv.${m.level} ${CLS_LABEL[clsKey(s, m)]}</div>
         </div>
       </div>
@@ -4672,7 +4770,7 @@ function renderTeacherTileView() {
             <div class="tt-student-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none">
               <div class="tt-av" style="border-color:${cc}"><img src="/avatars/${av}" alt="" width="40" height="40" loading="lazy"/></div>
               <div style="flex:1">
-                <div class="tt-name">${s.displayName}</div>
+                <div class="tt-name">${getCharName(s)}</div>
                 <div class="tt-cls" style="color:${cc}">Lv.${m.level} ${CLS_LABEL[clsKey(s,m)]}</div>
               </div>
               <div style="text-align:right;font-size:11px;line-height:1.7">
@@ -4714,7 +4812,7 @@ function renderBoardView() {
       const dx=(tile.x-ts/2)+pad+col*(DR*2+4)+DR;
       const dy=(tile.y-ts/2)+pad+row*(DR*2+4)+DR;
       const color=CLS_COLOR[clsKey(s, getMergedStudent(s))], fl=!!flags[String(s.id)];
-      const first=s.displayName.split(" ")[0].slice(0,5);
+      const first=getCharName(s).split(" ")[0].slice(0,5);
       dots+=`<circle cx="${dx.toFixed(1)}" cy="${dy.toFixed(1)}" r="${DR}" fill="${color}" stroke="white" stroke-width="2.2"/>
         ${fl?`<circle cx="${(dx+DR*.55).toFixed(1)}" cy="${(dy-DR*.55).toFixed(1)}" r="5" fill="#EF4444" stroke="white" stroke-width="1.2"/>`:``}
         <text x="${dx.toFixed(1)}" y="${dy.toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="6.5" fill="white" font-weight="900" font-family="Arial">${first}</text>`;
@@ -4800,9 +4898,10 @@ function renderTeacherDashboard() {
   const periodFlags = period.students.filter(s => flags[String(s.id)]);
 
   const cards = period.students.map(s => {
-    const m   = getMergedStudent(s);
-    const flg = flags[String(s.id)];
-    const ov  = getOverrides().students[String(s.id)] || {};
+    const m        = getMergedStudent(s);
+    const ov       = getOverrides().students[String(s.id)] || {};
+    const sFlags   = getStudentFlags(s);
+    const hasFlags = sFlags.length > 0;
 
     const cc  = CLS_COLOR[clsKey(s, m)];
     const av  = m.avatar || "avatar_blankchibi.png";
@@ -4819,12 +4918,23 @@ function renderTeacherDashboard() {
       ? curTileObj.mustDo.filter((_, i) => (tileProgress.mustDo || [])[i]).length
       : 0;
     const mustAllDone = mustTotal > 0 && mustDoneCount === mustTotal;
+    const flagBadges = sFlags.map(f =>
+      `<span class="t-flag-badge" style="background:${f.color}" data-flag-key="${f.key}" data-flag-sid="${s.id}">
+        ${f.icon}<span class="t-flag-tip">${f.tip}</span>
+      </span>`
+    ).join('');
+    const menuOpen = STATE.cardMenuSid === s.id;
     return `
-    <div class="t-s-card ${flg?"has-flag":""}" data-sid="${s.id}" tabindex="0" role="button" aria-label="Edit ${s.displayName}">
+    <div class="t-s-card ${hasFlags?"has-flag":""}" data-sid="${s.id}" tabindex="0" role="button" aria-label="Edit ${getCharName(s)}">
+      <button class="t-card-menu-btn" data-card-menu="${s.id}" title="More actions">⋮</button>
+      ${menuOpen ? `<div class="t-card-menu-dropdown" data-card-menu-drop="${s.id}">
+        <button class="t-card-menu-item" data-award-companion="${s.id}">🐾 Award Companion</button>
+      </div>` : ''}
+      ${hasFlags ? `<div class="t-flag-badges">${flagBadges}</div>` : ''}
       <div class="t-s-top">
         <div class="t-s-avatar" style="border-color:${cc};padding:0"><img src="/avatars/${av}" alt="${s.name}" width="44" height="44" loading="lazy"/></div>
         <div class="t-s-info">
-          <div class="t-s-name">${s.displayName}</div>
+          <div class="t-s-name">${getCharName(s)}</div>
           <div class="t-s-cls" style="color:${cc}">Lv.${m.level} ${CLS_LABEL[clsKey(s, m)]}</div>
         </div>
       </div>
@@ -4837,8 +4947,6 @@ function renderTeacherDashboard() {
         <span class="t-tile-badge">📍 ${tileName}</span>
         ${mustTotal ? `<span class="t-must-badge${mustAllDone?" t-must-done":""}">Must Do: ${mustDoneCount}/${mustTotal}${mustAllDone?" ✓":""}</span>` : ""}
       </div>
-      ${flg ? `<div class="flag-badge">🚩 ${formatFlagTime(flg.flaggedAt || flg)}${flg.message ? `<span class="flag-msg">${flg.message}</span>` : ''}</div>` : ""}
-      <button class="t-award-companion-btn" data-award-companion="${s.id}">🐾 Award Companion</button>
     </div>`;
   }).join("");
 
@@ -4847,77 +4955,104 @@ function renderTeacherDashboard() {
     <div class="t-dash-wrap">
       <div class="t-dash-hdr">
         <span class="t-dash-title">👩‍🏫 Teacher Dashboard</span>
-        <div style="display:flex;gap:10px;align-items:center">
-          <button class="btn btn-outline-sm" id="t-mp-bulk-btn">💙 MP Bulk Edit</button>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-outline-sm" id="t-board-view">📡 Board View</button>
+          <button class="btn btn-outline-sm" id="t-boss-roster-btn">⚔️ Battle Records</button>
+          <button class="btn btn-outline-sm" id="t-class-settings-btn">⚙️ Class Settings</button>
           <button class="btn btn-outline-sm t-gold-shop-btn" id="t-gold-shop-btn">
             🪙 Gold Shop${(() => { const n = Object.keys(getShopPending()).length; return n ? `<span class="t-gold-badge">${n}</span>` : ''; })()}
           </button>
-          <button class="btn btn-outline-sm" id="t-boss-roster-btn">⚔️ Boss Roster</button>
-          <button class="btn btn-outline-sm" id="t-board-view">📡 Board View</button>
+          <button class="btn btn-outline-sm" id="t-mp-bulk-btn">💙 MP Bulk Edit</button>
           <button class="btn btn-outline-sm" id="t-dash-logout">Exit</button>
         </div>
       </div>
       <div class="period-tabs">${tabs}</div>
-      <details class="pacing-panel">
-        <summary class="pacing-summary">📈 SP Pacing ${pacing ? `<span class="pacing-on-badge">ON — expect ${pacingExpected ?? '?'} sessions by today</span>` : '<span class="pacing-off-badge">OFF</span>'}</summary>
-        <div class="pacing-form">
-          <label class="pacing-lbl">Class Start Date
-            <input type="date" id="pacing-start" value="${pacing ? pacing.startDate : ''}" class="pacing-input"/>
-          </label>
-          <label class="pacing-lbl">Target Date
-            <input type="date" id="pacing-target-date" value="${pacing ? (pacing.targetDate || '') : ''}" class="pacing-input"/>
-          </label>
-          <label class="pacing-lbl">Sessions by Target Date
-            <input type="number" id="pacing-target-count" min="1" max="200" value="${pacing ? (pacing.targetCount || '') : ''}" class="pacing-input pacing-input-sm" placeholder="e.g. 24"/>
-          </label>
-          <button class="btn-pacing-save" id="pacing-save">Save</button>
-          ${pacing ? `<button class="btn-pacing-off" id="pacing-off">Turn Off</button>` : ''}
-        </div>
-      </details>
-      <details class="pacing-panel session-settings-panel">
-        <summary class="pacing-summary">📋 Session Settings <span class="pacing-off-badge">Exit Ticket toggles</span></summary>
-        <div class="session-settings-body">
-          ${LANDS.map(land => {
-            const lessonTiles = land.tiles.filter(t => t.type === 'lesson');
-            if (!lessonTiles.length) return '';
-            return `<div class="ss-land">
-              <div class="ss-land-name">${land.name}</div>
-              ${lessonTiles.map(t => {
-                const on = getExitTicketEnabled(t.id);
-                const label = t.sessionTitle ? `${t.name} — ${t.sessionTitle}` : t.name;
-                return `<div class="ss-row">
-                  <span class="ss-tile-name">${label}</span>
-                  <button class="ss-toggle ${on ? 'ss-on' : 'ss-off'}" data-et-tile="${t.id}" data-et-val="${on ? '1' : '0'}">
-                    ${on ? '✅ Exit Ticket ON' : 'Exit Ticket OFF'}
-                  </button>
-                </div>`;
+      ${STATE.classSettingsOpen ? `<div class="cs-overlay" id="cs-overlay">
+        <div class="cs-modal">
+          <div class="cs-hdr">
+            <span class="cs-title">⚙️ Class Settings</span>
+            <button class="cs-close" id="cs-close">✕</button>
+          </div>
+          <div class="cs-section">
+            <div class="cs-section-title">📈 SP Pacing ${pacing ? `<span class="pacing-on-badge">ON — expect ${pacingExpected ?? '?'} sessions by today</span>` : '<span class="pacing-off-badge">OFF</span>'}</div>
+            <div class="pacing-form" style="border-top:none;padding:0">
+              <label class="pacing-lbl">Class Start Date
+                <input type="date" id="pacing-start" value="${pacing ? pacing.startDate : ''}" class="pacing-input"/>
+              </label>
+              <label class="pacing-lbl">Target Date
+                <input type="date" id="pacing-target-date" value="${pacing ? (pacing.targetDate || '') : ''}" class="pacing-input"/>
+              </label>
+              <label class="pacing-lbl">Sessions by Target Date
+                <input type="number" id="pacing-target-count" min="1" max="200" value="${pacing ? (pacing.targetCount || '') : ''}" class="pacing-input pacing-input-sm" placeholder="e.g. 24"/>
+              </label>
+              <button class="btn-pacing-save" id="pacing-save">Save</button>
+              ${pacing ? `<button class="btn-pacing-off" id="pacing-off">Turn Off</button>` : ''}
+            </div>
+          </div>
+          ${(() => {
+            // Find the highest land most students are on (land 0 = starting grounds, skip it)
+            const landCounts = {};
+            for (const p of periods) for (const s of p.students) {
+              const lid = getLandPos(s).land;
+              if (lid > 0) landCounts[String(lid)] = (landCounts[String(lid)] || 0) + 1;
+            }
+            let activeLandId = 1;
+            let best = 0;
+            for (const [lid, cnt] of Object.entries(landCounts)) {
+              if (cnt > best) { best = cnt; activeLandId = Number(lid); }
+            }
+            return `
+          <div class="cs-section">
+            <div class="cs-section-title">📋 Session Settings — Exit Ticket Toggles</div>
+            <div class="cs-accordions">
+              ${LANDS.map(land => {
+                const lessonTiles = land.tiles.filter(t => t.type === 'lesson');
+                if (!lessonTiles.length) return '';
+                return `<details class="cs-land-details" ${land.id === activeLandId ? 'open' : ''}>
+                  <summary class="cs-land-summary">${land.name.toUpperCase()}</summary>
+                  <div class="cs-land-body">
+                    ${lessonTiles.map(t => {
+                      const on = getExitTicketEnabled(t.id);
+                      const label = t.sessionTitle ? `${t.name} — ${t.sessionTitle}` : t.name;
+                      return `<div class="ss-row">
+                        <span class="ss-tile-name">${label}</span>
+                        <button class="ss-toggle ${on ? 'ss-on' : 'ss-off'}" data-et-tile="${t.id}" data-et-val="${on ? '1' : '0'}">
+                          ${on ? '✅ Exit Ticket ON' : 'Exit Ticket OFF'}
+                        </button>
+                      </div>`;
+                    }).join('')}
+                  </div>
+                </details>`;
               }).join('')}
-            </div>`;
-          }).join('')}
-        </div>
-      </details>
-      <details class="pacing-panel boss-fight-panel">
-        <summary class="pacing-summary">⚔️ Boss Fights <span class="pacing-off-badge">Locked by default</span></summary>
-        <div class="session-settings-body">
-          ${LANDS.map(land => {
-            const bossTiles = land.tiles.filter(t => t.type === 'boss');
-            if (!bossTiles.length) return '';
-            return `<div class="ss-land">
-              <div class="ss-land-name">${land.name}</div>
-              ${bossTiles.map(t => {
-                const bossKey = `${land.id}-${t.id}`;
-                const open = getBossOpenKeys().includes(bossKey);
-                return `<div class="ss-row">
-                  <span class="ss-tile-name">⚔ ${t.name}${t.skill ? ` <span class="ss-skill-tag">${t.skill}</span>` : ''}</span>
-                  <button class="ss-toggle ${open ? 'ss-on' : 'ss-off'} boss-fight-toggle" data-boss-land="${land.id}" data-boss-tile="${t.id}" data-boss-open="${open ? '1' : '0'}">
-                    ${open ? '🔓 Boss Fight OPEN' : '🔒 Boss Fight LOCKED'}
-                  </button>
-                </div>`;
+            </div>
+          </div>
+          <div class="cs-section" style="border-bottom:none">
+            <div class="cs-section-title">⚔️ Boss Fights — Locked by Default</div>
+            <div class="cs-accordions">
+              ${LANDS.map(land => {
+                const bossTiles = land.tiles.filter(t => t.type === 'boss');
+                if (!bossTiles.length) return '';
+                return `<details class="cs-land-details" ${land.id === activeLandId ? 'open' : ''}>
+                  <summary class="cs-land-summary">${land.name.toUpperCase()}</summary>
+                  <div class="cs-land-body">
+                    ${bossTiles.map(t => {
+                      const bossKey = `${land.id}-${t.id}`;
+                      const open = getBossOpenKeys().includes(bossKey);
+                      return `<div class="ss-row">
+                        <span class="ss-tile-name">⚔ ${t.name}${t.skill ? ` <span class="ss-skill-tag">${t.skill}</span>` : ''}</span>
+                        <button class="ss-toggle ${open ? 'ss-on' : 'ss-off'} boss-fight-toggle" data-boss-land="${land.id}" data-boss-tile="${t.id}" data-boss-open="${open ? '1' : '0'}">
+                          ${open ? '🔓 Boss Fight OPEN' : '🔒 Boss Fight LOCKED'}
+                        </button>
+                      </div>`;
+                    }).join('')}
+                  </div>
+                </details>`;
               }).join('')}
-            </div>`;
-          }).join('')}
+            </div>
+          </div>`;
+          })()}
         </div>
-      </details>
+      </div>` : ''}
       ${flagCount > 0 ? `
         <div class="help-alert">
           <div class="help-alert-count">${flagCount}</div>
@@ -4931,7 +5066,7 @@ function renderTeacherDashboard() {
             const itemKey = p.itemRequested || 'health_potion';
             const itemDef = ITEMS[itemKey] || { i:'🧪', n: itemKey };
             return `<div class="potion-req-row">
-              <span class="potion-req-name">${m.displayName}</span>
+              <span class="potion-req-name">${getCharName(p.student)}</span>
               <span class="potion-req-item">${itemDef.i} ${itemDef.n}</span>
               <span class="potion-req-time">${formatFlagTime(p.requestedAt)}</span>
               <button class="btn-approve-potion" data-approve-potion="${p.student.id}">✅ Approve</button>
@@ -4951,7 +5086,7 @@ function renderTeacherDashboard() {
           for (const st of p.students) {
             const sOv = ov.students[String(st.id)] || {};
             const g = sOv.guild || st.guild;
-            if (g && guildMembers[g]) guildMembers[g].push(st.displayName || st.name);
+            if (g && guildMembers[g]) guildMembers[g].push(getCharName(st));
           }
         }
         const chips = Object.keys(guilds).map(k => {
@@ -4994,7 +5129,7 @@ function renderTeacherDashboard() {
               const m = getMergedStudent(s);
               const g = getGold(s);
               return `<div class="tgs-student-row ${idx % 2 === 0 ? 'tgs-row-even' : 'tgs-row-odd'}">
-                <span class="tgs-student-name">${m.displayName}</span>
+                <span class="tgs-student-name">${getCharName(s)}</span>
                 <span class="tgs-student-bal">🪙 ${g}</span>
                 <button class="tgs-hw-btn" data-hw-gold="${s.id}">+15 Gold</button>
               </div>`;
@@ -5053,7 +5188,7 @@ function renderTeacherDashboard() {
       const pct = Math.round((mp / 10) * 100);
       return `<div class="mp-row" data-mp-sid="${s.id}">
         <div class="mp-row-info">
-          <span class="mp-row-name">${m.displayName}</span>
+          <span class="mp-row-name">${getCharName(s)}</span>
           <span class="mp-row-period">${s.periodName}</span>
         </div>
         <div class="mp-bar-wrap">
@@ -5160,13 +5295,13 @@ function renderTeacherEdit() {
     <div class="t-edit-wrap">
       <div class="t-edit-hdr">
         <button class="btn btn-outline-sm" id="t-edit-back">← Back</button>
-        <span class="t-dash-title">Edit: ${s.displayName}</span>
+        <span class="t-dash-title">Edit: ${getCharName(s)}</span>
       </div>
 
       <div class="t-section" style="display:flex;align-items:center;gap:16px;padding:16px 20px">
         <div style="border-radius:50%;border:3px solid ${cc};width:60px;height:60px;overflow:hidden;flex-shrink:0"><img src="/avatars/${_m.avatar||'avatar_blankchibi.png'}" style="width:100%;height:100%;object-fit:cover;display:block" alt="" width="60" height="60" loading="lazy"/></div>
         <div>
-          <div style="font-family:var(--font-display);font-size:18px;font-weight:900;color:var(--purple-dark)">${s.displayName}</div>
+          <div style="font-family:var(--font-display);font-size:18px;font-weight:900;color:var(--purple-dark)">${getCharName(s)}</div>
           <div style="font-size:12px;font-weight:700;color:${cc};text-transform:uppercase;letter-spacing:.5px">${CLS_LABEL[clsKey(s, _m)]} · ${s.title||""}</div>
         </div>
       </div>
@@ -5452,7 +5587,7 @@ function renderTeacherEdit() {
     <div class="reset-confirm-modal">
       <div class="reset-confirm-icon">☠️</div>
       <div class="reset-confirm-title">Full Character Reset</div>
-      <div class="reset-confirm-name">${s.displayName}</div>
+      <div class="reset-confirm-name">${getCharName(s)}</div>
       <ul class="reset-confirm-list">
         <li>All XP, HP, MP, and SP reset to base values</li>
         <li>All task and lesson progress erased</li>
@@ -5564,7 +5699,7 @@ function renderBossRoster() {
           <td>
             <div style="display:flex;align-items:center;gap:8px">
               <img src="${avatarUrl}" width="24" height="24" style="border-radius:50%;object-fit:cover" onerror="this.style.display='none'"/>
-              <span style="font-weight:700">${m.displayName || student.name}</span>
+              <span style="font-weight:700">${getCharName(student)}</span>
             </div>
           </td>
           <td><span class="brs-status ${statusCls}">${statusText}</span></td>
@@ -5642,6 +5777,7 @@ function mount() {
   if (STATE.screen === "lesson-stop")   root.innerHTML = renderLessonStop();
   if (STATE.screen === "writing-event")  root.innerHTML = renderWritingEvent();
   if (STATE.screen === "teacher-tile")   root.innerHTML = renderTeacherTileView();
+  if (STATE.screen === "char-name")      root.innerHTML = renderCharName();
   if (STATE.screen === "welcome-splash") root.innerHTML = renderWelcomeSplash();
   if (STATE.screen === "board-view")     root.innerHTML = renderBoardView();
   if (STATE.screen === "teacher-boss-roster") root.innerHTML = renderBossRoster();
@@ -5723,6 +5859,10 @@ function bindEvents() {
               } else {
                 STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
               }
+              if (!getMergedStudent(STATE.student).characterName) {
+                STATE.charNameReturnScreen = STATE.screen;
+                STATE.screen = "char-name";
+              }
               STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false; mount();
             } else {
               STATE.pinError = "Incorrect secret number! Try again, brave adventurer.";
@@ -5732,6 +5872,26 @@ function bindEvents() {
         }
       });
     });
+  }
+
+  /* CHARACTER NAME */
+  if (STATE.screen === "char-name") {
+    const _cnInp = $("char-name-inp");
+    _cnInp && _cnInp.focus();
+    const _cnSubmit = () => {
+      const val = (_cnInp ? _cnInp.value : "").trim();
+      const errEl = $("char-name-err");
+      if (!val || val.length < 2) {
+        if (errEl) { errEl.textContent = "Please enter a name of at least 2 characters."; errEl.style.display = ""; }
+        return;
+      }
+      saveStudentOverride(STATE.student.id, { characterName: val });
+      STATE.screen = STATE.charNameReturnScreen || "hub";
+      STATE.charNameReturnScreen = null;
+      mount();
+    };
+    $("char-name-btn") && $("char-name-btn").addEventListener("click", _cnSubmit);
+    _cnInp && _cnInp.addEventListener("keydown", e => { if (e.key === "Enter") _cnSubmit(); });
   }
 
   /* WELCOME SPLASH */
@@ -6225,6 +6385,7 @@ function bindEvents() {
     const doLogin = () => {
       const v = inp ? inp.value.trim() : "";
       if (v === TEACHER_PW) {
+        migrateCharacterNames();
         STATE.screen = "teacher-dash"; STATE.pinError = ""; mount();
       } else {
         STATE.pinError = "Incorrect password. Try again.";
@@ -6247,6 +6408,20 @@ function bindEvents() {
       STATE.bossRosterMarks = {};
       mount();
     });
+    $("t-class-settings-btn") && $("t-class-settings-btn").addEventListener("click", () => { STATE.classSettingsOpen = true; mount(); });
+    if (STATE.classSettingsOpen) {
+      const closeCS = () => { STATE.classSettingsOpen = false; mount(); };
+      $("cs-close") && $("cs-close").addEventListener("click", closeCS);
+      $("cs-overlay") && $("cs-overlay").addEventListener("click", e => { if (e.target === $("cs-overlay")) closeCS(); });
+    }
+    // Help flag badge — clicking 🤚 on a card clears it
+    document.querySelectorAll(".t-flag-badge[data-flag-key='help']").forEach(badge => {
+      badge.addEventListener("click", e => {
+        e.stopPropagation();
+        clearHelpFlag(badge.dataset.flagSid);
+        mount();
+      });
+    });
     if (STATE.teacherGoldShopOpen) {
       const closeTGS = () => { STATE.teacherGoldShopOpen = false; mount(); };
       $("tgs-close") && $("tgs-close").addEventListener("click", closeTGS);
@@ -6255,9 +6430,18 @@ function bindEvents() {
     document.querySelectorAll(".period-tab").forEach(btn => {
       btn.addEventListener("click", () => { STATE.teacherPeriodIdx = parseInt(btn.dataset.pi, 10); mount(); });
     });
+    document.querySelectorAll(".t-card-menu-btn").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const sid = parseInt(btn.dataset.cardMenu, 10);
+        STATE.cardMenuSid = STATE.cardMenuSid === sid ? null : sid;
+        mount();
+      });
+    });
     document.querySelectorAll(".t-s-card").forEach(card => {
       card.addEventListener("click", e => {
-        if (e.target.closest("[data-award-companion]")) return; // handled separately
+        if (e.target.closest("[data-card-menu]") || e.target.closest("[data-card-menu-drop]")) return;
+        if (STATE.cardMenuSid !== null) { STATE.cardMenuSid = null; mount(); return; }
         const id = parseInt(card.dataset.sid, 10);
         const period = CLASS_DATA.periods[STATE.teacherPeriodIdx];
         const base = period.students.find(s => s.id === id);
@@ -6368,12 +6552,13 @@ function bindEvents() {
       });
     });
 
-    // Award companion buttons
+    // Card menu items
     document.querySelectorAll("[data-award-companion]").forEach(btn => {
       btn.addEventListener("click", e => {
         e.stopPropagation();
         STATE.companionPickerStudentId = parseInt(btn.dataset.awardCompanion, 10);
         STATE.companionPickerOpen = true;
+        STATE.cardMenuSid = null;
         mount();
       });
     });
@@ -6655,7 +6840,7 @@ function bindEvents() {
       }
       STATE.screen = "teacher-dash";
       const toast = document.createElement("div");
-      toast.className = "toast"; toast.textContent = "✅ Changes saved for " + STATE.teacherStudent.displayName;
+      toast.className = "toast"; toast.textContent = "✅ Changes saved for " + getCharName(STATE.teacherStudent);
       document.body.appendChild(toast);
       setTimeout(() => toast.remove(), 3000);
       mount();
@@ -6673,7 +6858,7 @@ function bindEvents() {
       if (e.target === $("reset-overlay")) { STATE.teacherResetConfirm = false; mount(); }
     });
     $("reset-confirm-btn") && $("reset-confirm-btn").addEventListener("click", () => {
-      const name = STATE.teacherStudent.displayName;
+      const name = getCharName(STATE.teacherStudent);
       resetStudentFull(STATE.teacherStudent.id);
       STATE.teacherResetConfirm = false;
       STATE.teacherEdit = null;
@@ -6691,6 +6876,11 @@ function bindEvents() {
   /* QUEST MAP */
   if (STATE.screen === "quest-map") {
     $("qm-back") && $("qm-back").addEventListener("click", () => { STATE.screen = "hub"; mount(); });
+    $("qm-help-btn") && $("qm-help-btn").addEventListener("click", () => {
+      if (STATE.helpFlagged) return;
+      STATE.helpModalOpen = true; mount();
+      $("help-modal-input") && $("help-modal-input").focus();
+    });
     // Sanctum return popup close
     $("sanctum-return-close") && $("sanctum-return-close").addEventListener("click", () => {
       STATE.sanctumReturnOpen = false;
@@ -7557,7 +7747,7 @@ function liveMount() {
 mount(); // show loading spinner immediately
 Promise.all([
   fetch('/classData.json').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
-  initFirebaseCache(),
+  signInAnonymously(auth).catch(() => null).then(() => initFirebaseCache()),
 ]).then(([data]) => {
   CLASS_DATA = data;
   STATE.screen = 'code';

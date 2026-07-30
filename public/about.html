@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About — The Realm of ELA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:   #16202B;
+    --slate: #4A5866;
+    --rule:  #D8DEE4;
+    --paper: #FBFAF7;
+    --teal:  #1A6B72;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 3.5rem 1.5rem 5rem;
+  }
+  .eyebrow {
+    font-family: 'Oswald', 'Arial Narrow', sans-serif;
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin: 0 0 0.75rem;
+  }
+  h1 {
+    font-family: 'Oswald', 'Arial Narrow', sans-serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 6vw, 2.9rem);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    margin: 0 0 1.5rem;
+  }
+  p { margin: 0 0 1.1rem; }
+  a { color: var(--teal); }
+  .contact {
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--ink);
+    font-size: 0.95rem;
+  }
+  .back-link {
+    display: inline-block;
+    margin-bottom: 2rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--teal);
+    text-decoration: none;
+  }
+  .back-link:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 11pt; }
+    .wrap { padding: 0; max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back-link" href="/">← Back to the Realm</a>
+
+  <p class="eyebrow">The Realm of ELA</p>
+  <h1>About This Platform</h1>
+
+  <p>The Realm of ELA is a classroom learning platform for 5th grade English Language Arts at Lake Charles Charter Academy. It delivers the school's adopted Ready Magnet curriculum through a self-paced fantasy game structure, letting students move through lessons at their own pace while the teacher tracks where each student is.</p>
+
+  <p>Students travel through six lands, each aligned to a curriculum unit and its Louisiana ELA standards. Completing lessons earns experience points and in-game currency; each unit ends with a skill checkpoint. The structure is designed to support motivation and self-direction during independent work.</p>
+
+  <p>The platform is built and operated by the classroom teacher for use with her own students. It is not a commercial product, is not offered outside this classroom, and contains no advertising, analytics, or third-party tracking. It stores no student-identifying information. Students are represented by character names they choose themselves.</p>
+
+  <p>For network administrators: this site connects to Google Firebase for data storage, including a WebSocket connection to *.firebaseio.com. Full technical details are available on request.</p>
+
+  <div class="contact">
+    <p><strong>Contact</strong><br>
+    <a href="mailto:aodom@lakecharlescharter.org">aodom@lakecharlescharter.org</a></p>
+    <p style="margin-top:1rem"><a href="/privacy">Privacy &amp; Student Data Policy</a></p>
+  </div>
+
+</div>
+</body>
+</html>
