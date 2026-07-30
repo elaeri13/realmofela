@@ -1144,7 +1144,39 @@ const AVATAR = {
 };
 
 /* ─── FIREBASE REALTIME DATABASE STORAGE ─── */
-let _overrides = {};       // { studentId: { hp, xp, ... } } — in-memory cache
+let _overrides = {};       // { studentNumber: { hp, xp, ... } } — keyed by 3-digit number
+let _roster   = {};        // optional { "101": "Real Name" } from roster.local.json — never uploaded
+
+const COHORT_SIZE = 30;
+
+const STUDENT_DEFAULTS = {
+  claimed: false,
+  characterName: null,
+  guild: null,
+  avatarClass: null,
+  title: null,
+  level: 1, xp: 0, xpNext: 50,
+  hp: 10, mp: 10, sp: 5,
+  items: [], bosses: [],
+  completedTiles: [], completedLand0: false,
+  companions: [], activeCompanion: null,
+};
+
+function makeStudentBase(number) {
+  return { id: number, number, cohort: Math.floor(number / 100) };
+}
+function isValidStudentNumber(n) {
+  const c = Math.floor(n / 100);
+  const o = n % 100;
+  return c >= 1 && c <= 4 && o >= 1 && o <= COHORT_SIZE;
+}
+function getPeriodStudents(cohortId) {
+  const start = cohortId * 100 + 1;
+  return Array.from({ length: COHORT_SIZE }, (_, i) => makeStudentBase(start + i));
+}
+function getAllStudents() {
+  return [1, 2, 3, 4].flatMap(c => getPeriodStudents(c));
+}
 let _helpflags = {};       // { studentId: { flaggedAt, message } }
 let _craftRequests = {};   // { studentId: { requestedAt } } — pending potion requests
 let _settings = {};        // { pacing: { startDate, targetDate, targetCount } }
@@ -1158,7 +1190,7 @@ function getOverrides() {
 function saveStudentOverride(id, changes) {
   const sid = String(id);
   _overrides[sid] = Object.assign({}, _overrides[sid] || {}, changes);
-  update(ref(db, `overrides/${sid}`), changes).catch(console.error);
+  update(ref(db, `students/${sid}`), changes).catch(console.error);
 }
 function getBossStatus(student, bossKey) {
   return ((_overrides[String(student.id)] || {}).bossStatus || {})[bossKey] || 'not_attempted';
@@ -1614,18 +1646,16 @@ function resetStudentFull(studentId) {
     title: null, activeCompanion: null,
     guild: null,
   };
-  _overrides[sid] = resetData;
+  _overrides[sid] = { ...resetData, claimed: true };
   delete _activityLog[sid];
-  set(ref(db, `overrides/${sid}`), resetData).catch(console.error);
+  set(ref(db, `students/${sid}`), { ...resetData, claimed: true }).catch(console.error);
   set(ref(db, `activityLog/${sid}`), null).catch(console.error);
   clearHelpFlag(studentId);
 }
 function getMergedStudent(base) {
-  const ov = getOverrides().students[String(base.id)] || {};
-  const merged = Object.assign({}, base, ov);
+  const ov = _overrides[String(base.id)] || {};
+  const merged = Object.assign({}, STUDENT_DEFAULTS, ov);
   if (ov._isReset) {
-    // Firebase omits null/[] on write, so restore reset defaults for any field
-    // still missing from the override (i.e. not yet overwritten by new gameplay).
     if (!('currentLand' in ov))      merged.currentLand      = null;
     if (!('guild' in ov))            merged.guild            = null;
     if (!('title' in ov))            merged.title            = null;
@@ -1635,6 +1665,9 @@ function getMergedStudent(base) {
     if (!('companions' in ov))       merged.companions       = [];
     if (!('completedTiles' in ov))   merged.completedTiles   = [];
   }
+  merged.id      = base.id;
+  merged.number  = base.id;
+  merged.displayName = merged.characterName || `#${base.id}`;
   return merged;
 }
 function getCharName(student) {
@@ -1648,7 +1681,7 @@ function migrateCharacterNames() {
       const sid = String(s.id);
       const ov = _overrides[sid] || {};
       if (Object.keys(ov).length > 0 && !ov.characterName) {
-        writes[`overrides/${sid}/characterName`] = s.displayName;
+        writes[`students/${sid}/characterName`] = s.displayName;
       }
     }
   }
@@ -2054,7 +2087,7 @@ const TITLE_OPTIONS = [
 ];
 
 /* ─── STATE ─── */
-let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinError:"", helpFlagged:false, helpModalOpen:false,
+let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinError:"", studentNumEntry:"", helpFlagged:false, helpModalOpen:false,
               gradeModalOpen:false, gradeModalLessonId:null,
               teacherPeriodIdx:0, teacherStudent:null, teacherEdit:null, boardLand:1,
               lessonTile:null, lessonLand:null, teacherTile:null, teacherTileLand:null,
@@ -2193,6 +2226,16 @@ function renderError(msg) {
 }
 
 function renderCode() {
+  const digits = STATE.studentNumEntry || "";
+  const slots = [0,1,2].map(i =>
+    `<div class="pin-dot${digits.length > i ? " on" : ""}">${digits[i] || "·"}</div>`
+  ).join("");
+  const keys = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
+  const pad = keys.map(k => {
+    if (!k) return `<div class="num-empty"></div>`;
+    if (k === "⌫") return `<button class="num-btn num-del" id="num-del" ${digits.length===0?"disabled":""}>⌫</button>`;
+    return `<button class="num-btn" data-digit="${k}">${k}</button>`;
+  }).join("");
   return `
   <div class="screen screen-center">
     ${starsHTML()}
@@ -2210,16 +2253,10 @@ function renderCode() {
       <p class="logo-sub">Where Stories Come to Life</p>
       <p class="logo-school-sub">A 5th grade English Language Arts learning platform · Lake Charles Charter Academy</p>
       <div class="divider">✦ ✦ ✦</div>
-      <p class="form-hint">Enter your class code to begin your adventure!</p>
-      <div class="input-wrap" id="code-wrap">
-        <span class="input-icon">🗝️</span>
-        <input id="code-inp" class="code-input" type="text" placeholder="CLASS CODE" maxlength="20" autocomplete="off" spellcheck="false"/>
-      </div>
+      <p class="form-hint">Enter your student number</p>
+      <div class="pin-dots" style="margin:1rem auto 0.25rem">${slots}</div>
       ${STATE.pinError ? `<p class="error-box">⚠️ ${STATE.pinError}</p>` : ""}
-      <button class="btn btn-purple btn-lg" id="code-btn">
-        <span>Enter the Realm</span><span class="btn-arrow">→</span>
-      </button>
-      <p class="footer-tip">💡 Ask your teacher for the class code</p>
+      <div class="numpad" style="margin:0.5rem auto 1rem">${pad}</div>
       <button class="teacher-link" id="teacher-link-btn">🔐 Teacher Access</button>
       <p class="login-page-footer">Built and operated by Amber Odom, 5th Grade ELA, Lake Charles Charter Academy. This site stores no student-identifying information. <a href="/privacy" class="login-page-footer-link">Privacy</a></p>
     </div>
@@ -4900,10 +4937,12 @@ function renderTeacherDashboard() {
   const cards = period.students.map(s => {
     const m        = getMergedStudent(s);
     const ov       = getOverrides().students[String(s.id)] || {};
+    const unclaimed = !ov.claimed;
     const sFlags   = getStudentFlags(s);
     const hasFlags = sFlags.length > 0;
+    const rosterName = _roster[String(s.id)] || null;
 
-    const cc  = CLS_COLOR[clsKey(s, m)];
+    const cc  = unclaimed ? "#9CA3AF" : CLS_COLOR[clsKey(s, m)];
     const av  = m.avatar || "avatar_blankchibi.png";
     const hpP = Math.round((m.hp/10)*100);
     const mpP = Math.round((m.mp/10)*100);
@@ -4925,17 +4964,18 @@ function renderTeacherDashboard() {
     ).join('');
     const menuOpen = STATE.cardMenuSid === s.id;
     return `
-    <div class="t-s-card ${hasFlags?"has-flag":""}" data-sid="${s.id}" tabindex="0" role="button" aria-label="Edit ${getCharName(s)}">
+    <div class="t-s-card ${hasFlags?"has-flag":""} ${unclaimed?"t-s-card-unclaimed":""}" data-sid="${s.id}" tabindex="0" role="button" aria-label="Edit ${getCharName(s)}">
       <button class="t-card-menu-btn" data-card-menu="${s.id}" title="More actions">⋮</button>
       ${menuOpen ? `<div class="t-card-menu-dropdown" data-card-menu-drop="${s.id}">
         <button class="t-card-menu-item" data-award-companion="${s.id}">🐾 Award Companion</button>
       </div>` : ''}
       ${hasFlags ? `<div class="t-flag-badges">${flagBadges}</div>` : ''}
       <div class="t-s-top">
-        <div class="t-s-avatar" style="border-color:${cc};padding:0"><img src="/avatars/${av}" alt="${s.name}" width="44" height="44" loading="lazy"/></div>
+        <div class="t-s-avatar" style="border-color:${cc};padding:0"><img src="/avatars/${av}" alt="${getCharName(s)}" width="44" height="44" loading="lazy"/></div>
         <div class="t-s-info">
-          <div class="t-s-name">${getCharName(s)}</div>
-          <div class="t-s-cls" style="color:${cc}">Lv.${m.level} ${CLS_LABEL[clsKey(s, m)]}</div>
+          <div class="t-s-name"><span class="t-s-num">${s.id}</span>${unclaimed ? '<span class="t-s-unclaimed-lbl">Unclaimed</span>' : ` – ${getCharName(s)}`}</div>
+          ${rosterName ? `<div class="t-s-roster-name">${rosterName}</div>` : ''}
+          <div class="t-s-cls" style="color:${cc}">${unclaimed ? "No character yet" : `Lv.${m.level} ${CLS_LABEL[clsKey(s, m)]}`}</div>
         </div>
       </div>
       <div class="t-mini-bars">
@@ -5798,24 +5838,62 @@ function mount() {
 function bindEvents() {
   const $ = id => document.getElementById(id);
 
-  /* CLASS CODE */
+  /* STUDENT NUMBER ENTRY */
   if (STATE.screen === "code") {
-    const inp = $("code-inp");
-    inp && inp.focus();
-    $("code-btn") && $("code-btn").addEventListener("click", () => {
-      const v = (inp ? inp.value : "").trim().toUpperCase();
-      const period = CLASS_DATA.periods.find(p => p.classCode.toUpperCase() === v);
-      if (period) {
-        STATE.currentPeriod = period; STATE.screen = "grid"; STATE.pinError = ""; mount();
-      } else {
-        STATE.pinError = "That class code isn't recognized. Ask your teacher!";
-        const w = document.getElementById("code-wrap");
-        w && w.classList.add("shake");
-        setTimeout(() => w && w.classList.remove("shake"), 600);
+    const _submitNumber = () => {
+      const num = parseInt(STATE.studentNumEntry, 10);
+      if (!isValidStudentNumber(num)) {
+        STATE.pinError = "That's not a valid student number. Ask your teacher!";
+        STATE.studentNumEntry = "";
         mount();
+        return;
       }
+      STATE.student = makeStudentBase(num);
+      STATE.currentPeriod = CLASS_DATA.periods.find(p => p.id === Math.floor(num / 100)) || null;
+      STATE.pinError = "";
+      const claimed = !!(_overrides[String(num)] && _overrides[String(num)].claimed);
+      if (!claimed) {
+        STATE.charNameReturnScreen = "welcome-splash";
+        STATE.screen = "char-name";
+      } else {
+        const _pos = getLandPos(STATE.student);
+        const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0;
+        const _inSanctumLand = isInSanctum(STATE.student);
+        if (_inSanctumLand) {
+          const _sLand = LANDS.find(l => l.id === _inSanctumLand);
+          if (_sLand) {
+            STATE.sanctumLand = _sLand;
+            STATE.lessonLand  = _sLand;
+            STATE.lessonTile  = _sLand.tiles.find(t => t.type === 'event') || null;
+            STATE.writingEventReturnTo = 'sanctum-map';
+            STATE.screen = "sanctum-map";
+          } else {
+            STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
+          }
+        } else {
+          STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
+        }
+      }
+      STATE.studentNumEntry = "";
+      mount();
+    };
+
+    $("num-del") && $("num-del").addEventListener("click", () => {
+      STATE.studentNumEntry = STATE.studentNumEntry.slice(0, -1);
+      STATE.pinError = "";
+      mount();
     });
-    inp && inp.addEventListener("keydown", e => { if (e.key === "Enter") $("code-btn") && $("code-btn").click(); });
+    document.querySelectorAll("[data-digit]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (STATE.studentNumEntry.length >= 3) return;
+        STATE.studentNumEntry += btn.dataset.digit;
+        STATE.pinError = "";
+        mount();
+        if (STATE.studentNumEntry.length === 3) {
+          setTimeout(_submitNumber, 200);
+        }
+      });
+    });
   }
 
   /* NAME GRID */
@@ -5885,7 +5963,7 @@ function bindEvents() {
         if (errEl) { errEl.textContent = "Please enter a name of at least 2 characters."; errEl.style.display = ""; }
         return;
       }
-      saveStudentOverride(STATE.student.id, { characterName: val });
+      saveStudentOverride(STATE.student.id, { characterName: val, claimed: true });
       STATE.screen = STATE.charNameReturnScreen || "hub";
       STATE.charNameReturnScreen = null;
       mount();
@@ -5904,7 +5982,7 @@ function bindEvents() {
 
   /* HUB */
   if (STATE.screen === "hub") {
-    $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; mount(); });
+    $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; mount(); });
     $("continue-quest-btn") && $("continue-quest-btn").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
     $("grade-reminder-banner") && $("grade-reminder-banner").addEventListener("click", () => {
       const reminders = getGradeReminders(STATE.student.id);
@@ -7698,7 +7776,7 @@ function initFirebaseCache() {
     let ovReady = false, hfReady = false, crReady = false, stReady = false;
     function checkReady() { if (ovReady && hfReady && crReady && stReady) resolve(); }
 
-    onValue(ref(db, 'overrides'), (snap) => {
+    onValue(ref(db, 'students'), (snap) => {
       _overrides = snap.exists() ? snap.val() : {};
       if (!ovReady) { ovReady = true; checkReady(); }
       else liveMount();
@@ -7743,6 +7821,38 @@ function liveMount() {
   if (['teacher-dash', 'hub', 'grid'].includes(STATE.screen)) mount();
 }
 
+async function seedAndMigrate() {
+  // Seed 120 empty slots if students/101 doesn't exist yet
+  const snap = await get(ref(db, 'students/101'));
+  if (!snap.exists()) {
+    const writes = {};
+    getAllStudents().forEach(s => { writes[`students/${s.id}`] = { ...STUDENT_DEFAULTS }; });
+    await update(ref(db), writes);
+  }
+
+  // Migrate legacy overrides/ records to students/{number}
+  const oldSnap = await get(ref(db, 'overrides'));
+  if (oldSnap.exists()) {
+    const old = oldSnap.val();
+    const writes = {};
+    const unmapped = [];
+    for (const [idStr, ov] of Object.entries(old)) {
+      const id = parseInt(idStr, 10);
+      if (id >= 1 && id <= 100) {
+        const cohort = Math.ceil(id / 25);
+        const offset = ((id - 1) % 25) + 1;
+        const number = cohort * 100 + offset;
+        writes[`students/${number}`] = { ...STUDENT_DEFAULTS, ...ov, claimed: true };
+      } else {
+        unmapped.push(idStr);
+      }
+    }
+    if (Object.keys(writes).length > 0) await update(ref(db), writes);
+    if (unmapped.length > 0) console.warn('Migration: unmapped legacy IDs', unmapped);
+    // Uncomment after verifying migration: await set(ref(db, 'overrides'), null);
+  }
+}
+
 /* ─── BOOT — fetch classData.json + init Firebase, then start ─── */
 mount(); // show loading spinner immediately
 Promise.all([
@@ -7750,6 +7860,9 @@ Promise.all([
   signInAnonymously(auth).catch(() => null).then(() => initFirebaseCache()),
 ]).then(([data]) => {
   CLASS_DATA = data;
+  CLASS_DATA.periods.forEach(p => { p.students = getPeriodStudents(p.id); });
+  fetch('/roster.local.json').then(r => r.ok ? r.json() : {}).then(r => { _roster = r; }).catch(() => {});
+  seedAndMigrate().catch(console.error);
   STATE.screen = 'code';
   mount();
 }).catch(err => {

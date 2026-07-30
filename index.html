@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Realm of ELA</title>
+  <link rel="icon" type="image/png" href="/favicon-32.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
@@ -786,11 +787,16 @@ input  { font-family: var(--font-body); }
 .t-s-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,.18); border-color:var(--gold); }
 .t-s-card.has-flag { border-color:#FCA5A5; background:linear-gradient(160deg,rgba(255,255,255,.97),#FFF5F5); }
 .t-s-card.has-flag:hover { border-color:#EF4444; }
+.t-s-card-unclaimed { opacity:.55; }
+.t-s-card-unclaimed:hover { opacity:.85; }
 
 .t-s-top { display:flex; align-items:center; gap:9px; }
 .t-s-avatar { width:44px; height:44px; border-radius:50%; border:2.5px solid; padding:2px; background:white; flex-shrink:0; overflow:hidden; display:flex; align-items:center; justify-content:center; }
 .t-s-info { flex:1; min-width:0; }
 .t-s-name  { font-size:14px; font-weight:900; color:var(--text-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.t-s-num   { font-size:12px; font-weight:700; color:var(--text-light); margin-right:2px; }
+.t-s-unclaimed-lbl { font-size:11px; font-weight:700; color:#9CA3AF; text-transform:uppercase; letter-spacing:.4px; margin-left:4px; }
+.t-s-roster-name { font-size:11px; color:var(--text-light); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .t-s-cls   { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; }
 
 .t-mini-bars { display:flex; flex-direction:column; gap:3px; }

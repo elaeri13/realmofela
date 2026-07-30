@@ -17,3 +17,7 @@ Thumbs.db
 
 # Local dev tooling — node binary copied for Claude Code dev server
 .claude/node
+
+# Teacher roster — maps student numbers to real names; never commit
+roster.local.json
+public/roster.local.json
