@@ -1,4 +1,5 @@
 import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, signInAnonymously } from './firebaseClient.js'
+import { rollName } from './data/characterNames.js'
 
 /* ═══════════════════════════════════════════════
    REALM OF ELA  —  Pure Vanilla JS
@@ -1163,7 +1164,9 @@ const STUDENT_DEFAULTS = {
 };
 
 function makeStudentBase(number) {
-  return { id: number, number, cohort: Math.floor(number / 100) };
+  const s = String(number);
+  const pin = s[0] + '0' + s.slice(1); // 101→1001, 201→2001, 125→1025
+  return { id: number, number, cohort: Math.floor(number / 100), pin };
 }
 function isValidStudentNumber(n) {
   const c = Math.floor(n / 100);
@@ -1673,6 +1676,17 @@ function getMergedStudent(base) {
 function getCharName(student) {
   return (getMergedStudent(student).characterName) || student.displayName;
 }
+function getAllClaimedNames() {
+  return new Set(Object.values(_overrides).map(ov => ov.characterName).filter(Boolean));
+}
+function getUniqueName() {
+  const claimed = getAllClaimedNames();
+  let name;
+  let tries = 0;
+  do { name = rollName(); tries++; } while (claimed.has(name) && tries < 200);
+  return name;
+}
+
 function migrateCharacterNames() {
   if (!CLASS_DATA) return;
   const writes = {};
@@ -2122,7 +2136,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               sanctumReturnOpen: false, sanctumReturnLandId: null,
               sanctumLand: null, sanctumTileOpen: null, writingEventReturnTo: 'quest-map',
               travelDestDesc: null, classSettingsOpen: false, cardMenuSid: null,
-              charNameReturnScreen: null };
+              charNameReturnScreen: null, generatedName: null };
 
 /* ─── CHIBI SVG ─── */
 function chibiSVG(cls, size) {
@@ -2238,7 +2252,7 @@ function renderCode() {
       <span class="gem-float" style="left:3%;top:45%;animation-delay:2.5s">🔮</span>
     </div>
     <div class="login-card enter">
-      <span class="logo-icon">⚔️</span>
+      <img src="/swords.png" alt="⚔️" class="logo-icon" style="width:90px;height:90px;object-fit:contain;display:block;margin:0 auto 16px"/>
       <h1 class="logo-title">The Realm of ELA</h1>
       <p class="logo-sub">Where Stories Come to Life</p>
       <p class="logo-school-sub">A 5th grade English Language Arts learning platform · Lake Charles Charter Academy</p>
@@ -2384,21 +2398,21 @@ function renderCatchUpModal() {
 }
 
 function renderCharName() {
+  const name = STATE.generatedName || "";
   return `
   <div class="screen screen-center">
     ${starsHTML()}
-    <div class="login-card enter">
-      <span class="logo-icon">⚔️</span>
-      <h2 class="logo-title" style="font-size:clamp(1.4rem,5vw,2rem)">Choose Your Name</h2>
-      <p class="logo-sub" style="font-size:0.95rem;margin-bottom:1.2rem">This is the name the Realm will know you by.<br>Choose wisely — it cannot be changed.</p>
-      <div class="input-wrap" id="char-name-wrap">
-        <span class="input-icon">✨</span>
-        <input id="char-name-inp" class="code-input" type="text" placeholder="YOUR CHARACTER NAME" maxlength="30" autocomplete="off" spellcheck="false"/>
+    <div class="login-card enter" style="max-width:480px">
+      <img src="/swords.png" alt="⚔️" style="width:72px;height:72px;object-fit:contain;display:block;margin:0 auto 16px"/>
+      <h2 class="logo-title" style="font-size:clamp(1.4rem,5vw,2rem)">Your Character Name</h2>
+      <p class="logo-sub" style="font-size:0.92rem;margin-bottom:1.5rem">The Realm has chosen a name for you.<br>Reroll until you find one you love — then claim it forever.</p>
+      <div class="char-name-generated" id="char-name-display">${name}</div>
+      <div class="char-name-actions">
+        <button class="btn btn-outline-sm" id="char-name-reroll">🎲 Reroll</button>
+        <button class="btn btn-purple btn-lg" id="char-name-claim" ${!name ? "disabled" : ""}>
+          <span>Claim This Name</span><span class="btn-arrow">→</span>
+        </button>
       </div>
-      <p id="char-name-err" class="error-box" style="display:none"></p>
-      <button class="btn btn-purple btn-lg" id="char-name-btn">
-        <span>Begin My Journey</span><span class="btn-arrow">→</span>
-      </button>
     </div>
   </div>`;
 }
@@ -4966,6 +4980,7 @@ function renderTeacherDashboard() {
       <button class="t-card-menu-btn" data-card-menu="${s.id}" title="More actions">⋮</button>
       ${menuOpen ? `<div class="t-card-menu-dropdown" data-card-menu-drop="${s.id}">
         <button class="t-card-menu-item" data-award-companion="${s.id}">🐾 Award Companion</button>
+        <button class="t-card-menu-item" data-reroll-name="${s.id}">🎲 Reroll Name</button>
       </div>` : ''}
       ${hasFlags ? `<div class="t-flag-badges">${flagBadges}</div>` : ''}
       <div class="t-s-top">
@@ -5912,24 +5927,25 @@ function bindEvents() {
     });
   }
 
-  /* CHARACTER NAME */
+  /* CHARACTER NAME GENERATOR */
   if (STATE.screen === "char-name") {
-    const _cnInp = $("char-name-inp");
-    _cnInp && _cnInp.focus();
-    const _cnSubmit = () => {
-      const val = (_cnInp ? _cnInp.value : "").trim();
-      const errEl = $("char-name-err");
-      if (!val || val.length < 2) {
-        if (errEl) { errEl.textContent = "Please enter a name of at least 2 characters."; errEl.style.display = ""; }
-        return;
-      }
-      saveStudentOverride(STATE.student.id, { characterName: val, claimed: true });
+    if (!STATE.generatedName) {
+      STATE.generatedName = getUniqueName();
+      mount();
+      return;
+    }
+    $("char-name-reroll") && $("char-name-reroll").addEventListener("click", () => {
+      STATE.generatedName = getUniqueName();
+      mount();
+    });
+    $("char-name-claim") && $("char-name-claim").addEventListener("click", () => {
+      if (!STATE.generatedName) return;
+      saveStudentOverride(STATE.student.id, { characterName: STATE.generatedName, claimed: true });
       STATE.screen = STATE.charNameReturnScreen || "hub";
       STATE.charNameReturnScreen = null;
+      STATE.generatedName = null;
       mount();
-    };
-    $("char-name-btn") && $("char-name-btn").addEventListener("click", _cnSubmit);
-    _cnInp && _cnInp.addEventListener("keydown", e => { if (e.key === "Enter") _cnSubmit(); });
+    });
   }
 
   /* WELCOME SPLASH */
@@ -6591,6 +6607,16 @@ function bindEvents() {
     });
 
     // Card menu items
+    document.querySelectorAll("[data-reroll-name]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const sid = parseInt(btn.dataset.rerollName, 10);
+        const newName = getUniqueName();
+        saveStudentOverride(sid, { characterName: newName, claimed: true });
+        STATE.cardMenuSid = null;
+        mount();
+      });
+    });
     document.querySelectorAll("[data-award-companion]").forEach(btn => {
       btn.addEventListener("click", e => {
         e.stopPropagation();

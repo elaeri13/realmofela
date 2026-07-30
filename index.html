@@ -697,6 +697,33 @@ input  { font-family: var(--font-body); }
 .login-page-footer-link { color:var(--teal); text-decoration:none; font-weight:700; }
 .login-page-footer-link:hover { text-decoration:underline; }
 
+/* Character name generator */
+.char-name-generated {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  font-weight: 700;
+  color: var(--purple);
+  text-align: center;
+  padding: 1.2rem 1rem;
+  background: rgba(124,58,237,.08);
+  border: 2px solid rgba(124,58,237,.2);
+  border-radius: 12px;
+  letter-spacing: .02em;
+  line-height: 1.25;
+  min-height: 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+.char-name-actions {
+  display: flex;
+  gap: .75rem;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 /* Teacher login */
 .t-login-card {
   background:rgba(255,255,255,.97); border:3px solid var(--purple); border-radius:var(--card-radius);
