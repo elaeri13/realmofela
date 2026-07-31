@@ -1094,7 +1094,7 @@ const LAND0 = {
     { id:12, type:"npc", npcKey:"lumin_encouragement", x:975,  y:490, landId:0 },
     { id:13, type:"npc", npcKey:"lumin_easter",        x:325,  y:490, landId:0 },
   ],
-  pathOrder:[1,2,5,4,3,6],
+  pathOrder:[2,1,5,4,3,6],
 };
 
 function getLandData(id) {
@@ -3213,7 +3213,7 @@ function getLandPos(student) {
   // This covers new students, any reset (with or without _isReset flag in Firebase),
   // and Land 0 in-progress students. Never fall through to classData's currentLand.
   if (ov.currentLand === undefined && !ov.completedLand0) {
-    return { land:0, tile: ov.currentTile || 1, completed: ov.completedTiles || [] };
+    return { land:0, tile: ov.currentTile || 2, completed: ov.completedTiles || [] };
   }
   return {
     land: ov.currentLand !== null ? ov.currentLand : 1,
@@ -5915,7 +5915,7 @@ function bindEvents() {
           setTimeout(() => {
             if (STATE.pin === STATE.student.pin) {
               const _pos = getLandPos(STATE.student);
-              const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0;
+              const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0 && !!getMergedStudent(STATE.student).characterName;
               const _inSanctumLand = isInSanctum(STATE.student);
               if (_inSanctumLand) {
                 const _sLand = LANDS.find(l => l.id === _inSanctumLand);
@@ -5930,14 +5930,6 @@ function bindEvents() {
                 }
               } else {
                 STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
-              }
-              if (!getMergedStudent(STATE.student).characterName) {
-                STATE.screen = "hub";
-                STATE.customizeOpen = true;
-                STATE.avStep = 1;
-                STATE.custTab = "avatar";
-                STATE.genName = randName();
-                STATE.genEpithet = randEpithet();
               }
               STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false; mount();
             } else {
@@ -6744,7 +6736,8 @@ function bindEvents() {
     $("land-sel") && $("land-sel").addEventListener("change", e => {
       const landId = parseInt(e.target.value,10);
       STATE.teacherEdit.currentLand = landId;
-      STATE.teacherEdit.currentTile = 1;
+      const _selLand = getLandData(landId);
+      STATE.teacherEdit.currentTile = (_selLand.pathOrder || [])[0] || 1;
       const tileSel = $("tile-sel");
       if (tileSel) {
         const land = getLandData(landId);
@@ -7166,6 +7159,8 @@ function bindEvents() {
       STATE.avStep = 1;
       STATE.custTab = "avatar";
       STATE.pendingTitle = null;
+      if (!STATE.genName) STATE.genName = randName();
+      if (!STATE.genEpithet) STATE.genEpithet = randEpithet();
       STATE.screen = "hub";
       mount();
     });
