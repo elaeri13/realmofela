@@ -2255,7 +2255,7 @@ function renderCode() {
       <img src="/swords.png" alt="⚔️" class="logo-icon" style="width:90px;height:90px;object-fit:contain;display:block;margin:0 auto 16px"/>
       <h1 class="logo-title">The Realm of ELA</h1>
       <p class="logo-sub">Where Stories Come to Life</p>
-      <p class="logo-school-sub">A 5th grade English Language Arts learning platform · Lake Charles Charter Academy</p>
+      <p class="logo-school-sub">A 5th grade English Language Arts learning platform</p>
       <div class="divider">✦ ✦ ✦</div>
       <p class="form-hint">Enter your class code to begin your adventure!</p>
       <div class="input-wrap" id="code-wrap">
@@ -2268,7 +2268,7 @@ function renderCode() {
       </button>
       <p class="footer-tip">💡 Ask your teacher for the class code</p>
       <button class="teacher-link" id="teacher-link-btn">🔐 Teacher Access</button>
-      <p class="login-page-footer">Built and operated by Amber Odom, 5th Grade ELA, Lake Charles Charter Academy. This site stores no student-identifying information. <a href="/privacy" class="login-page-footer-link">Privacy</a></p>
+      <p class="login-page-footer">Built and operated by Amber Odom, 5th Grade ELA, Lake Charles Charter Academy. This site stores no student-identifying information.<br><a href="/about.html" class="login-page-footer-link">About</a> · <a href="/privacy.html" class="login-page-footer-link">Privacy</a></p>
     </div>
   </div>`;
 }
