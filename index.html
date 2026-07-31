@@ -697,6 +697,47 @@ input  { font-family: var(--font-body); }
 .login-page-footer-link { color:var(--teal); text-decoration:none; font-weight:700; }
 .login-page-footer-link:hover { text-decoration:underline; }
 
+/* Character name row inside customization modal */
+.av-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.av-name-part {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(124,58,237,.08);
+  border: 1.5px solid rgba(124,58,237,.22);
+  border-radius: 8px;
+  padding: 5px 8px 5px 10px;
+}
+.av-name-val {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(0.78rem, 2.2vw, 1rem);
+  font-weight: 700;
+  color: var(--purple);
+  white-space: nowrap;
+}
+.av-name-reroll-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.05rem;
+  color: var(--purple);
+  opacity: .55;
+  padding: 2px 3px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: opacity .15s, background .15s;
+  flex-shrink: 0;
+}
+.av-name-reroll-btn:hover { opacity: 1; background: rgba(124,58,237,.14); }
+.av-name-sep { font-size: 0.7rem; color: var(--text-light); opacity: .45; }
+
 /* Character name generator */
 .char-name-generated {
   font-family: 'Cinzel', serif;

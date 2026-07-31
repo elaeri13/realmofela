@@ -1,5 +1,5 @@
 import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, signInAnonymously } from './firebaseClient.js'
-import { rollName } from './data/characterNames.js'
+import { NAMES, EPITHETS } from './data/characterNames.js'
 
 /* ═══════════════════════════════════════════════
    REALM OF ELA  —  Pure Vanilla JS
@@ -1679,12 +1679,17 @@ function getCharName(student) {
 function getAllClaimedNames() {
   return new Set(Object.values(_overrides).map(ov => ov.characterName).filter(Boolean));
 }
-function getUniqueName() {
+function randName()    { return NAMES[Math.floor(Math.random() * NAMES.length)]; }
+function randEpithet() { return EPITHETS[Math.floor(Math.random() * EPITHETS.length)]; }
+function uniqueFullName(namePart, epithetPart) {
   const claimed = getAllClaimedNames();
-  let name;
+  let epithet = epithetPart;
   let tries = 0;
-  do { name = rollName(); tries++; } while (claimed.has(name) && tries < 200);
-  return name;
+  while (claimed.has(`${namePart} ${epithet}`) && tries < 200) {
+    epithet = randEpithet();
+    tries++;
+  }
+  return { name: namePart, epithet };
 }
 
 function migrateCharacterNames() {
@@ -2136,7 +2141,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               sanctumReturnOpen: false, sanctumReturnLandId: null,
               sanctumLand: null, sanctumTileOpen: null, writingEventReturnTo: 'quest-map',
               travelDestDesc: null, classSettingsOpen: false, cardMenuSid: null,
-              charNameReturnScreen: null, generatedName: null };
+              genName: null, genEpithet: null};
 
 /* ─── CHIBI SVG ─── */
 function chibiSVG(cls, size) {
@@ -2544,21 +2549,42 @@ function renderHub() {
       </div>
     </div>`;
 
+  const needsName = !s.characterName;
+  const nameRowHTML = needsName ? `
+    <div class="av-name-row">
+      <div class="av-name-part">
+        <span class="av-name-val">${STATE.genName || ""}</span>
+        <button class="av-name-reroll-btn" id="reroll-name" title="Reroll name">↺</button>
+      </div>
+      <span class="av-name-sep">+</span>
+      <div class="av-name-part">
+        <span class="av-name-val">${STATE.genEpithet || ""}</span>
+        <button class="av-name-reroll-btn" id="reroll-epithet" title="Reroll epithet">↺</button>
+      </div>
+    </div>` : "";
+
   const custHTML = STATE.customizeOpen ? `
     <div class="cust-overlay">
       <div class="cust-modal">
         <div class="cust-header">
-          <span class="cust-header-title">✨ Customize Character</span>
-          <button class="av-close-btn" id="cust-close">✕</button>
+          <span class="cust-header-title">${needsName ? "⚔️ Create Your Character" : "✨ Customize Character"}</span>
+          ${needsName ? "" : `<button class="av-close-btn" id="cust-close">✕</button>`}
         </div>
-        <div class="cust-tabs">
+        ${needsName ? "" : `<div class="cust-tabs">
           <button class="cust-tab${custTab==="avatar"?" active":""}" data-custtab="avatar">🎭 Avatar</button>
           <button class="cust-tab${custTab==="title"?" active":""}" data-custtab="title">👑 Title</button>
-        </div>
+        </div>`}
         <div class="cust-body">
-          ${custTab==="avatar" ? `
+          ${!needsName && custTab==="title" ? `
           <div class="cust-section">
-            <div class="cust-section-hdr">🎭 Choose Avatar</div>
+            <div class="cust-section-hdr">👑 Choose Title</div>
+            <div class="title-grid">
+              ${titleOptions.map(t => `
+                <button class="title-card${activeTitle===t?" cust-active":""}" data-title="${t}">${t}</button>`).join("")}
+            </div>
+          </div>` : `
+          <div class="cust-section">
+            ${needsName ? `<div class="cust-section-hdr" style="margin-bottom:6px">✨ Your Character Name</div>${nameRowHTML}` : `<div class="cust-section-hdr">🎭 Choose Avatar</div>`}
             <div class="av-modal-nav">
               <div>${avStep > 1 ? `<button class="av-nav-btn" id="av-back-${avStep}">← Back</button>` : ""}</div>
               <div class="av-steps">${stepsHTML}</div>
@@ -2566,18 +2592,12 @@ function renderHub() {
             </div>
             ${previewHTML}
             ${stepBody}
-          </div>` : ""}
-          ${custTab==="title" ? `
-          <div class="cust-section">
-            <div class="cust-section-hdr">👑 Choose Title</div>
-            <div class="title-grid">
-              ${titleOptions.map(t => `
-                <button class="title-card${activeTitle===t?" cust-active":""}" data-title="${t}">${t}</button>`).join("")}
-            </div>
-          </div>` : ""}
+          </div>`}
         </div>
         <div class="cust-footer">
-          <button class="cust-save-btn" id="cust-save">✓ Save Changes</button>
+          <button class="cust-save-btn" id="cust-save" ${needsName && !STATE.genName ? "disabled" : ""}>
+            ${needsName ? "⚔️ Enter the Realm" : "✓ Save Changes"}
+          </button>
         </div>
       </div>
     </div>` : "";
@@ -5830,7 +5850,6 @@ function mount() {
   if (STATE.screen === "lesson-stop")   root.innerHTML = renderLessonStop();
   if (STATE.screen === "writing-event")  root.innerHTML = renderWritingEvent();
   if (STATE.screen === "teacher-tile")   root.innerHTML = renderTeacherTileView();
-  if (STATE.screen === "char-name")      root.innerHTML = renderCharName();
   if (STATE.screen === "welcome-splash") root.innerHTML = renderWelcomeSplash();
   if (STATE.screen === "board-view")     root.innerHTML = renderBoardView();
   if (STATE.screen === "teacher-boss-roster") root.innerHTML = renderBossRoster();
@@ -5913,8 +5932,12 @@ function bindEvents() {
                 STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
               }
               if (!getMergedStudent(STATE.student).characterName) {
-                STATE.charNameReturnScreen = STATE.screen;
-                STATE.screen = "char-name";
+                STATE.screen = "hub";
+                STATE.customizeOpen = true;
+                STATE.avStep = 1;
+                STATE.custTab = "avatar";
+                STATE.genName = randName();
+                STATE.genEpithet = randEpithet();
               }
               STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false; mount();
             } else {
@@ -5928,26 +5951,6 @@ function bindEvents() {
   }
 
   /* CHARACTER NAME GENERATOR */
-  if (STATE.screen === "char-name") {
-    if (!STATE.generatedName) {
-      STATE.generatedName = getUniqueName();
-      mount();
-      return;
-    }
-    $("char-name-reroll") && $("char-name-reroll").addEventListener("click", () => {
-      STATE.generatedName = getUniqueName();
-      mount();
-    });
-    $("char-name-claim") && $("char-name-claim").addEventListener("click", () => {
-      if (!STATE.generatedName) return;
-      saveStudentOverride(STATE.student.id, { characterName: STATE.generatedName, claimed: true });
-      STATE.screen = STATE.charNameReturnScreen || "hub";
-      STATE.charNameReturnScreen = null;
-      STATE.generatedName = null;
-      mount();
-    });
-  }
-
   /* WELCOME SPLASH */
   if (STATE.screen === "welcome-splash") {
     $("ws-cta") && $("ws-cta").addEventListener("click", () => {
@@ -5958,7 +5961,7 @@ function bindEvents() {
 
   /* HUB */
   if (STATE.screen === "hub") {
-    $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; mount(); });
+    $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; STATE.genName = null; STATE.genEpithet = null; mount(); });
     $("continue-quest-btn") && $("continue-quest-btn").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
     $("grade-reminder-banner") && $("grade-reminder-banner").addEventListener("click", () => {
       const reminders = getGradeReminders(STATE.student.id);
@@ -6062,23 +6065,37 @@ function bindEvents() {
         }
         mount();
       });
-      // Save — commit avatar + title + active companion
+      // Reroll name parts (first-creation only)
+      $("reroll-name") && $("reroll-name").addEventListener("click", () => {
+        STATE.genName = randName(); mount();
+      });
+      $("reroll-epithet") && $("reroll-epithet").addEventListener("click", () => {
+        STATE.genEpithet = randEpithet(); mount();
+      });
+      // Save — commit avatar + title + active companion (+ name on first creation)
       $("cust-save") && $("cust-save").addEventListener("click", () => {
+        const isFirstCreation = !getMergedStudent(STATE.student).characterName;
         const overrides = {
-          // Canonical new fields
           avatarGender: STATE.avGender,
           avatarClass: STATE.avClass,
           avatarStyle: STATE.avVariant,
           avatarSkinTone: STATE.avTone,
-          // Legacy fields kept for backward compat with teacher view / existing code
           character: STATE.avClass, variant: STATE.avVariant, skinTone: STATE.avTone,
           avatar: buildAvatarFile(STATE.avGender, STATE.avClass, STATE.avVariant, STATE.avTone),
         };
         if (STATE.pendingTitle) overrides.title = STATE.pendingTitle;
         if (STATE.pendingCompanion !== undefined) overrides.activeCompanion = STATE.pendingCompanion;
+        if (isFirstCreation && STATE.genName && STATE.genEpithet) {
+          const { name, epithet } = uniqueFullName(STATE.genName, STATE.genEpithet);
+          overrides.characterName = `${name} ${epithet}`;
+          overrides.claimed = true;
+        }
         saveStudentOverride(STATE.student.id, overrides);
         STATE.customizeOpen = false; STATE.avStep = 0; STATE.pendingTitle = null; STATE.pendingCompanion = undefined;
-        if (getLandPos(STATE.student).land === 0) {
+        STATE.genName = null; STATE.genEpithet = null;
+        if (isFirstCreation) {
+          STATE.screen = "welcome-splash";
+        } else if (getLandPos(STATE.student).land === 0) {
           STATE.screen = "quest-map";
           if (STATE._sg0ReturnTile) { STATE.sg0Open = true; STATE.sg0Tile = STATE._sg0ReturnTile; STATE._sg0ReturnTile = null; }
         }

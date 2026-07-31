@@ -1,0 +1,57 @@
+← Back to the Realm
+THE REALM OF ELA
+Student Data & Privacy
+A plain-language account of what this application stores, what it does not, and how student privacy is protected.
+EFFECTIVE
+August 2026
+OPERATED BY
+Amber Odom, 5th Grade ELA
+SCHOOL
+Lake Charles Charter Academy
+SCOPE
+realmofela.com
+What this is
+The Realm of ELA is a classroom learning platform built and operated by a single teacher for use with her own 5th grade English Language Arts students. It presents the school's existing Ready Magnet curriculum through a fantasy game structure, tracking each student's progress through lessons, assessments, and skill checkpoints.
+It is not a commercial product. It is not sold, licensed, or offered to anyone outside this classroom. There are no advertisements, no analytics services, no marketing tools, and no third-party trackers of any kind.
+The application stores no student-identifying information
+Every student chooses a character name when they begin. That character name is the only identifier stored in the application's database. Real names never leave the classroom.
+The roster connecting character names to actual students is maintained separately by the teacher, in the school's own Google Workspace, which is already covered by the school's existing data agreements. The application has no access to it.
+A COMPLETE STUDENT RECORD, AS STORED
+characterName: "Thornwick the Bold"
+guild:         "Storm"
+level:         6
+xp:            340
+gold:          85
+lessonsDone:   ["1.1", "1.2", "1.3"]
+avatar:        { class: "wizard", style: 2 }
+This is the entire shape of the data. There is no name field, no email field, no student ID field, and no free-text field where a student could type identifying information about themselves.
+STORED
+	•	Student-chosen character name
+	•	Guild assignment
+	•	Points, level, and in-game currency
+	•	Which lessons have been completed
+	•	Avatar appearance selections
+NEVER STORED
+	•	Real names
+	•	Email addresses or usernames
+	•	Student ID numbers
+	•	Photographs or uploads
+	•	Birthdates, addresses, phone numbers
+	•	Free-written student text
+	•	Location or device identifiers
+Where grades live
+Graded work is not assessed inside this application. Formal assessment is administered through Pear Assessment, and all grades of record are entered in PowerSchool, the school's student information system. The progress markers stored here are pacing indicators used by the teacher during class — the equivalent of checkmarks on a clipboard.
+How it is secured
+	•	All traffic is encrypted over HTTPS.
+	•	Database access requires an authenticated session; the database is not open to the public internet.
+	•	The teacher dashboard is protected by an access code known only to the teacher.
+	•	Data is hosted by Google Firebase and Vercel, both established commercial providers with their own security programs.
+	•	The teacher is the sole administrator. No other person has access.
+How long data is kept
+Progress data is retained for the school year in which it is created and deleted at the end of that year. A student's data can be removed at any time on request from the student's parent or guardian, or from school administration.
+Parents and guardians
+Parents may ask at any time to see what is stored for their child, to have it corrected, or to have it deleted. Because the application holds no identifying information, a parent request is fulfilled by the teacher looking up the child's character name and acting on that record.
+A student may participate in class without using the application. Alternative paper-based materials cover the same curriculum.
+Governing law
+This application is operated in a manner intended to comply with the Family Educational Rights and Privacy Act (FERPA), the Children's Online Privacy Protection Act (COPPA), and Louisiana Revised Statute 17:3914. Because no personally identifiable student information is transmitted to or stored by any outside service, no student education records are disclosed to a third party through the use of this application.
+Questions, corrections, or deletion requests Amber Odom · 5th Grade ELA · Lake Charles Charter Academy aodom@lakecharlescharter.org
