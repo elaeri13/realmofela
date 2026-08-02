@@ -1076,10 +1076,10 @@ const LAND0 = {
   branchPaths:[],
   decorations:[],
   tiles:[
-    { id:1, type:"sg", name:"The Notice Board",      x:195, y:350,
+    { id:1, type:"sg", name:"The Notice Board",      x:455, y:350,
       flavor:"Adventurer! A fresh notice has appeared on the board. Your journey begins here! Read what awaits you in the Realm of ELA and take the first step toward legend.",
       flavorDramatic:"✦ The Hall of Heroes is already expecting you. ✦" },
-    { id:2, type:"sg", name:"The Hall of Heroes",    x:455, y:350, sgModal:"avatar",
+    { id:2, type:"sg", name:"The Hall of Heroes",    x:195, y:350, sgModal:"avatar",
       flavor:"Every legend begins with a face and a name. Step into the Hall of Heroes to choose your class and forge the hero you will become. Your look, your story." },
     { id:3, type:"sg", name:"The Guild Hall",         x:455, y:630,
       flavor:"All heroes belong to a guild. Enter and see where your talents place you — your guild will be your companion through every challenge that lies ahead." },
@@ -5915,7 +5915,7 @@ function bindEvents() {
           setTimeout(() => {
             if (STATE.pin === STATE.student.pin) {
               const _pos = getLandPos(STATE.student);
-              const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0 && !!getMergedStudent(STATE.student).characterName;
+              const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0;
               const _inSanctumLand = isInSanctum(STATE.student);
               if (_inSanctumLand) {
                 const _sLand = LANDS.find(l => l.id === _inSanctumLand);
@@ -6085,9 +6085,7 @@ function bindEvents() {
         saveStudentOverride(STATE.student.id, overrides);
         STATE.customizeOpen = false; STATE.avStep = 0; STATE.pendingTitle = null; STATE.pendingCompanion = undefined;
         STATE.genName = null; STATE.genEpithet = null;
-        if (isFirstCreation) {
-          STATE.screen = "welcome-splash";
-        } else if (getLandPos(STATE.student).land === 0) {
+        if (getLandPos(STATE.student).land === 0) {
           STATE.screen = "quest-map";
           if (STATE._sg0ReturnTile) { STATE.sg0Open = true; STATE.sg0Tile = STATE._sg0ReturnTile; STATE._sg0ReturnTile = null; }
         }
