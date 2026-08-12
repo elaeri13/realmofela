@@ -1,0 +1,7 @@
+{
+  "7":  { "portrait": "boss_abysmara.png",   "bossName": "Abysmara",               "type": "gatekeeper"      },
+  "9":  { "portrait": "boss_duskmantle.png",  "bossName": "Duskmantle",             "type": "boss"            },
+  "11": { "portrait": "boss_keystone.png",    "bossName": "The Keystone",           "type": "boss"            },
+  "13": { "portrait": "boss_feraxis.png",     "bossName": "Feraxis",                "type": "gatekeeper"      },
+  "27": { "portrait": "boss_warden.png",      "bossName": "The Warden of the Vale", "type": "finalGatekeeper", "label": "Final Trial of the Vale" }
+}

@@ -282,29 +282,41 @@
     }
   },
   "guilds": {
-    "crimson": {
-      "name": "Crimson Guild",
+    "ember": {
+      "name": "Ember",
+      "element": "Fire",
       "color": "#C0392B",
-      "crest": "/guilds/guild_crimson.png",
-      "motto": "Courage in every chapter."
+      "crest": "/guilds/guild_ember.png",
+      "motto": "A spark is enough.",
+      "values": "Courage · Energy · Initiative",
+      "chant": "EMBER, EMBER — WATCH US RISE!"
+    },
+    "tide": {
+      "name": "Tide",
+      "element": "Water",
+      "color": "#1E5AA8",
+      "crest": "/guilds/guild_tide.png",
+      "motto": "The tide always returns.",
+      "values": "Perseverance · Resilience · Consistency",
+      "chant": "TIDE, TIDE — WE COME BACK!"
+    },
+    "thorn": {
+      "name": "Thorn",
+      "element": "Earth",
+      "color": "#2E7D46",
+      "crest": "/guilds/guild_thorn.png",
+      "motto": "We grow through hard ground.",
+      "values": "Grit · Discipline · Loyalty",
+      "chant": "THORN, THORN — HOLD THE LINE!"
     },
     "storm": {
-      "name": "Storm Guild",
-      "color": "#1A6B8A",
+      "name": "Storm",
+      "element": "Air",
+      "color": "#C9A227",
       "crest": "/guilds/guild_storm.png",
-      "motto": "Strike fast, think faster."
-    },
-    "ember": {
-      "name": "Ember Guild",
-      "color": "#E67E22",
-      "crest": "/guilds/guild_ember.png",
-      "motto": "Burn bright, never out."
-    },
-    "shadow": {
-      "name": "Shadow Guild",
-      "color": "#5B2C6F",
-      "crest": "/guilds/guild_shadow.png",
-      "motto": "Unseen. Unstoppable."
+      "motto": "Nothing stands still.",
+      "values": "Speed · Adaptability · Boldness",
+      "chant": "STORM, STORM — HERE WE COME!"
     }
   }
 }

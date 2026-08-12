@@ -426,6 +426,48 @@ input  { font-family: var(--font-body); }
 @keyframes xpPop     { from { opacity:0; transform:scale(.4) translateY(24px); } to { opacity:1; transform:scale(1) translateY(0); } }
 @keyframes xpFadeOut { from { opacity:1; transform:scale(1) translateY(0); }   to { opacity:0; transform:scale(1.15) translateY(-28px); } }
 .ls-workbook { text-align: center; font-size: 12px; font-weight: 700; color: rgba(0,0,0,.38); letter-spacing: .5px; padding-top: 2px; }
+/* ── New lesson checklist (regular reading tiles) ── */
+.ls-checklist { display:flex; flex-direction:column; gap:8px; }
+/* Checkbox items — square inputs, task-style */
+.ls-check-item { display:flex; align-items:flex-start; gap:10px; background:#fff; border:2px solid rgba(0,0,0,.1); border-left:4px solid #7C3AED; border-radius:12px; padding:12px 14px; cursor:pointer; user-select:none; transition:border-color .15s, background .15s; }
+.ls-check-item:hover:not(.ls-task-locked) { background:rgba(88,28,235,.04); }
+.ls-check-item input[type="checkbox"] { width:22px; height:22px; flex-shrink:0; margin-top:1px; cursor:pointer; accent-color:#7C3AED; }
+.ls-check-item-done { background:rgba(5,150,105,.06); border-color:rgba(5,150,105,.35); border-left-color:#059669; }
+.ls-check-item-done .ls-check-text { text-decoration:line-through; opacity:.5; }
+.ls-check-body { display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; }
+.ls-check-text { font-size:14px; font-weight:700; color:#1C1033; line-height:1.4; }
+.ls-check-reward { font-size:11px; font-weight:800; color:#059669; letter-spacing:.2px; }
+.ls-check-item-done .ls-check-reward { color:#10B981; }
+/* Self-assessment — rule divider + color-coded radio rows */
+.ls-self-assess { display:flex; flex-direction:column; gap:6px; margin-top:14px; padding-top:16px; border-top:2px solid rgba(0,0,0,.1); }
+.ls-assess-hdr { font-size:11px; font-weight:900; letter-spacing:.8px; text-transform:uppercase; color:rgba(0,0,0,.4); margin-bottom:2px; }
+/* Base assess row */
+.ls-assess-item { display:flex; align-items:center; gap:10px; border:1.5px solid rgba(0,0,0,.08); border-left:4px solid; border-radius:10px; padding:10px 12px; cursor:pointer; user-select:none; transition:border-color .12s, background .12s, opacity .12s; }
+.ls-assess-item input[type="radio"] { width:18px; height:18px; flex-shrink:0; cursor:pointer; }
+/* Level colors: green → yellow → orange → red */
+.ls-assess-item[data-level="4"] { border-left-color:#16A34A; background:rgba(22,163,74,.04); }
+.ls-assess-item[data-level="4"] input[type="radio"] { accent-color:#16A34A; }
+.ls-assess-item[data-level="4"]:hover { background:rgba(22,163,74,.09); border-color:rgba(22,163,74,.4); border-left-color:#16A34A; }
+.ls-assess-item[data-level="3"] { border-left-color:#CA8A04; background:rgba(202,138,4,.04); }
+.ls-assess-item[data-level="3"] input[type="radio"] { accent-color:#CA8A04; }
+.ls-assess-item[data-level="3"]:hover { background:rgba(202,138,4,.09); border-color:rgba(202,138,4,.4); border-left-color:#CA8A04; }
+.ls-assess-item[data-level="2"] { border-left-color:#EA580C; background:rgba(234,88,12,.04); }
+.ls-assess-item[data-level="2"] input[type="radio"] { accent-color:#EA580C; }
+.ls-assess-item[data-level="2"]:hover { background:rgba(234,88,12,.09); border-color:rgba(234,88,12,.4); border-left-color:#EA580C; }
+.ls-assess-item[data-level="1"] { border-left-color:#DC2626; background:rgba(220,38,38,.05); }
+.ls-assess-item[data-level="1"] input[type="radio"] { accent-color:#DC2626; }
+.ls-assess-item[data-level="1"]:hover { background:rgba(220,38,38,.09); border-color:rgba(220,38,38,.4); border-left-color:#DC2626; }
+/* Selected states per level */
+.ls-assess-selected[data-level="4"] { border-color:#16A34A !important; border-left-color:#16A34A !important; }
+.ls-assess-selected[data-level="4"] .ls-assess-num { color:#16A34A; }
+.ls-assess-selected[data-level="3"] { border-color:#CA8A04 !important; border-left-color:#CA8A04 !important; }
+.ls-assess-selected[data-level="3"] .ls-assess-num { color:#CA8A04; }
+.ls-assess-selected[data-level="2"] { border-color:#EA580C !important; border-left-color:#EA580C !important; }
+.ls-assess-selected[data-level="2"] .ls-assess-num { color:#EA580C; }
+.ls-assess-selected[data-level="1"] { border-color:#DC2626 !important; border-left-color:#DC2626 !important; }
+.ls-assess-selected[data-level="1"] .ls-assess-num { color:#DC2626; }
+.ls-assess-num { font-size:13px; font-weight:900; color:rgba(0,0,0,.3); flex-shrink:0; min-width:18px; }
+.ls-assess-text { font-size:13px; font-weight:600; color:#1C1033; line-height:1.35; }
 /* ── Writing Event Screen ── */
 @keyframes we-float { 0%,100%{transform:translateY(0);opacity:.5} 50%{transform:translateY(-18px);opacity:.9} }
 @keyframes we-pulse { 0%,100%{text-shadow:0 0 20px #F59E0B88,0 2px 8px rgba(0,0,0,.8)} 50%{text-shadow:0 0 40px #F59E0BCC,0 0 80px #D9770644,0 2px 8px rgba(0,0,0,.8)} }
@@ -601,10 +643,17 @@ input  { font-family: var(--font-body); }
 .char-level-stat { font-size:14px; font-weight:900; color:var(--text-dark); margin-bottom:2px; }
 .stats-footer-divider { height:1px; background:rgba(107,79,160,.2); margin:12px 0 10px; }
 .char-level-stat-compact { font-size:12px; font-weight:800; color:var(--text-dark); margin-bottom:6px; }
-.guild-banner-compact { display:flex; align-items:center; gap:7px; padding:5px 10px; border:1px solid; border-radius:8px; }
-.guild-banner-crest-sm { flex-shrink:0; object-fit:contain; }
+.guild-banner-compact { display:flex; align-items:flex-start; gap:9px; padding:8px 11px; border:1px solid; border-radius:8px; }
+.guild-banner-crest-sm { flex-shrink:0; object-fit:contain; margin-top:2px; }
 .guild-banner-label-sm { font-size:9px; font-weight:900; color:var(--text-light); text-transform:uppercase; letter-spacing:.6px; }
 .guild-banner-name-sm { font-size:12px; font-weight:900; font-family:var(--font-display); }
+.guild-hub-info { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.guild-hub-header { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.guild-hub-name { font-size:13px; font-weight:900; font-family:var(--font-display); }
+.guild-hub-element { font-size:11px; font-weight:700; opacity:.85; }
+.guild-hub-motto { font-size:11px; font-style:italic; color:var(--text-mid); line-height:1.4; }
+.guild-hub-values { font-size:10px; font-weight:600; color:var(--text-light); letter-spacing:.2px; }
+.guild-hub-chant { font-size:10px; font-weight:900; letter-spacing:.4px; opacity:.7; margin-top:2px; }
 .char-guild-label { font-size:11px; font-weight:800; letter-spacing:.4px; }
 .char-identity-toolbar { display:flex; align-items:center; gap:8px; margin-top:0px; margin-left:8px; }
 .char-avatar-area { position:relative; width:377px; height:330px; margin-top:6px; margin-left:-36px; }
@@ -988,8 +1037,28 @@ input  { font-family: var(--font-body); }
 .sg-lesson-section { background:rgba(0,0,0,.05); border-radius:10px; padding:12px 14px; }
 .sg-lesson-label { font-size:10px; font-weight:900; color:rgba(0,0,0,.45); letter-spacing:1.2px; text-transform:uppercase; margin-bottom:8px; }
 .sg-video-ph { border-radius:10px; background:rgba(0,0,0,.07); padding:22px; text-align:center; color:rgba(0,0,0,.38); font-size:13px; }
-.sg-check-item { display:flex; align-items:center; gap:8px; font-size:13px; color:rgba(0,0,0,.65); padding:4px 0; cursor:pointer; }
-.sg-check-item input { accent-color:#7C3AED; width:15px; height:15px; flex-shrink:0; }
+.sg-check-item { display:flex; align-items:flex-start; gap:8px; font-size:13px; color:rgba(0,0,0,.65); padding:5px 0; cursor:pointer; line-height:1.4; flex-wrap:wrap; }
+.sg-check-item input { accent-color:#7C3AED; width:15px; height:15px; flex-shrink:0; margin-top:1px; }
+.sg-check-locked { opacity:.5; cursor:not-allowed; }
+.sg-reward-note { display:block; width:100%; padding-left:23px; font-size:11px; font-weight:700; color:#059669; margin-top:1px; }
+.sg-assess-intro { font-size:12px; color:rgba(0,0,0,.55); line-height:1.5; margin:0 0 8px; font-style:italic; }
+.sg-assess-demo { display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:8px; margin-bottom:4px; font-size:12px; font-weight:600; border-left:3px solid; cursor:default; }
+.sg-assess-demo input { width:14px; height:14px; flex-shrink:0; }
+.sg-assess-demo-4 { border-left-color:#16A34A; }
+.sg-assess-demo-3 { border-left-color:#CA8A04; }
+.sg-assess-demo-2 { border-left-color:#EA580C; }
+.sg-assess-demo-1 { border-left-color:#DC2626; }
+.sg-assess-demo-num { font-weight:900; flex-shrink:0; }
+.sg-assess-alert { font-size:11px; font-weight:700; color:#DC2626; margin-left:2px; }
+.sg-loot-desc { font-size:12px; color:rgba(0,0,0,.55); line-height:1.55; margin:0; }
+/* ── Regular lesson modal (rlesson) section header colors ── */
+.ls-rlesson-red .sg-lesson-label  { color:#C0392B; }
+.ls-rlesson-teal .sg-lesson-label { color:#0F766E; }
+/* Locked state for yellow assess section until nearpod checked */
+.ls-section-locked { opacity:.45; pointer-events:none; }
+/* Done state for sg-check-item rows in lesson modals */
+.sg-check-item-done { opacity:.7; }
+.sg-check-item-done input { opacity:.6; }
 /* Land 0 world-map dot */
 .lm-dot.sg-done { border-color:#D97706; background:rgba(217,119,6,.2); }
 .lm-dot.sg-here { border-color:#F59E0B; background:rgba(245,158,11,.28); box-shadow:0 0 8px #F59E0B66; }

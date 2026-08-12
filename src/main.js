@@ -10,6 +10,7 @@ import { NAMES, EPITHETS } from './data/characterNames.js'
    Data is loaded from classData.json — edit that file to update students.
 ──────────────────────────────────────────────── */
 let CLASS_DATA = null;
+let BOSS_SCHEDULE = {};
 
 /* ─── CONSTANTS ─── */
 const CLS_COLOR = {
@@ -138,10 +139,10 @@ const COSMETICS_MANIFEST = [
   { id:'frame_land_5', displayName:'Ashen Hollows Frame',   category:'land', assetPath:'/cosmetics/frames/land/ashen-hollows.png',   unlockType:'land_complete', unlockValue:5 },
   { id:'frame_land_6', displayName:'Stormspire Frame',      category:'land', assetPath:'/cosmetics/frames/land/stormspire.png',      unlockType:'land_complete', unlockValue:6 },
   // ── Guild frames (unlock on guild assignment) ─────────────────────────────
-  { id:'frame_guild_crimson', displayName:'Crimson Guild Frame', category:'guild', assetPath:'/cosmetics/frames/guild/crimson.png', unlockType:'guild', unlockValue:'crimson' },
-  { id:'frame_guild_storm',   displayName:'Storm Guild Frame',   category:'guild', assetPath:'/cosmetics/frames/guild/storm.png',   unlockType:'guild', unlockValue:'storm'   },
-  { id:'frame_guild_ember',   displayName:'Ember Guild Frame',   category:'guild', assetPath:'/cosmetics/frames/guild/ember.png',   unlockType:'guild', unlockValue:'ember'   },
-  { id:'frame_guild_shadow',  displayName:'Shadow Guild Frame',  category:'guild', assetPath:'/cosmetics/frames/guild/shadow.png',  unlockType:'guild', unlockValue:'shadow'  },
+  { id:'frame_guild_ember', displayName:'Ember Guild Frame', category:'guild', assetPath:'/cosmetics/frames/guild/ember.png', unlockType:'guild', unlockValue:'ember' },
+  { id:'frame_guild_tide',  displayName:'Tide Guild Frame',  category:'guild', assetPath:'/cosmetics/frames/guild/tide.png',  unlockType:'guild', unlockValue:'tide'  },
+  { id:'frame_guild_thorn', displayName:'Thorn Guild Frame', category:'guild', assetPath:'/cosmetics/frames/guild/thorn.png', unlockType:'guild', unlockValue:'thorn' },
+  { id:'frame_guild_storm', displayName:'Storm Guild Frame', category:'guild', assetPath:'/cosmetics/frames/guild/storm.png', unlockType:'guild', unlockValue:'storm' },
   // ── Rank frames (level threshold) ────────────────────────────────────────
   { id:'frame_rank_5',  displayName:'Bronze Adventurer Frame', category:'rank', assetPath:'/cosmetics/frames/rank/bronze.png', unlockType:'level', unlockValue:5  },
   { id:'frame_rank_10', displayName:'Silver Knight Frame',     category:'rank', assetPath:'/cosmetics/frames/rank/silver.png', unlockType:'level', unlockValue:10 },
@@ -548,110 +549,91 @@ const LANDS = [
     lore:"The Vale has stood for an age uncounted, its roots drinking deep from rivers of story. Many have come to this forest broken and left it stronger. Every scar in its bark marks a reader who refused to quit.",
     W:1195, H:980,
     mainPaths:[
-      "M 65 70 L 195 70 L 325 70 L 455 70 L 585 70 L 715 70 L 845 70 L 975 70 L 1105 70",
-      "M 1105 70 C 1155 70 1155 350 1105 350",
-      "M 1105 350 L 975 350 L 845 350 L 715 350 L 585 350 L 455 350 L 325 350 L 195 350 L 65 350",
+      "M 65 70 L 195 70 L 325 70 L 455 70 L 585 70 L 715 70 L 845 70",
+      "M 845 70 C 895 70 895 350 845 350",
+      "M 845 350 L 715 350 L 585 350 L 455 350 L 325 350 L 195 350 L 65 350",
       "M 65 350 C 15 350 15 630 65 630",
-      "M 65 630 L 195 630 L 325 630 L 455 630 L 585 630 L 715 630 L 845 630 L 975 630 L 975 840",
+      "M 65 630 L 195 630 L 325 630 L 455 630 L 585 630 L 715 630 L 845 630 L 975 630",
     ],
     branchPaths:[
-      "M 455 70 L 455 210 L 585 210 L 585 70",
-      "M 975 70 L 975 210 L 1105 210 L 1105 70",
-      "M 845 350 L 845 490 L 715 490 L 715 350",
-      "M 195 350 L 195 490 L 65 490 L 65 350",
+      // S6 (Should Do) drops straight down from S5 (585,70)
+      "M 585 70 L 585 210",
+      // S8 (Aspire To) drops straight down from S7 (715,70)
+      "M 715 70 L 715 210",
+      // S12 (Should Do) stubs down-right from S13 (585,350)
+      "M 585 350 L 585 420 L 715 420 L 715 490",
+      // S14 (Aspire To) stubs down-left from S13 (585,350)
+      "M 585 350 L 585 420 L 455 420 L 455 490",
+      // S21 (Should Do) stubs down-left from Warden (325,630)
+      "M 325 630 L 325 700 L 195 700 L 195 750",
+      // S23 (Aspire To) stubs down-right from Warden (325,630)
+      "M 325 630 L 325 700 L 455 700 L 455 750",
     ],
     decorations:[],
     tiles:[
-      // ── Row 0: main path L→R ──
+      // ── Row 0: main path L→R (S1–S5, S7, S9) ──
       {id: 1, type:"arrival",  name:"The Vale's Welcome",    x:65,   y:70},
-      {id: 2, type:"lesson",   name:"L1-S1",                 x:195,  y:70,
-        sessionTitle:"This Is So Hard!",
-        sessionDesc:"Talk About the Topic",
-        video:"https://edpuzzle.com/media/placeholder-l1s1",
-        mustDo:["Complete workbook pages 10-12"],
-        shouldDo:["Partner discussion activity"],
-        aspireTo:["Extension reading response"],
-        workbookRef:"Workbook pages 10-12",
-      },
-      {id: 3, type:"lesson",   name:"L1-S2",                 x:325,  y:70,
+      {id: 2, type:"lesson",   name:"S2",  x:195,  y:70,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id: 4, type:"lesson",   name:"L1-S3",                 x:455,  y:70,
+      {id: 3, type:"lesson",   name:"S3",  x:325,  y:70,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id: 5, type:"lesson",   name:"L1-S6",                 x:585,  y:70,
+      {id: 4, type:"lesson",   name:"S4",  x:455,  y:70,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id: 6, type:"boss", name:"Seraphine of the Veil", x:715, y:70, skill:"RL.5.2",
-        portrait:"boss_seraphine.png",
-        lore:"Seraphine of the Veil weaves illusions from the hidden meanings buried in every text, cloaking the true theme beneath layers of misdirection. Only a reader who can cut through the surface story and name what it truly teaches will pierce her veil.",
-        pearUrl:"https://app.peardeck.com/placeholder-seraphine",
-      },
-      {id: 7, type:"lesson",   name:"L2-S1",                 x:845,  y:70,
+      {id: 5, type:"lesson",   name:"S5",  x:585,  y:70,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id: 8, type:"lesson",   name:"L2-S2",                 x:975,  y:70,
+      {id: 7, type:"lesson",   name:"S7",  x:715,  y:70,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id: 9, type:"lesson",   name:"L2-S3",                 x:1105, y:70,
+      {id: 9, type:"lesson",   name:"S9",  x:845,  y:70,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      // ── Row 2: main path R→L ──
-      {id:10, type:"lesson",   name:"L2-S6",                 x:1105, y:350,
+      // ── Row 2: main path R→L (S10–S11, S13, S15–S18) ──
+      {id:10, type:"lesson",   name:"S10", x:845,  y:350,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:11, type:"boss", name:"Seraphine Ascendant", x:975, y:350, skill:"RL.5.2",
-        portrait:"boss_seraphine_ascendant.png",
-        lore:"Seraphine has transcended the veil, evolving into a force of pure narrative deception that bends theme and summary into endless reflections of itself. She cannot be defeated by a single reading — you must summarize with precision and name the theme with conviction.",
-        pearUrl:"https://app.peardeck.com/placeholder-seraphine-ascendant",
-      },
-      {id:12, type:"lesson",   name:"L3-S1",                 x:845,  y:350,
+      {id:11, type:"lesson",   name:"S11", x:715,  y:350,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:13, type:"lesson",   name:"L3-S2",                 x:715,  y:350,
+      {id:13, type:"lesson",   name:"S13", x:585,  y:350,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:14, type:"lesson",   name:"L3-S3",                 x:585,  y:350,
+      {id:15, type:"lesson",   name:"S15", x:455,  y:350,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:15, type:"lesson",   name:"L3-S6",                 x:455,  y:350,
+      {id:16, type:"lesson",   name:"S16", x:325,  y:350,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:16, type:"boss", name:"Aldric the Unyielding", x:325, y:350, skill:"RL.5.1",
-        portrait:"boss_aldric.png",
-        lore:"Aldric the Unyielding is an iron-bound warlord who demands proof — he will not yield to vague answers or weak inferences. Defeat him by returning to the text, quoting with precision, and supporting every claim with unbreakable evidence.",
-        pearUrl:"https://app.peardeck.com/placeholder-aldric",
-      },
-      {id:17, type:"lesson",   name:"L4-S1",                 x:195,  y:350,
+      {id:17, type:"lesson",   name:"S17", x:195,  y:350,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:18, type:"lesson",   name:"L4-S2",                 x:65,   y:350,
+      {id:18, type:"lesson",   name:"S18", x:65,   y:350,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      // ── Row 4: main path L→R ──
-      {id:19, type:"lesson",   name:"L4-S3",                 x:65,   y:630,
+      // ── Row 4: main path L→R (S19–S20, Warden, Scribe's Calling) ──
+      {id:19, type:"lesson",   name:"S19", x:65,   y:630,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:20, type:"lesson",   name:"L4-S6",                 x:195,  y:630,
+      {id:20, type:"lesson",   name:"S20", x:195,  y:630,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:21, type:"boss", name:"Duskmantle", x:325, y:630, skill:"RL.5.3",
-        portrait:"boss_duskmantle.png",
-        lore:"Duskmantle dwells in the space between stories, feeding on the confusion between heroes and their shadows. Only a student who can compare characters with precision — tracing their motives, changes, and contrasts — can shatter its hold on the realm.",
-        pearUrl:"https://app.peardeck.com/placeholder-duskmantle",
-      },
-      {id:22, type:"lesson",   name:"CI-S1",                 x:455,  y:630,
-        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:23, type:"lesson",   name:"CI-S2",                 x:585,  y:630,
-        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:24, type:"lesson",   name:"CI-S3",                 x:715,  y:630,
-        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:25, type:"lesson",   name:"CI-S4",                 x:845,  y:630,
-        mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
+      {id:27, type:"dungeon",  name:"The Warden of the Vale", x:325, y:630, portrait:"boss_warden.png"},
       {id:26, type:"event",    name:"The Scribe's Calling",  x:975,  y:630},
-      // ── Row 6: dungeon ──
-      {id:27, type:"dungeon",  name:"The Warden of the Vale",x:975,  y:840, portrait:"boss_warden.png"},
-      // ── Branch tiles (odd rows) ──
-      {id:28, type:"loot", name:"L1-S4", x:455,  y:210, skill:"Should Do", nextTile:5,  parentTileId:4},
-      {id:29, type:"loot", name:"L1-S5", x:585,  y:210, skill:"Aspire To", nextTile:28, parentTileId:28},
-      {id:30, type:"loot", name:"L2-S4", x:975,  y:210, skill:"Should Do", nextTile:9,  parentTileId:8},
-      {id:31, type:"loot", name:"L2-S5", x:1105, y:210, skill:"Aspire To", nextTile:30, parentTileId:30},
-      {id:32, type:"loot", name:"L3-S4", x:845,  y:490, skill:"Should Do", nextTile:13, parentTileId:12},
-      {id:33, type:"loot", name:"L3-S5", x:715,  y:490, skill:"Aspire To", nextTile:32, parentTileId:32},
-      {id:34, type:"loot", name:"L4-S4", x:195,  y:490, skill:"Should Do", nextTile:18, parentTileId:17},
-      {id:35, type:"loot", name:"L4-S5", x:65,   y:490, skill:"Aspire To", nextTile:34, parentTileId:34},
+      // ── Loot branches — each pair branches independently from their hub tile ──
+      // Row 1 (y=210): S6 + S8 branch from S5 (lesson before Abysmara), rejoin at S7
+      {id: 6, type:"loot", name:"S6",  skill:"Should Do", x:585,  y:210, parentTileId: 5, nextTile: 7},
+      {id: 8, type:"loot", name:"S8",  skill:"Aspire To", x:715,  y:210, parentTileId: 5, nextTile: 7},
+      // Row 3 (y=490): S12 + S14 both branch from S13 (gate boss Feraxis tile)
+      {id:12, type:"loot", name:"S12", skill:"Should Do", x:715,  y:490, parentTileId:13, nextTile:13},
+      {id:14, type:"loot", name:"S14", skill:"Aspire To", x:455,  y:490, parentTileId:13, nextTile:13},
+      // Row 5 (y=750): S21 + S23 both branch from Warden (tile 27)
+      {id:21, type:"loot", name:"S21", skill:"Should Do", x:195,  y:750, parentTileId:27, nextTile:27},
+      {id:40, type:"loot", name:"S23", skill:"Aspire To", x:455,  y:750, parentTileId:27, nextTile:27},
       // ── NPC tiles ──
       {id:36, type:"npc", npcKey:"thornkin_hint",          x:195,  y:210, landId:1},
-      {id:37, type:"npc", npcKey:"thornkin_lore",          x:715,  y:210, landId:1},
-      {id:38, type:"npc", npcKey:"thornkin_encouragement", x:975,  y:490, landId:1},
+      {id:37, type:"npc", npcKey:"thornkin_lore",          x:325,  y:210, landId:1},
+      {id:38, type:"npc", npcKey:"thornkin_encouragement", x:65,   y:490, landId:1},
       {id:39, type:"npc", npcKey:"thornkin_easter",        x:325,  y:490, landId:1},
     ],
-    pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27],
+    pathOrder:[1,2,3,4,5,7,9,10,11,13,15,16,17,18,19,20,27,26],
+    standardBosses:{
+      duskmantle: { standard:"RL.5.1", portrait:"boss_duskmantle.png", sessions:[2,9]     },
+      mirrorkin:  { standard:"RL.5.3", portrait:"boss_mirrowick.png",  sessions:[3,18,19] },
+      seraphine:  { standard:"RL.5.2", portrait:"boss_seraphine.png",  sessions:[5,16,20] },
+      keystone:   { standard:"RI.5.2", portrait:"boss_keystone.png",   sessions:[10,11]   },
+    },
+    gateBosses:{
+      abysmara: { session:7,  assessment:"module1", portrait:"boss_abysmara.png" },
+      feraxis:  { session:13, assessment:"module2", portrait:"boss_feraxis.png"  },
+    },
   },
   // ── SHARED PATH CONSTANTS (all new lands use same serpentine grid as Land 1) ──
   // Row 0 (y=70)  L→R: x = 65,195,325,455,585,715,845,975,1105
@@ -1086,7 +1068,7 @@ const LAND0 = {
     { id:4, type:"sg", name:"The Armory",             x:715, y:630,
       flavor:"Know your power before the battle. The Armory holds the secrets of XP, levels, and the strength that grows within you with every tile you complete." },
     { id:5, type:"sg", name:"The Training Grounds",   x:715, y:350, sgModal:"lesson",
-      flavor:"No hero charges into battle untrained. Walk through a practice session and prove you are ready for the real lessons that wait on the road ahead." },
+      flavor:"No hero charges into battle untrained. Walk through a practice run and learn how your quests will be tracked before the real lessons begin." },
     { id:6, type:"sg", name:"The Village Gate",       x:195, y:630, sgModal:"gate",
       flavor:"You've chosen your class. You've found your guild. The Realm knows your name now.<br><br>Beyond this gate, the real trials begin — new lands, new challenges, and a legend still waiting to be written. Take a breath, hero. It's time." },
     { id:10, type:"npc", npcKey:"lumin_hint",          x:195,  y:210, landId:0 },
@@ -1204,6 +1186,104 @@ function setBossStatus(studentId, bossKey, status) {
   if (!_overrides[sid].bossStatus) _overrides[sid].bossStatus = {};
   _overrides[sid].bossStatus[bossKey] = status;
   set(ref(db, `overrides/${sid}/bossStatus/${bossKey}`), status).catch(console.error);
+}
+function getStdBossState(studentId, bossKey) {
+  return ((_overrides[String(studentId)] || {}).standardBossState || {})[bossKey]
+    || { status:'not_started', encounterCount:0, lastAttemptSession:null, failedAt:null };
+}
+function setStdBossState(studentId, bossKey, stateObj) {
+  const sid = String(studentId);
+  if (!_overrides[sid]) _overrides[sid] = {};
+  if (!_overrides[sid].standardBossState) _overrides[sid].standardBossState = {};
+  _overrides[sid].standardBossState[bossKey] = stateObj;
+  update(ref(db, `students/${sid}/standardBossState`), { [bossKey]: stateObj }).catch(console.error);
+}
+function getGateBossState(studentId, bossKey) {
+  return ((_overrides[String(studentId)] || {}).gateBossState || {})[bossKey]
+    || { status:'locked' };
+}
+function setGateBossState(studentId, bossKey, stateObj) {
+  const sid = String(studentId);
+  if (!_overrides[sid]) _overrides[sid] = {};
+  if (!_overrides[sid].gateBossState) _overrides[sid].gateBossState = {};
+  _overrides[sid].gateBossState[bossKey] = stateObj;
+  update(ref(db, `students/${sid}/gateBossState`), { [bossKey]: stateObj }).catch(console.error);
+}
+function updateBossStateOnTileComplete(student, tileId, land) {
+  const sid = String(student.id);
+  if (!land) return;
+  if (land.standardBosses) {
+    Object.entries(land.standardBosses).forEach(([bk, boss]) => {
+      const sessionIdx = boss.sessions.indexOf(tileId);
+      if (sessionIdx < 0) return;
+      const cur = getStdBossState(sid, bk);
+      if (sessionIdx === 0) {
+        if (cur.status === 'not_started') {
+          setStdBossState(sid, bk, { status:'sighted', encounterCount:1, lastAttemptSession:tileId, failedAt:null });
+        }
+      } else {
+        if (cur.status !== 'defeated') {
+          setStdBossState(sid, bk, {
+            status:'awaiting_judgment',
+            encounterCount: Math.max(cur.encounterCount, sessionIdx + 1),
+            lastAttemptSession:tileId, failedAt:null,
+          });
+        }
+      }
+    });
+  }
+  if (land.gateBosses) {
+    Object.entries(land.gateBosses).forEach(([bk, boss]) => {
+      if (boss.session !== tileId) return;
+      const cur = getGateBossState(sid, bk);
+      if (cur.status === 'locked') {
+        setGateBossState(sid, bk, { status:'active' });
+      }
+    });
+  }
+}
+function backfillBossStates() {
+  // One-time backfill for students whose completedTiles were seeded before
+  // updateBossStateOnTileComplete existed. Safe to re-run: only writes states
+  // that are still 'not_started' or 'locked', never overwrites teacher marks.
+  const periods = CLASS_DATA.periods || [];
+  let count = 0;
+  LANDS.forEach(land => {
+    if (!land.standardBosses && !land.gateBosses) return;
+    periods.forEach(period => {
+      (period.students || []).forEach(student => {
+        const sid = String(student.id);
+        const completed = (_overrides[sid] || {}).completedTiles || [];
+        if (land.standardBosses) {
+          Object.entries(land.standardBosses).forEach(([bk, boss]) => {
+            const cur = getStdBossState(sid, bk);
+            if (cur.status !== 'not_started') return; // already set by teacher or real flow
+            let highestIdx = -1;
+            boss.sessions.forEach((sessId, idx) => {
+              if (completed.includes(sessId)) highestIdx = idx;
+            });
+            if (highestIdx < 0) return;
+            const newState = highestIdx === 0
+              ? { status:'sighted', encounterCount:1, lastAttemptSession:boss.sessions[0], failedAt:null }
+              : { status:'awaiting_judgment', encounterCount:highestIdx+1, lastAttemptSession:boss.sessions[highestIdx], failedAt:null };
+            setStdBossState(sid, bk, newState);
+            count++;
+          });
+        }
+        if (land.gateBosses) {
+          Object.entries(land.gateBosses).forEach(([bk, boss]) => {
+            const cur = getGateBossState(sid, bk);
+            if (cur.status !== 'locked') return;
+            if (completed.includes(boss.session)) {
+              setGateBossState(sid, bk, { status:'active' });
+              count++;
+            }
+          });
+        }
+      });
+    });
+  });
+  return count;
 }
 function getWriteStatus(student, landId) {
   return getBossStatus(student, `event_${landId}`);
@@ -1561,10 +1641,10 @@ function assignGuild(studentId) {
   return chosen;
 }
 const GUILD_BLURBS = {
-  crimson: "The Crimson Guild charges where others falter. They are the bold ones — relentless, fearless, first through every door. To wear their crest is to carry their courage and their fire.",
-  storm:   "The Storm Guild moves faster than doubt can catch them. They are the quick ones — adaptable, clever, always three steps ahead. To wear their crest is to carry their speed and their wit.",
-  ember:   "The Ember Guild never lets its fire go out. They are the passionate ones — determined, warm-hearted, impossible to discourage. To wear their crest is to carry their heart and their hunger.",
-  shadow:  "The Shadow Guild moves where others hesitate. They are the quiet ones — watching, waiting, striking only when it matters most. To wear their crest is to carry their patience and their nerve.",
+  ember: "The Ember Guild is first through every door. They are the bold ones — full of energy, impossible to ignore, always ready to take the first step. To wear their crest is to carry a spark that never goes out.",
+  tide:  "The Tide Guild always comes back. They are the steady ones — resilient, consistent, unshaken by setbacks. To wear their crest is to carry the quiet certainty that you will return, every time.",
+  thorn: "The Thorn Guild holds the line. They are the disciplined ones — gritty, loyal, unbroken by hard ground. To wear their crest is to carry the understanding that real strength is grown, not given.",
+  storm: "The Storm Guild never stands still. They are the bold movers — fast, adaptable, always three steps ahead. To wear their crest is to carry the wind at your back and the boldness to use it.",
 };
 
 function renderGuildReveal() {
@@ -1699,7 +1779,7 @@ function migrateCharacterNames() {
     for (const s of p.students) {
       const sid = String(s.id);
       const ov = _overrides[sid] || {};
-      if (Object.keys(ov).length > 0 && !ov.characterName) {
+      if (Object.keys(ov).length > 0 && !ov.characterName && s.displayName) {
         writes[`students/${sid}/characterName`] = s.displayName;
       }
     }
@@ -2126,6 +2206,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               shopOpen:false, shopConfirmItem:null, shopSuccess:false,
               teacherGoldShopOpen:false,
               bossRosterPeriodIdx:0, bossRosterKey:null, bossRosterMarks:{},
+              judgmentHallMarks:{},
               sqInviteNotifOpen:false,
               questJournalTab:'active',
               craftingOpen:false, craftingStep:1, craftingSelected:null,
@@ -2141,7 +2222,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               sanctumReturnOpen: false, sanctumReturnLandId: null,
               sanctumLand: null, sanctumTileOpen: null, writingEventReturnTo: 'quest-map',
               travelDestDesc: null, classSettingsOpen: false, cardMenuSid: null,
-              genName: null, genEpithet: null};
+              teacherViewStudent: null, genName: null, genEpithet: null};
 
 /* ─── CHIBI SVG ─── */
 function chibiSVG(cls, size) {
@@ -2759,7 +2840,12 @@ function renderHub() {
                         <img src="${_frameDef.assetPath||''}" class="avatar-frame-overlay" alt="Frame" onerror="this.style.display='none'"/>
                       </div>`;
                     }
-                    return `<div class="avatar-ring-xl" style="overflow:hidden;padding:0;position:relative">
+                    const _avGOv = getOverrides().students[String(s.id)] || {};
+                    const _avGKey = _avGOv.guild;
+                    const _avGuilds = CLASS_DATA && CLASS_DATA.guilds;
+                    const _avColor = (_avGKey && _avGuilds && _avGuilds[_avGKey]) ? _avGuilds[_avGKey].color : '#3B1F8C';
+                    const _avBg = `radial-gradient(ellipse at 45% 40%, ${_avColor}28 0%, ${_avColor}88 100%)`;
+                    return `<div class="avatar-ring-xl" style="overflow:hidden;padding:0;position:relative;background:${_avBg};border-color:${_avColor};box-shadow:0 6px 24px ${_avColor}59">
                       <img src="${displayAvatarUrl}" class="hub-avatar-img" alt="Avatar" width="250" height="250"/>
                     </div>`;
                   })()}
@@ -2800,9 +2886,17 @@ function renderHub() {
               if (!_gKey || !_guilds || !_guilds[_gKey]) return '';
               const _g = _guilds[_gKey];
               return `<div class="guild-banner-compact" style="border-color:${_g.color};background:${_g.color}18">
-                <img class="guild-banner-crest-sm" src="${_g.crest}" alt="${_g.name}" width="24" height="24" onerror="this.style.display='none'"/>
-                <span class="guild-banner-label-sm">GUILD</span>
-                <span class="guild-banner-name-sm" style="color:${_g.color}">${_g.name}</span>
+                <img class="guild-banner-crest-sm" src="${_g.crest}" alt="${_g.name}" width="32" height="32" onerror="this.style.display='none'"/>
+                <div class="guild-hub-info">
+                  <div class="guild-hub-header">
+                    <span class="guild-banner-label-sm">GUILD</span>
+                    <span class="guild-hub-name" style="color:${_g.color}">${_g.name}</span>
+                    ${_g.element ? `<span class="guild-hub-element" style="color:${_g.color}">· ${_g.element}</span>` : ''}
+                  </div>
+                  ${_g.motto ? `<div class="guild-hub-motto">"${_g.motto}"</div>` : ''}
+                  ${_g.values ? `<div class="guild-hub-values">${_g.values}</div>` : ''}
+                  ${_g.chant ? `<div class="guild-hub-chant" style="color:${_g.color}">${_g.chant}</div>` : ''}
+                </div>
               </div>`;
             })()}
           </div>
@@ -3213,12 +3307,13 @@ function getLandPos(student) {
   // This covers new students, any reset (with or without _isReset flag in Firebase),
   // and Land 0 in-progress students. Never fall through to classData's currentLand.
   if (ov.currentLand === undefined && !ov.completedLand0) {
-    return { land:0, tile: ov.currentTile || 2, completed: ov.completedTiles || [] };
+    return { land:0, tile: ov.currentTile || 2, completed: ov.completedTiles || [], studentId: String(student.id) };
   }
   return {
     land: ov.currentLand !== null ? ov.currentLand : 1,
     tile: ov.currentTile || student.currentTile || 1,
     completed: ov.completedTiles || [],
+    studentId: String(student.id),
   };
 }
 
@@ -3231,6 +3326,12 @@ function tileState(tile, pos, board, land) {
   if (typeof tile === "object" && tile.type === "boss") {
     const bossKey = land ? `${land.id}-${id}` : String(id);
     if (!pos.completed.includes(id) && !getBossOpenKeys().includes(bossKey)) return "locked";
+  }
+  if (typeof tile === "object" && tile.type === "dungeon" && tile.id === 27 && land && land.standardBosses && pos.studentId) {
+    const allDefeated = Object.keys(land.standardBosses).every(
+      bk => getStdBossState(pos.studentId, bk).status === 'defeated'
+    );
+    if (!allDefeated) return "locked";
   }
   if (id === pos.tile) return "here";
   if (pos.completed.includes(id)) return "done";
@@ -3298,7 +3399,7 @@ function tileArt(biome, w, h) {
     <ellipse cx="${w*.5}" cy="${h*.5}" rx="${w*.3}" ry="${h*.36}" fill="#F59E0B" opacity=".06"/>`;
 }
 
-function landTileSVG(tile, biome, state, board) {
+function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gateVisual) {
   const {id, type, name, x, y, skill} = tile;
 
   /* ── NPC tiles: completely separate render path ── */
@@ -3343,13 +3444,27 @@ function landTileSVG(tile, biome, state, board) {
     </g>`;
   }
 
-  const D  = type==="dungeon";
-  const B  = type==="boss";
-  const E  = type==="event";
-  const L  = type==="loot";
-  const A  = type==="arrival";
+  /* ── Visual type ─────────────────────────────────────────────────────────
+     Derive the rendering category from tile.type + structural boss maps.
+     gateVisual   = gate boss data for this tile (Abysmara, Feraxis)
+     bossTileVisual = standard boss data (sighted or boss_fight)
+  ── */
+  const vt = type==='arrival'   ? 'welcome'
+           : type==='dungeon'   ? 'finalGatekeeper'
+           : type==='event'     ? 'scribesCalling'
+           : type==='loot'      ? 'loot'
+           : type==='boss'      ? 'standaloneBoss'
+           : gateVisual         ? 'gatekeeper'
+           : bossTileVisual?.type === 'boss_fight' ? 'boss'
+           : 'regular';
+
   const SG = type==="sg";
-  const ts = D ? LW.DTILE : E ? LW.ETILE : B ? LW.BTILE : L ? LW.LTILE : LW.TILE;
+
+  /* ── Sizing ── */
+  const ts = vt==='scribesCalling' ? LW.ETILE
+           : vt==='loot'           ? LW.LTILE
+           : vt==='standaloneBoss' ? LW.BTILE
+           : LW.TILE;   // welcome, regular, boss, gatekeeper, finalGatekeeper all match base tile
   const r  = Math.round(ts*.14);
   const tx = x - ts/2, ty = y - ts/2;
   const locked = state==="locked";
@@ -3357,31 +3472,62 @@ function landTileSVG(tile, biome, state, board) {
   const here   = state==="here";
   const brd    = state==="board";
 
-  /* ── border color / width ── */
-  let bc="#4B5563", bw=2;
-  if (locked)      { bc="#2D3748"; bw=1.5; }
-  else if (here)   { bc="#7C3AED"; bw=3; }
-  else if (done||brd) {
-    bc = D?"#F59E0B": B?"#EF4444": E?"#F59E0B": L?"#10B981": A?"#34D399": SG?"#D97706":"#F59E0B";
-    bw = 2.5;
+  /* ── Border color / width ── */
+  let bc, bw=2;
+  if (locked) {
+    bc="#2D3748"; bw=1.5;
+  } else if (here) {
+    bc="#7C3AED"; bw=3;
+  } else if (done||brd) {
+    bc = vt==='finalGatekeeper' ? "#C4B5FD"
+       : vt==='gatekeeper'      ? "#FCD34D"
+       : vt==='boss'            ? "#F59E0B"
+       : vt==='standaloneBoss'  ? "#EF4444"
+       : vt==='scribesCalling'  ? "#F59E0B"
+       : vt==='loot'            ? "#10B981"
+       : vt==='welcome'         ? "#34D399"
+       : "#F59E0B";
+    bw=2.5;
   } else {
-    bc = D?"#991B1B": B?"#7F1D1D": E?"#92400E": L?"#065F46": A?"#1A3A2A": SG?"#92400E":"#374151";
-    bw = D?3:2;
+    bc = vt==='finalGatekeeper' ? "#7C3AED"
+       : vt==='gatekeeper'      ? "#D97706"
+       : vt==='boss'            ? "#DC2626"
+       : vt==='standaloneBoss'  ? "#7F1D1D"
+       : vt==='scribesCalling'  ? "#92400E"
+       : vt==='loot'            ? "#065F46"
+       : vt==='welcome'         ? "#1A3A2A"
+       : SG                     ? "#92400E"
+       : "#374151";
+    bw = (vt==='finalGatekeeper'||vt==='boss'||vt==='gatekeeper') ? 2.5 : 2;
   }
 
-  /* ── animated outer rings ── */
-  const bossRing = B && !locked && !brd ? `<rect x="${tx-5}" y="${ty-5}" width="${ts+10}" height="${ts+10}" rx="${r+4}" fill="none" stroke="${done?"rgba(245,158,11,.3)":here?"rgba(167,139,250,.3)":"rgba(127,29,29,.3)"}" stroke-width="2"/>` : "";
+  /* ── Glow rings ── */
+  // Standalone boss tile (tile.type==="boss" — used in other lands)
+  const bossRing = vt==='standaloneBoss' && !locked && !brd
+    ? `<rect x="${tx-5}" y="${ty-5}" width="${ts+10}" height="${ts+10}" rx="${r+4}" fill="none" stroke="${done?"rgba(245,158,11,.3)":here?"rgba(167,139,250,.3)":"rgba(127,29,29,.3)"}" stroke-width="2"/>` : "";
 
-  /* Dungeon: double animated dark-red ring */
-  const dungRing = D && !locked ? `<g class="dng-glow">
-    <rect x="${tx-10}" y="${ty-10}" width="${ts+20}" height="${ts+20}" rx="${r+8}" fill="none" stroke="#DC2626" stroke-width="3.5"/>
-    <rect x="${tx-18}" y="${ty-18}" width="${ts+36}" height="${ts+36}" rx="${r+14}" fill="none" stroke="#991B1B" stroke-width="2"/>
+  // Final gatekeeper (Warden) — purple + deep violet double ring
+  const dungRing = vt==='finalGatekeeper' && !locked ? `<g class="dng-glow">
+    <rect x="${tx-8}" y="${ty-8}" width="${ts+16}" height="${ts+16}" rx="${r+6}" fill="none" stroke="#7C3AED" stroke-width="3"/>
+    <rect x="${tx-16}" y="${ty-16}" width="${ts+32}" height="${ts+32}" rx="${r+13}" fill="none" stroke="#4C1D95" stroke-width="1.5" stroke-dasharray="8 4"/>
   </g>` : "";
 
-  /* Event: animated gold sparkle ring */
-  const evRing = E && !locked ? `<g class="ev-glow">
+  // Event / scribesCalling — animated gold sparkle ring
+  const evRing = vt==='scribesCalling' && !locked ? `<g class="ev-glow">
     <rect x="${tx-8}" y="${ty-8}" width="${ts+16}" height="${ts+16}" rx="${r+6}" fill="none" stroke="#F59E0B" stroke-width="3"/>
     <rect x="${tx-15}" y="${ty-15}" width="${ts+30}" height="${ts+30}" rx="${r+12}" fill="none" stroke="#FDE68A" stroke-width="1.5" stroke-dasharray="6 4"/>
+  </g>` : "";
+
+  // Standard boss fight tile — double crimson ring
+  const stdBossFightRing = vt==='boss' && !locked && !brd ? `<g>
+    <rect x="${tx-6}" y="${ty-6}" width="${ts+12}" height="${ts+12}" rx="${r+5}" fill="none" stroke="#DC2626" stroke-width="2.5"/>
+    <rect x="${tx-13}" y="${ty-13}" width="${ts+26}" height="${ts+26}" rx="${r+11}" fill="none" stroke="#7F1D1D" stroke-width="1.5" stroke-dasharray="7 4"/>
+  </g>` : "";
+
+  // Gatekeeper (Abysmara / Feraxis) — amber chain double ring
+  const gateRing = vt==='gatekeeper' && !locked && !brd ? `<g>
+    <rect x="${tx-6}" y="${ty-6}" width="${ts+12}" height="${ts+12}" rx="${r+5}" fill="none" stroke="#D97706" stroke-width="2.5"/>
+    <rect x="${tx-13}" y="${ty-13}" width="${ts+26}" height="${ts+26}" rx="${r+11}" fill="none" stroke="#92400E" stroke-width="1.5" stroke-dasharray="5 5"/>
   </g>` : "";
 
   const pulse = here ? `<rect class="qm-pr" x="${tx-8}" y="${ty-8}" width="${ts+16}" height="${ts+16}" rx="${r+7}" fill="none" stroke="#7C3AED" stroke-width="3"/>` : "";
@@ -3389,35 +3535,80 @@ function landTileSVG(tile, biome, state, board) {
     <text x="${x}" y="${ty-24}" text-anchor="middle" font-size="8.5" font-weight="900" fill="#E9D5FF" font-family="Arial" letter-spacing="1.5">YOU ARE HERE</text>
     <text x="${x}" y="${ty-13}" text-anchor="middle" font-size="8" fill="#C4B5FD">▼</text></g>` : "";
 
-  /* ── tile art interior — image-based ── */
+  /* ── Tile art interior ── */
+  const tileArtURL = vt==='finalGatekeeper' && tile.portrait ? `/bosses/${tile.portrait}`
+    : vt==='gatekeeper'    ? `/tiles/tile_gatekeeper.png`
+    : vt==='boss'          ? `/tiles/tile_boss.png`
+    : tileImgURL(type, biome);
+  const portraitPos   = vt==='finalGatekeeper' ? 'center top' : 'center';
+  const portraitFilter = vt==='finalGatekeeper' ? 'filter:brightness(.82) saturate(1.2);' : '';
+
   const interior = locked
     ? `<rect width="${ts}" height="${ts}" rx="${r}" fill="#111"/>`
-    : `<foreignObject x="0" y="0" width="${ts}" height="${ts}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${ts}px;height:${ts}px;background-image:url(${tileImgURL(type,biome)});background-size:cover;background-position:center;"></div></foreignObject>`;
+    : `<foreignObject x="0" y="0" width="${ts}" height="${ts}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${ts}px;height:${ts}px;background-image:url(${tileArtURL});background-size:cover;background-position:${portraitPos};${portraitFilter}"></div></foreignObject>`;
 
   const lockedOverlay = locked ? `
     <rect width="${ts}" height="${ts}" rx="${r}" fill="rgba(0,0,0,.78)"/>
-    <text x="${ts/2}" y="${ts/2+1}" text-anchor="middle" dominant-baseline="central" font-size="${D?28:B?22:20}">🔒</text>` : "";
+    <text x="${ts/2}" y="${ts/2+1}" text-anchor="middle" dominant-baseline="central" font-size="${vt==='finalGatekeeper'?24:20}">🔒</text>` : "";
   const doneBadge = !brd && done ? `
     <circle cx="${ts-13}" cy="13" r="10" fill="#F59E0B" stroke="#78350F" stroke-width="1.5"/>
     <text x="${ts-13}" y="13" text-anchor="middle" dominant-baseline="central" font-size="9" fill="white" font-weight="900" font-family="Arial">✓</text>` : "";
 
-  /* ── labels ── */
-  const nameY   = ty + ts + (D?14:E?16:B?18:16);
-  const nameFill = locked ? "#4B5563" : D?"#FCA5A5": E?"#FDE68A":"rgba(255,255,255,.88)";
-  const nameFS   = D?10:E?9:B?8.5:8;
+  /* ── Labels ── */
+  const nameY    = ty + ts + (vt==='scribesCalling'?16 : vt==='standaloneBoss'?18 : 16);
+  const nameFill = locked ? "#4B5563"
+    : vt==='finalGatekeeper' ? "#FCA5A5"
+    : vt==='scribesCalling'  ? "#FDE68A"
+    : "rgba(255,255,255,.88)";
+  const nameFS   = vt==='finalGatekeeper'?10 : vt==='scribesCalling'?9 : vt==='standaloneBoss'?8.5 : 8;
   const nameEl   = `<text x="${x}" y="${nameY}" text-anchor="middle" font-size="${nameFS}" font-weight="bold" fill="${nameFill}" font-family="Arial">${name}</text>`;
   const skillEl  = skill && !locked ? `<text x="${x}" y="${nameY+13}" text-anchor="middle" font-size="7.5" fill="${done||brd?"#FDE68A":"#93C5FD"}" font-family="Arial" font-weight="700">${skill}</text>` : "";
   const typeTag  = !locked ? (
-    D ? `<text x="${x}" y="${nameY+(skill?27:14)}" text-anchor="middle" font-size="7.5" fill="${done||brd?"#FCD34D":"#FCA5A5"}" font-family="Arial" font-weight="900" letter-spacing="1">⚔ MASTER BOSS</text>` :
-    B ? `<text x="${x}" y="${nameY+(skill?26:13)}" text-anchor="middle" font-size="7" fill="${done||brd?"#FCA5A5":"#F87171"}" font-family="Arial" font-weight="900" letter-spacing=".5">⚔ BOSS</text>` :
-    E ? `<text x="${x}" y="${nameY+14}" text-anchor="middle" font-size="8" fill="#F59E0B" font-family="Arial" font-weight="900" letter-spacing=".5">✦ WRITING EVENT ✦</text>` : ""
+    vt==='finalGatekeeper'
+      ? `<text x="${x}" y="${nameY+(skill?27:14)}" text-anchor="middle" font-size="7.5" fill="${done||brd?"#FCD34D":"#FCA5A5"}" font-family="Arial" font-weight="900" letter-spacing="1">⚔ MASTER BOSS</text>`
+    : vt==='gatekeeper'
+      ? `<text x="${x}" y="${nameY+14}" text-anchor="middle" font-size="7" fill="${done||brd?"#FDE68A":"#FCD34D"}" font-family="Arial" font-weight="900" letter-spacing=".5">🔑 GATE BOSS</text>`
+    : vt==='standaloneBoss'
+      ? `<text x="${x}" y="${nameY+(skill?26:13)}" text-anchor="middle" font-size="7" fill="${done||brd?"#FCA5A5":"#F87171"}" font-family="Arial" font-weight="900" letter-spacing=".5">⚔ BOSS</text>`
+    : vt==='scribesCalling'
+      ? `<text x="${x}" y="${nameY+14}" text-anchor="middle" font-size="8" fill="#F59E0B" font-family="Arial" font-weight="900" letter-spacing=".5">✦ WRITING EVENT ✦</text>`
+    : ""
   ) : "";
 
-  return `<g data-tid="${id}">${dungRing}${evRing}${bossRing}${pulse}
+  const sightedBadge = bossTileVisual?.type === 'sighted' && !locked && !brd
+    ? `<g opacity="0.92">
+         <circle cx="${tx+ts-11}" cy="${ty+11}" r="10" fill="#1C1033" stroke="#6D28D9" stroke-width="1.5"/>
+         <text x="${tx+ts-11}" y="${ty+11}" text-anchor="middle" dominant-baseline="central" font-size="9" fill="#C4B5FD" font-family="Arial">👁</text>
+       </g>`
+    : "";
+
+  // Boss overlay badge — top-left corner, shown when a boss is in-flight for this student
+  let bossOverlayBadge = "";
+  if (bossOverlay && !locked && !brd) {
+    const bst = bossOverlay.bossState.status;
+    const badgeColor = bst === 'defeated'          ? '#10B981'
+      : bst === 'failed'                           ? '#EF4444'
+      : bst === 'awaiting_judgment'                ? '#F59E0B'
+      : (bst === 'fightable' || bst === 'active')  ? '#DC2626'
+      : '';
+    const badgeEmoji = bst === 'defeated' ? '✓'
+      : bst === 'failed'                  ? '✕'
+      : (bst === 'awaiting_judgment' || bst === 'fightable' || bst === 'active') ? '⚔'
+      : '';
+    if (badgeColor && badgeEmoji) {
+      const bx = tx + 9, by = ty + 9;
+      const isGate = bossOverlay.type === 'gate';
+      bossOverlayBadge = `
+        <circle cx="${bx}" cy="${by}" r="10" fill="${badgeColor}" stroke="#111" stroke-width="1.5"/>
+        <text x="${bx}" y="${by}" text-anchor="middle" dominant-baseline="central" font-size="${isGate?8:9}" fill="white" font-weight="900" font-family="Arial">${badgeEmoji}</text>`;
+    }
+  }
+
+  return `<g data-tid="${id}">${dungRing}${evRing}${bossRing}${stdBossFightRing}${gateRing}${pulse}
     <clipPath id="clip-${id}"><rect x="0" y="0" width="${ts}" height="${ts}" rx="${r}"/></clipPath>
     <g clip-path="url(#clip-${id})" transform="translate(${tx},${ty})">${interior}${lockedOverlay}${doneBadge}</g>
     <rect x="${tx}" y="${ty}" width="${ts}" height="${ts}" rx="${r}" fill="none" stroke="${bc}" stroke-width="${bw}"/>
-    ${yah}${nameEl}${skillEl}${typeTag}</g>`;
+    ${bossOverlayBadge}${sightedBadge}${yah}${nameEl}${skillEl}${typeTag}</g>`;
 }
 
 const DECO_IMGS = { mountains:"/tiles/mountains.png", lake:"/tiles/lake.png", castle:"/tiles/castle.png", graveyard:"/tiles/graveyard.png" };
@@ -3458,10 +3649,55 @@ function buildLandSVG(land, pos, board, extraSVG) {
 
   const mainPaths   = land.mainPaths   || LAND_MAIN_PATHS;
   const branchPaths = land.branchPaths || LAND_LOOT_PATHS;
-  const tiles = land.tiles.map(t => landTileSVG(t, biome, tileState(t, pos, board, land), board)).join("");
+
+  // Build boss overlay info keyed by tile id (standard + gate bosses, Land 1 only)
+  const bossOverlayMap = {};
+  if (!board && pos.studentId) {
+    if (land.standardBosses) {
+      // sessions[0] = sighted-only (no badge); sessions[1+] = fightable encounters that get a badge
+      Object.entries(land.standardBosses).forEach(([bk, boss]) => {
+        const bState = getStdBossState(pos.studentId, bk);
+        boss.sessions.slice(1).forEach(sid => {
+          bossOverlayMap[sid] = { type:'standard', bossKey:bk, boss, bossState:bState };
+        });
+      });
+    }
+    if (land.gateBosses) {
+      // Gate bosses have a single session and no sighted state — index 0 always gets a badge
+      Object.entries(land.gateBosses).forEach(([bk, boss]) => {
+        const bState = getGateBossState(pos.studentId, bk);
+        // boss.session (singular) is the one tile that carries the gate boss overlay
+        bossOverlayMap[boss.session] = { type:'gate', bossKey:bk, boss, bossState:bState };
+      });
+    }
+  }
+
+  // Build tile visual map: session[0] = sighted silhouette, session[1+] = boss_fight reskin
+  const tileBossVisualMap = {};
+  if (!board && land.standardBosses) {
+    Object.entries(land.standardBosses).forEach(([bk, boss]) => {
+      if (!boss.sessions || !boss.portrait) return;
+      tileBossVisualMap[boss.sessions[0]] = { type:'sighted',    bossKey:bk, boss };
+      boss.sessions.slice(1).forEach(sid => {
+        tileBossVisualMap[sid]            = { type:'boss_fight', bossKey:bk, boss };
+      });
+    });
+  }
+
+  // Build gate tile visual map: each gate boss session → boss info with portrait
+  const gateTileVisualMap = {};
+  if (!board && land.gateBosses) {
+    Object.entries(land.gateBosses).forEach(([bk, boss]) => {
+      if (boss.session && boss.portrait) {
+        gateTileVisualMap[boss.session] = { bossKey: bk, boss };
+      }
+    });
+  }
+
+  const tiles = land.tiles.map(t => landTileSVG(t, biome, tileState(t, pos, board, land), board, bossOverlayMap[t.id], tileBossVisualMap[t.id], gateTileVisualMap[t.id])).join("");
   const decors = (land.decorations||[]).map(d => decorationSVG(d.name, d.x, d.y)).join("");
 
-  const getHalf = t => t.type==='dungeon'?LW.DTILE/2:t.type==='boss'?LW.BTILE/2:t.type==='event'?LW.ETILE/2:t.type==='loot'?LW.LTILE/2:LW.TILE/2;
+  const getHalf = t => t.type==='boss'?LW.BTILE/2:t.type==='event'?LW.ETILE/2:t.type==='loot'?LW.LTILE/2:LW.TILE/2;
   const coverSeg = (tA, tB, y) => {
     const [lT,rT] = tA.x <= tB.x ? [tA,tB] : [tB,tA];
     const x1 = lT.x + getHalf(lT), x2 = rT.x - getHalf(rT);
@@ -3747,11 +3983,12 @@ function renderBossScreen() {
 
   const tombstoneHTML = `<img src="/bosses/defeated-tombstone.png" alt="Defeated" class="boss-portrait boss-tombstone" onerror="this.style.display='none'"/>`;
 
+  const _bsEntry = BOSS_SCHEDULE[String(tile.id)];
   const introOverlay = (STATE.bossIntroOpen && bossStatus === 'not_attempted') ? `
     <div class="boss-intro-overlay" id="boss-intro-overlay">
       <div class="boss-encounter-card${portrait ? '' : ' boss-encounter-card-fallback'}"${portrait ? ` style="background-image:url('/bosses/${portrait}')"` : ''}>
         <div class="bec-eyebrow-bar">
-          <div class="boss-intro-eyebrow">⚔ Boss Encounter ⚔</div>
+          <div class="boss-intro-eyebrow">${_bsEntry?.label ? _bsEntry.label : '⚔ Boss Encounter ⚔'}</div>
         </div>
         <div class="bec-content">
           ${!portrait ? `<div class="bec-fallback-icon">${BOSS_ICON[bossName] || '👹'}</div>` : ''}
@@ -4020,6 +4257,11 @@ function renderLessonStop() {
   const pos = student ? getLandPos(student) : {};
   const isCompleted  = (pos.completed || []).includes(tile.id);
   const isBranchTile = !!tile.parentTileId;
+  const isRegularLesson = tile.type === 'lesson' && !isBranchTile && !BOSS_SCHEDULE[String(tile.id)];
+  const nearpodDone    = isRegularLesson && !!(progress.nearpod       || [])[0];
+  const workbookDone   = isRegularLesson && !!(progress.workbook      || [])[0];
+  const selfAssessLevel= isRegularLesson ?  ((progress.selfAssessLevel|| [])[0] || 0) : 0;
+  const ASSESS_TEXTS   = { 4:"I understand it and could teach it to someone else.", 3:"I understand it.", 2:"I think I get it, but I'm still getting some problems wrong.", 1:"I don't get it. I need help." };
   // Branch tiles are actionable when their parent is completed and they aren't yet.
   // Main-path tiles are actionable only when they are the student's current tile.
   const isActionable = !isCompleted && (
@@ -4060,39 +4302,7 @@ function renderLessonStop() {
     </div>
   </div>` : '';
 
-  return `
-  <div class="screen ls-screen">
-    <div class="ls-card enter">
-      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
-      <div class="ls-breadcrumb" style="padding-right:28px;margin-bottom:4px">
-        <button class="ls-bc-back ls-back-btn">← Quest Map</button>
-        <span class="ls-bc-sep" style="margin:0 4px;opacity:.35">|</span>
-        <span class="ls-bc-land">${land.name}</span>
-        <span class="ls-bc-sep">›</span>
-        <span class="ls-bc-tile">${tile.name || ""}${tile.sessionTitle ? ` — ${tile.sessionTitle}` : ""}</span>
-      </div>
-      <div style="text-align:center;padding:12px 0 4px" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="rgba(30,27,75,.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-        </svg>
-      </div>
-      ${loreSection}
-      <button class="ls-video-btn" id="ls-video-btn">
-        <span class="ls-play-icon">▶</span>
-        <span>Open Video Lesson</span>
-      </button>
-      <div class="ls-tiers">
-        ${!videoOpened ? `<div class="ls-video-lock-hint">🔒 Watch the video first to unlock this checklist.</div>` : ''}
-        ${tierHTML(mustDo, "mustDo", "ls-tier-must", "🔴", "Must Do", !videoOpened)}
-        ${tierHTML(shouldDo, "shouldDo", "ls-tier-should", "🟡", "Should Do", !mustAllDone, "+5 XP")}
-        ${tierHTML(aspireTo, "aspireTo", "ls-tier-aspire", "🟢", "Aspire To", !mustAllDone, "+5 XP")}
-      </div>
-      <button class="ls-submit-btn" id="ls-submit" ${(!isActionable || !mustAllDone) ? "disabled" : ""} data-completed="${!isActionable}">
-        ${!isActionable ? "Quest Complete ✓" : mustAllDone ? "✅ I'm Ready!" : "🔒 Complete Must Do tasks to continue"}
-      </button>
-      ${wbRef ? `<div class="ls-workbook">${wbRef}</div>` : ""}
-    </div>
+  const _overlays = `
     ${STATE.sideQuestModalOpen ? (() => {
       const tid = STATE.sideQuestTileId;
       const tile = findTileById(tid);
@@ -4131,7 +4341,111 @@ function renderLessonStop() {
         </div>
       </div>
     </div>` : ''}
-    ${renderPartnerPickerModal()}
+    ${renderPartnerPickerModal()}`;
+
+  if (isRegularLesson) {
+    return `
+  <div class="screen ls-screen">
+    <div class="sg-modal ls-rlesson-modal enter">
+      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
+      <div class="sg-modal-icon" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="rgba(30,27,75,.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+      </div>
+      <div class="sg-modal-title">${tile.sessionTitle || tile.name || "Lesson"}</div>
+      ${loreText ? `<p class="sg-modal-flavor">"${loreText}"</p>` : ''}
+      <button class="ls-video-btn" id="ls-video-btn" style="margin-bottom:18px">
+        <span class="ls-play-icon">▶</span>
+        <span>Open Video Lesson</span>
+      </button>
+      <div class="sg-lesson-demo">
+        <div class="sg-lesson-section ls-rlesson-red">
+          <div class="sg-lesson-label">🔴 Your Quest Checklist</div>
+          <label class="sg-check-item${nearpodDone?' sg-check-item-done':''}${!videoOpened?' sg-check-locked':''}">
+            <input type="checkbox" class="ls-check-new" data-ls-kind="nearpod" ${nearpodDone?'checked':''} ${!videoOpened?'disabled':''}/>
+            I completed all Nearpod activities to the best of my ability
+            <span class="sg-reward-note">${nearpodDone?'✓ Earned: +5 Gold / +10 XP':'+5 Gold / +10 XP on completion'}</span>
+          </label>
+          <label class="sg-check-item${workbookDone?' sg-check-item-done':''}${!nearpodDone?' sg-check-locked':''}">
+            <input type="checkbox" class="ls-check-new" data-ls-kind="workbook" ${workbookDone?'checked':''} ${!nearpodDone?'disabled':''}/>
+            I showed my completed workbook pages to a peer or the teacher
+            <span class="sg-reward-note">${workbookDone?'✓ Earned: +3 Gold / +5 XP':'+3 Gold / +5 XP on completion'}</span>
+          </label>
+        </div>
+        <div class="sg-lesson-section ls-rlesson-teal${!nearpodDone?' ls-section-locked':''}" id="ls-assess-section">
+          <div class="sg-lesson-label">🔵 How Am I Comprehending?</div>
+          ${[4,3,2,1].map(lvl => `
+            <label class="sg-assess-demo sg-assess-demo-${lvl}${selfAssessLevel===lvl?' ls-assess-selected':''}" data-level="${lvl}">
+              <input type="radio" name="ls-self-assess" class="ls-assess-radio" data-level="${lvl}" ${selfAssessLevel===lvl?'checked':''} ${!nearpodDone?'disabled':''}/>
+              <span class="sg-assess-demo-num">${lvl}.</span>
+              <span>${ASSESS_TEXTS[lvl]}${lvl===1?' <span class="sg-assess-alert">— alerts your teacher</span>':''}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+      <div class="sg-modal-footer" style="margin-top:14px">
+        <button class="ls-submit-btn" id="ls-submit" ${(!isActionable || !nearpodDone) ? "disabled" : ""} data-completed="${!isActionable}" style="width:100%">
+          ${!isActionable ? "Quest Complete ✓" : nearpodDone ? "✅ I'm Ready!" : "Complete Lesson"}
+        </button>
+      </div>
+      ${wbRef ? `<div class="ls-workbook">${wbRef}</div>` : ""}
+    </div>
+    ${_overlays}
+  </div>`;
+  }
+
+  return `
+  <div class="screen ls-screen">
+    <div class="ls-card enter">
+      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
+      <div class="ls-breadcrumb" style="padding-right:28px;margin-bottom:4px">
+        <button class="ls-bc-back ls-back-btn">← Quest Map</button>
+        <span class="ls-bc-sep" style="margin:0 4px;opacity:.35">|</span>
+        <span class="ls-bc-land">${land.name}</span>
+        <span class="ls-bc-sep">›</span>
+        <span class="ls-bc-tile">${tile.name || ""}${tile.sessionTitle ? ` — ${tile.sessionTitle}` : ""}</span>
+      </div>
+      ${(() => {
+        const bs = BOSS_SCHEDULE[String(tile.id)];
+        if (bs && bs.portrait) {
+          const isFGK = bs.type === 'finalGatekeeper';
+          const w = isFGK ? 'clamp(220px,85%,340px)' : 'clamp(180px,75%,280px)';
+          const bookFallback = "<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' width=\\'48\\' height=\\'48\\' fill=\\'none\\' stroke=\\'rgba(30,27,75,.2)\\' stroke-width=\\'1.5\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><path d=\\'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z\\'/><path d=\\'M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z\\'/></svg>";
+          return `<div style="text-align:center;padding:12px 0 4px">
+            ${isFGK ? `<div style="font-size:11px;font-weight:800;letter-spacing:1.8px;color:rgba(251,191,36,.85);text-transform:uppercase;margin-bottom:8px">Final Trial of the Vale</div>` : ''}
+            <div style="width:${w};aspect-ratio:16/9;overflow:hidden;border-radius:10px;margin:0 auto;background:rgba(30,27,75,.08)">
+              <img src="/bosses/${bs.portrait}" alt="${bs.bossName || ''}"
+                   style="width:100%;height:100%;object-fit:cover;display:block"
+                   onerror="this.outerHTML='${bookFallback}'"/>
+            </div>
+          </div>`;
+        }
+        return `<div style="text-align:center;padding:12px 0 4px" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="rgba(30,27,75,.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+          </svg>
+        </div>`;
+      })()}
+      ${loreSection}
+      <button class="ls-video-btn" id="ls-video-btn">
+        <span class="ls-play-icon">▶</span>
+        <span>Open Video Lesson</span>
+      </button>
+      <div class="ls-tiers">
+        ${!videoOpened ? `<div class="ls-video-lock-hint">🔒 Watch the video first to unlock this checklist.</div>` : ''}
+        ${tierHTML(mustDo, "mustDo", "ls-tier-must", "🔴", "Must Do", !videoOpened)}
+        ${tierHTML(shouldDo, "shouldDo", "ls-tier-should", "🟡", "Should Do", !mustAllDone, "+5 XP")}
+        ${tierHTML(aspireTo, "aspireTo", "ls-tier-aspire", "🟢", "Aspire To", !mustAllDone, "+5 XP")}
+      </div>
+      <button class="ls-submit-btn" id="ls-submit" ${(!isActionable || !mustAllDone) ? "disabled" : ""} data-completed="${!isActionable}">
+        ${!isActionable ? "Quest Complete ✓" : mustAllDone ? "✅ I'm Ready!" : "🔒 Complete Must Do tasks to continue"}
+      </button>
+      ${wbRef ? `<div class="ls-workbook">${wbRef}</div>` : ""}
+    </div>
+    ${_overlays}
   </div>`;
 }
 
@@ -4375,10 +4689,10 @@ function renderSg0Modal() {
   // Tile 4 — The Armory: full custom stat explainer layout
   if (tile.id === 4) {
     const statCards = [
-      { icon:"❤️", name:"HP — Health Points",     color:"#C0392B", desc:"Your academic grade. HP mirrors your actual grade on a 1–10 scale — keep your grades up, keep your HP high." },
+      { icon:"❤️", name:"HP — Health Points",     color:"#C0392B", desc:"Your academic health. HP mirrors your performance on exit tickets, letting you know if you are prepared to fight the gatekeeper." },
       { icon:"💙", name:"MP — Mana Points",        color:"#1A6B8A", desc:"Your behavior score. MP reflects how you show up every day — respect, effort, and how you treat your guild." },
-      { icon:"💚", name:"SP — Stamina Points",     color:"#27AE60", desc:"Your effort score. SP tracks how hard you're working — completing tasks and pushing through hard content." },
-      { icon:"⭐", name:"XP — Experience Points",  color:"#D4A017", desc:"XP counts up forever and never goes down. Every lesson completed earns XP. Every 1,000 XP = a new level." },
+      { icon:"💚", name:"SP — Stamina Points",     color:"#27AE60", desc:"Your effort score. SP tracks how hard you're working — completing tasks and pushing through challenges." },
+      { icon:"⭐", name:"XP — Experience Points",  color:"#D4A017", desc:"Counts up forever and never goes down. Every lesson earns XP. This is how you will level up. Prizes are awarded for certain level milestones." },
     ];
     const cardHTML = statCards.map(sc => `
       <div class="sg-stat-card" style="border-color:${sc.color}">
@@ -4487,18 +4801,21 @@ function renderSg0Modal() {
         <div class="sg-video-ph">🎬 Your teacher's video will appear here during real lessons</div>
       </div>
       <div class="sg-lesson-section">
-        <div class="sg-lesson-label">🔴 Must Do</div>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I watched the practice video all the way through</label>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I can explain what "Must Do" means in my own words</label>
+        <div class="sg-lesson-label">🔴 Your Quest Checklist</div>
+        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I watched the practice video all the way through <span class="sg-reward-note">+5 Gold / +10 XP on completion</span></label>
+        <label class="sg-check-item sg-check-locked"><input type="checkbox" class="sg-demo-cb" disabled> I showed my practice work to a partner or the teacher <span class="sg-reward-note">+3 Gold / +5 XP — unlocks after the first box is checked</span></label>
       </div>
       <div class="sg-lesson-section">
-        <div class="sg-lesson-label">🟡 Should Do</div>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I can explain what "Should Do" means in my own words</label>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I clicked on an NPC to see what they say</label>
+        <div class="sg-lesson-label">🟡 How Am I Comprehending?</div>
+        <p class="sg-assess-intro">After every lesson, you'll rate how well you understood it. If you're stuck, this is how your teacher finds out — fast.</p>
+        <label class="sg-assess-demo sg-assess-demo-4"><input type="radio" name="sg-demo-assess" disabled> <span class="sg-assess-demo-num">4.</span> I understand it and could teach it to someone else.</label>
+        <label class="sg-assess-demo sg-assess-demo-3"><input type="radio" name="sg-demo-assess" disabled> <span class="sg-assess-demo-num">3.</span> I understand it.</label>
+        <label class="sg-assess-demo sg-assess-demo-2"><input type="radio" name="sg-demo-assess" disabled> <span class="sg-assess-demo-num">2.</span> I think I get it, but I'm still getting some problems wrong.</label>
+        <label class="sg-assess-demo sg-assess-demo-1"><input type="radio" name="sg-demo-assess" disabled> <span class="sg-assess-demo-num">1.</span> I don't get it. I need help. <span class="sg-assess-alert">— automatically alerts your teacher</span></label>
       </div>
-      <div class="sg-lesson-section">
-        <div class="sg-lesson-label">🟢 Aspire To</div>
-        <label class="sg-check-item"><input type="checkbox" class="sg-demo-cb"> I can explain the difference between Must Do, Should Do, and Aspire To to a partner</label>
+      <div class="sg-lesson-section sg-loot-note">
+        <div class="sg-lesson-label">🟢 Don't Forget the Loot Path</div>
+        <p class="sg-loot-desc">Should Do and Aspire To challenges aren't part of every lesson. Look for their own special tiles branching off the main path. Complete them for bonus Gold or other rewards!</p>
       </div>
     </div>`;
   } else if (tile.sgModal === "gate") {
@@ -4638,7 +4955,7 @@ function renderQuestMap() {
     </div>
     <div class="lm-svg-wrap">
       <div class="lm-map-bg" ${land.bgImage ? `style="background-image:url('${land.bgImage}')"` : ""}></div>
-      <svg viewBox="0 -30 ${land.W||LW.W} ${(land.H||LW.H)+30}" style="width:100%;max-height:100%;display:block" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 -30 ${land.W||LW.W} ${(land.H||LW.H)+30}" style="width:100%;height:100%;max-width:${land.W||LW.W}px;display:block" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
         ${buildLandSVG(land,pos,false,"")}
       </svg>
     </div>
@@ -4854,6 +5171,25 @@ function renderTeacherTileView() {
   </div>`;
 }
 
+function renderTeacherStudentMap() {
+  const student = getMergedStudent(STATE.teacherViewStudent);
+  const pos = getLandPos(STATE.teacherViewStudent);
+  const land = getLandData(pos.land);
+  return `<div class="screen land-map-screen">
+    <div class="lm-top-bar">
+      <button class="lm-back-btn" id="tsm-back">← Dashboard</button>
+      <span class="lm-title">🗺 ${getCharName(STATE.teacherViewStudent) || `Student ${STATE.teacherViewStudent.id}`} — ${land.name}</span>
+      <span style="font-size:11px;font-weight:700;opacity:.6;color:white">TEACHER VIEW · READ ONLY</span>
+    </div>
+    <div class="lm-svg-wrap">
+      <div class="lm-map-bg" ${land.bgImage ? `style="background-image:url('${land.bgImage}')"` : ""}></div>
+      <svg viewBox="0 -30 ${land.W||LW.W} ${(land.H||LW.H)+30}" style="width:100%;height:100%;max-width:${land.W||LW.W}px;display:block" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+        ${buildLandSVG(land, pos, false, "")}
+      </svg>
+    </div>
+  </div>`;
+}
+
 function renderBoardView() {
   const period   = CLASS_DATA.periods[STATE.teacherPeriodIdx];
   const flags    = getHelpFlags();
@@ -4881,7 +5217,7 @@ function renderBoardView() {
       const dx=(tile.x-ts/2)+pad+col*(DR*2+4)+DR;
       const dy=(tile.y-ts/2)+pad+row*(DR*2+4)+DR;
       const color=CLS_COLOR[clsKey(s, getMergedStudent(s))], fl=!!flags[String(s.id)];
-      const first=getCharName(s).split(" ")[0].slice(0,5);
+      const first=(getCharName(s)||"?").split(" ")[0].slice(0,5);
       dots+=`<circle cx="${dx.toFixed(1)}" cy="${dy.toFixed(1)}" r="${DR}" fill="${color}" stroke="white" stroke-width="2.2"/>
         ${fl?`<circle cx="${(dx+DR*.55).toFixed(1)}" cy="${(dy-DR*.55).toFixed(1)}" r="5" fill="#EF4444" stroke="white" stroke-width="1.2"/>`:``}
         <text x="${dx.toFixed(1)}" y="${dy.toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="6.5" fill="white" font-weight="900" font-family="Arial">${first}</text>`;
@@ -4999,6 +5335,7 @@ function renderTeacherDashboard() {
     <div class="t-s-card ${hasFlags?"has-flag":""} ${unclaimed?"t-s-card-unclaimed":""}" data-sid="${s.id}" tabindex="0" role="button" aria-label="Edit ${getCharName(s)}">
       <button class="t-card-menu-btn" data-card-menu="${s.id}" title="More actions">⋮</button>
       ${menuOpen ? `<div class="t-card-menu-dropdown" data-card-menu-drop="${s.id}">
+        <button class="t-card-menu-item" data-view-map="${s.id}">🗺 View Map</button>
         <button class="t-card-menu-item" data-award-companion="${s.id}">🐾 Award Companion</button>
         <button class="t-card-menu-item" data-reroll-name="${s.id}">🎲 Reroll Name</button>
       </div>` : ''}
@@ -5031,6 +5368,8 @@ function renderTeacherDashboard() {
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-outline-sm" id="t-board-view">📡 Board View</button>
           <button class="btn btn-outline-sm" id="t-boss-roster-btn">⚔️ Battle Records</button>
+          <button class="btn btn-outline-sm" id="t-judgment-hall-btn">⚖️ Judgment Hall</button>
+          <button class="btn btn-outline-sm" id="t-boss-backfill-btn" title="One-time backfill for seeded test accounts">🔧 Backfill Boss States</button>
           <button class="btn btn-outline-sm" id="t-class-settings-btn">⚙️ Class Settings</button>
           <button class="btn btn-outline-sm t-gold-shop-btn" id="t-gold-shop-btn">
             🪙 Gold Shop${(() => { const n = Object.keys(getShopPending()).length; return n ? `<span class="t-gold-badge">${n}</span>` : ''; })()}
@@ -5681,6 +6020,193 @@ function renderTeacherEdit() {
 }
 
 /* ─── BOSS ROSTER ─── */
+function renderJudgmentHall() {
+  const periods = CLASS_DATA.periods || [];
+  // Only Land 1 has boss overlay system
+  const land = LANDS[0];
+  const stdBosses = land.standardBosses || {};
+  const gateBosses = land.gateBosses || {};
+
+  // Collect all students across all periods
+  const allStudents = periods.flatMap(p => (p.students || []).map(s => ({ student: s, period: p })));
+
+  // Build boss groups for standard bosses
+  const stdBossOrder = ['duskmantle','mirrorkin','seraphine','keystone'];
+  const stdGroups = stdBossOrder.filter(bk => stdBosses[bk]).map(bk => {
+    const boss = stdBosses[bk];
+    const rows = allStudents
+      .map(({ student, period }) => {
+        const state = getStdBossState(String(student.id), bk);
+        if (state.status !== 'awaiting_judgment') return null;
+        return { student, period, state };
+      })
+      .filter(Boolean);
+    return { bossKey:bk, boss, rows, type:'standard' };
+  });
+
+  // Build boss groups for gate bosses
+  const gateBossOrder = ['abysmara','feraxis'];
+  const gateGroups = gateBossOrder.filter(bk => gateBosses[bk]).map(bk => {
+    const boss = gateBosses[bk];
+    const rows = allStudents
+      .map(({ student, period }) => {
+        const state = getGateBossState(String(student.id), bk);
+        if (state.status !== 'active' && state.status !== 'awaiting_judgment') return null;
+        return { student, period, state };
+      })
+      .filter(Boolean);
+    return { bossKey:bk, boss, rows, type:'gate' };
+  });
+
+  const allGroups = [...stdGroups, ...gateGroups];
+
+  // Summary chips
+  const totalMarked = Object.values(STATE.judgmentHallMarks).filter(m => m && m.result).length;
+  const totalFailed = Object.values(STATE.judgmentHallMarks).filter(m => m && m.result === 'fail').length;
+  const totalDefeated = Object.values(STATE.judgmentHallMarks).filter(m => m && m.result === 'pass').length;
+  const totalPending = allGroups.reduce((n, g) => n + g.rows.length, 0) - totalMarked;
+
+  const bossDisplayNames = {
+    duskmantle:'Duskmantle', mirrorkin:'Mirrorkin', seraphine:'Seraphine', keystone:'The Keystone',
+    abysmara:'Abysmara', feraxis:'Feraxis',
+  };
+  const stdStandardLabels = {
+    duskmantle:'RL.5.1 · Make Inferences', mirrorkin:'RL.5.3 · Compare Characters',
+    seraphine:'RL.5.2 · Story Structure',  keystone:'RI.5.2 · Main Idea / Summarize',
+  };
+  const gateSessionLabels = {
+    abysmara:`S${gateBosses.abysmara?.session ?? 7} · Module 1 Assessment`,
+    feraxis:`S${gateBosses.feraxis?.session ?? 13} · Module 2 Assessment`,
+  };
+
+  const renderBossGroup = (group) => {
+    const { bossKey, boss, rows, type } = group;
+    const isGate = type === 'gate';
+    const displayName = bossDisplayNames[bossKey] || bossKey;
+    const subLabel = isGate ? gateSessionLabels[bossKey] : stdStandardLabels[bossKey];
+    const totalSessions = !isGate ? boss.sessions.length : 1;
+
+    const rowsHTML = rows.length === 0
+      ? `<tr><td colspan="${isGate ? 3 : 5}" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No students awaiting judgment</td></tr>`
+      : rows.map(({ student, state }) => {
+          const markKey = `${bossKey}_${student.id}`;
+          const pending = STATE.judgmentHallMarks[markKey] || {};
+          const pSel = pending.result === 'pass' ? ' jh-sel-pass' : '';
+          const fSel = pending.result === 'fail' ? ' jh-sel-fail' : '';
+          const gradeChk = pending.postGrade ? 'checked' : '';
+          const encounterTag = !isGate
+            ? `<span class="jh-enc-tag">${state.encounterCount} of ${totalSessions}</span>`
+            : '';
+          const gradeCell = !isGate
+            ? `<td><label class="jh-grade-check">
+                <input type="checkbox" class="jh-grade-cb" data-jhk="${markKey}" ${gradeChk}> post grade
+               </label></td>`
+            : '';
+          const currentStatus = (() => {
+            if (pending.result === 'fail') return '<span class="jh-pill jh-pill-fail">Craft Binder</span>';
+            if (pending.result === 'pass') {
+              const isLast = isGate || state.encounterCount >= totalSessions;
+              return isLast
+                ? '<span class="jh-pill jh-pill-pass">Defeated</span>'
+                : '<span class="jh-pill jh-pill-wound">Wounded — continues</span>';
+            }
+            return '<span class="jh-pill jh-pill-pending">Awaiting mark</span>';
+          })();
+          return `<tr>
+            <td style="font-size:13px;font-weight:700">${getCharName(student)}</td>
+            ${!isGate ? `<td>${encounterTag}</td>` : ''}
+            <td>
+              <div style="display:flex;gap:6px">
+                <button class="jh-tog jh-tog-pass${pSel}" data-jhk="${markKey}" data-jhr="pass">Pass</button>
+                <button class="jh-tog jh-tog-fail${fSel}" data-jhk="${markKey}" data-jhr="fail">Fail</button>
+              </div>
+            </td>
+            ${gradeCell}
+            <td>${currentStatus}</td>
+          </tr>`;
+        }).join('');
+
+    return `<div class="jh-group">
+      <div class="jh-group-head">
+        <div>
+          <div class="jh-group-name">${displayName}</div>
+          <div class="jh-group-sub">${subLabel}</div>
+        </div>
+        <button class="jh-bulk-pass" data-jh-bulk="${bossKey}">Mark all pass</button>
+      </div>
+      <table class="jh-table">
+        <thead><tr>
+          <th>Student</th>
+          ${!isGate ? '<th>Encounter</th>' : ''}
+          <th style="width:180px">Result</th>
+          ${!isGate ? '<th>Post as grade</th>' : ''}
+          <th>Status</th>
+        </tr></thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
+    </div>`;
+  };
+
+  const groupsHTML = allGroups.map(renderBossGroup).join('');
+
+  return `<div class="screen boss-roster-screen">
+    <div class="boss-roster-wrap">
+      <div class="brs-hdr">
+        <button class="brs-back-btn" id="jh-back">← Dashboard</button>
+        <div>
+          <div style="font-size:20px;font-weight:900;color:#F3F4F6;letter-spacing:.5px">⚖️ Judgment Hall</div>
+          <div style="font-size:12px;color:#9CA3AF;margin-top:2px">Land 1 · The Verdant Vale — Weekly Check-in</div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <div class="jh-chip"><span class="jh-chip-n">${totalMarked}</span> marked</div>
+          <div class="jh-chip"><span class="jh-chip-n">${totalFailed}</span> to Craft Binder</div>
+          <div class="jh-chip"><span class="jh-chip-n">${totalDefeated}</span> defeated</div>
+          <div class="jh-chip"><span class="jh-chip-n">${totalPending}</span> unreviewed</div>
+        </div>
+      </div>
+      <div class="jh-legend">
+        <span><span class="jh-swatch" style="background:#10B981"></span> Pass = defeated or wounded, boss continues</span>
+        <span><span class="jh-swatch" style="background:#EF4444"></span> Fail = routes to Craft Binder, retry before next check-in</span>
+        <span><span class="jh-swatch" style="background:#D97706"></span> Post as grade = also sends score to PowerSchool (standard bosses only)</span>
+      </div>
+      <div class="jh-groups">${groupsHTML}</div>
+      <div class="jh-footer">
+        <div style="font-size:12px;color:#6B7280">Unmarked rows keep their current status — nothing changes until you save.</div>
+        <button class="brs-submit" id="jh-save" ${totalMarked === 0 ? 'disabled' : ''}>Save this week's marks</button>
+      </div>
+    </div>
+    <style>
+      .jh-group { background:#1F2937; border:1px solid #374151; border-radius:10px; margin-bottom:18px; overflow:hidden; }
+      .jh-group-head { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; background:#111827; border-bottom:1px solid #374151; }
+      .jh-group-name { font-size:16px; font-weight:800; color:#F9FAFB; }
+      .jh-group-sub  { font-size:11px; color:#9CA3AF; margin-top:3px; }
+      .jh-bulk-pass  { font-size:12px; background:#1F2937; border:1px solid #374151; border-radius:6px; padding:6px 10px; cursor:pointer; color:#D1D5DB; }
+      .jh-bulk-pass:hover { background:#374151; }
+      .jh-table { width:100%; border-collapse:collapse; }
+      .jh-table th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#6B7280; font-weight:700; padding:8px 18px; border-bottom:1px solid #374151; }
+      .jh-table td { padding:10px 18px; border-bottom:1px solid #1F2937; font-size:13px; vertical-align:middle; color:#E5E7EB; }
+      .jh-table tr:last-child td { border-bottom:none; }
+      .jh-enc-tag { font-size:11px; background:#374151; border-radius:5px; padding:2px 7px; color:#9CA3AF; }
+      .jh-tog { border:1px solid #374151; background:#1F2937; border-radius:6px; padding:6px 12px; font-size:12px; cursor:pointer; color:#9CA3AF; }
+      .jh-tog-pass.jh-sel-pass { background:#064E3B; border-color:#10B981; color:#34D399; font-weight:700; }
+      .jh-tog-fail.jh-sel-fail { background:#7F1D1D; border-color:#EF4444; color:#FCA5A5; font-weight:700; }
+      .jh-grade-check { display:flex; align-items:center; gap:6px; font-size:12px; color:#9CA3AF; cursor:pointer; }
+      .jh-pill { font-size:11px; border-radius:999px; padding:3px 10px; display:inline-block; }
+      .jh-pill-pending { background:#374151; color:#9CA3AF; }
+      .jh-pill-pass    { background:#064E3B; color:#34D399; }
+      .jh-pill-wound   { background:#78350F; color:#FCD34D; }
+      .jh-pill-fail    { background:#7F1D1D; color:#FCA5A5; }
+      .jh-chip { background:#1F2937; border:1px solid #374151; border-radius:8px; padding:8px 14px; font-size:12px; color:#9CA3AF; }
+      .jh-chip-n { font-size:18px; font-weight:800; color:#F3F4F6; display:block; }
+      .jh-legend { display:flex; gap:18px; flex-wrap:wrap; font-size:12px; color:#6B7280; margin:0 0 20px; }
+      .jh-legend span { display:flex; align-items:center; gap:5px; }
+      .jh-swatch { width:10px; height:10px; border-radius:3px; display:inline-block; }
+      .jh-groups { max-height:calc(100vh - 280px); overflow-y:auto; }
+      .jh-footer { display:flex; justify-content:space-between; align-items:center; padding:16px 0 0; border-top:1px solid #374151; margin-top:4px; }
+    </style>
+  </div>`;
+}
+
 function renderBossRoster() {
   const periods = CLASS_DATA.periods || [];
 
@@ -5852,7 +6378,9 @@ function mount() {
   if (STATE.screen === "teacher-tile")   root.innerHTML = renderTeacherTileView();
   if (STATE.screen === "welcome-splash") root.innerHTML = renderWelcomeSplash();
   if (STATE.screen === "board-view")     root.innerHTML = renderBoardView();
-  if (STATE.screen === "teacher-boss-roster") root.innerHTML = renderBossRoster();
+  if (STATE.screen === "teacher-student-map") root.innerHTML = renderTeacherStudentMap();
+  if (STATE.screen === "teacher-boss-roster")  root.innerHTML = renderBossRoster();
+  if (STATE.screen === "teacher-judgment-hall") root.innerHTML = renderJudgmentHall();
 
   // No scroll needed for land map (fits on screen)
 
@@ -6469,6 +6997,20 @@ function bindEvents() {
       STATE.bossRosterMarks = {};
       mount();
     });
+    $("t-judgment-hall-btn") && $("t-judgment-hall-btn").addEventListener("click", () => {
+      STATE.screen = "teacher-judgment-hall";
+      STATE.judgmentHallMarks = {};
+      mount();
+    });
+    $("t-boss-backfill-btn") && $("t-boss-backfill-btn").addEventListener("click", () => {
+      const n = backfillBossStates();
+      const toast = document.createElement("div");
+      toast.className = "gold-toast";
+      toast.innerHTML = `<div class="gold-pop">🔧 Backfill complete — ${n} boss state${n !== 1 ? 's' : ''} written</div>`;
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.classList.add("gold-toast-out"); setTimeout(() => toast.remove(), 380); }, 2500);
+      mount();
+    });
     $("t-class-settings-btn") && $("t-class-settings-btn").addEventListener("click", () => { STATE.classSettingsOpen = true; mount(); });
     if (STATE.classSettingsOpen) {
       const closeCS = () => { STATE.classSettingsOpen = false; mount(); };
@@ -6621,6 +7163,19 @@ function bindEvents() {
         const newName = getUniqueName();
         saveStudentOverride(sid, { characterName: newName, claimed: true });
         STATE.cardMenuSid = null;
+        mount();
+      });
+    });
+    document.querySelectorAll("[data-view-map]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const sid = parseInt(btn.dataset.viewMap, 10);
+        const period = CLASS_DATA.periods[STATE.teacherPeriodIdx];
+        const student = (period.students || []).find(s => s.id === sid);
+        if (!student) return;
+        STATE.teacherViewStudent = student;
+        STATE.cardMenuSid = null;
+        STATE.screen = "teacher-student-map";
         mount();
       });
     });
@@ -7231,6 +7786,95 @@ function bindEvents() {
     });
   }
 
+  if (STATE.screen === "teacher-judgment-hall") {
+    $("jh-back") && $("jh-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; mount(); });
+
+    // Pass / Fail toggle buttons
+    document.querySelectorAll("[data-jhk][data-jhr]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.jhk;
+        const result = btn.dataset.jhr;
+        const cur = STATE.judgmentHallMarks[key] || {};
+        // Toggle off if already selected
+        if (cur.result === result) {
+          STATE.judgmentHallMarks[key] = { ...cur, result: null };
+        } else {
+          STATE.judgmentHallMarks[key] = { ...cur, result };
+        }
+        mount();
+      });
+    });
+
+    // Post-as-grade checkboxes (standard bosses only)
+    document.querySelectorAll(".jh-grade-cb").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const key = cb.dataset.jhk;
+        const cur = STATE.judgmentHallMarks[key] || {};
+        STATE.judgmentHallMarks[key] = { ...cur, postGrade: cb.checked };
+      });
+    });
+
+    // Mark all pass per boss group
+    document.querySelectorAll("[data-jh-bulk]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const bossKey = btn.dataset.jhBulk;
+        const land = LANDS[0];
+        const periods = CLASS_DATA.periods || [];
+        const allStudents = periods.flatMap(p => (p.students || []));
+        allStudents.forEach(student => {
+          const markKey = `${bossKey}_${student.id}`;
+          const cur = STATE.judgmentHallMarks[markKey] || {};
+          const isStd = !!land.standardBosses?.[bossKey];
+          const state = isStd
+            ? getStdBossState(String(student.id), bossKey)
+            : getGateBossState(String(student.id), bossKey);
+          const isAwaiting = isStd
+            ? state.status === 'awaiting_judgment'
+            : (state.status === 'active' || state.status === 'awaiting_judgment');
+          if (isAwaiting) {
+            STATE.judgmentHallMarks[markKey] = { ...cur, result:'pass' };
+          }
+        });
+        mount();
+      });
+    });
+
+    // Save
+    $("jh-save") && $("jh-save").addEventListener("click", () => {
+      const land = LANDS[0];
+      const entries = Object.entries(STATE.judgmentHallMarks).filter(([, m]) => m && m.result);
+      let count = 0;
+      entries.forEach(([key, mark]) => {
+        const sep = key.lastIndexOf('_');
+        const bossKey = key.slice(0, sep);
+        const studentId = key.slice(sep + 1);
+        const isStd = !!land.standardBosses?.[bossKey];
+        if (isStd) {
+          const boss = land.standardBosses[bossKey];
+          const cur = getStdBossState(studentId, bossKey);
+          const isLast = cur.encounterCount >= boss.sessions.length;
+          const newStatus = mark.result === 'pass'
+            ? (isLast ? 'defeated' : 'fightable')
+            : 'failed';
+          setStdBossState(studentId, bossKey, { ...cur, status:newStatus, failedAt: mark.result === 'fail' ? new Date().toISOString() : null });
+        } else if (land.gateBosses?.[bossKey]) {
+          const cur = getGateBossState(studentId, bossKey);
+          const newStatus = mark.result === 'pass' ? 'defeated' : 'failed';
+          setGateBossState(studentId, bossKey, { ...cur, status:newStatus });
+        }
+        count++;
+      });
+      STATE.judgmentHallMarks = {};
+      STATE.screen = "teacher-dash";
+      mount();
+      const toast = document.createElement("div");
+      toast.className = "gold-toast";
+      toast.innerHTML = `<div class="gold-pop">⚖️ Judgment Hall saved — ${count} student${count !== 1 ? 's' : ''} updated!</div>`;
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.classList.add("gold-toast-out"); setTimeout(() => toast.remove(), 380); }, 2400);
+    });
+  }
+
   if (STATE.screen === "writing-event") {
     $("we-back") && $("we-back").addEventListener("click", () => {
       STATE.screen = STATE.writingEventReturnTo === 'sanctum-map' ? "sanctum-map" : "quest-map";
@@ -7536,18 +8180,37 @@ function bindEvents() {
       );
       if (!isActionable) return;
       const prog = getTaskProgress(STATE.student.id, tile.id);
+      const _rlSubmit = tile.type === 'lesson' && !isBranchTile && !BOSS_SCHEDULE[String(tile.id)];
       const _shouldDone = (tile.shouldDo||[]).length > 0 && (tile.shouldDo||[]).every((_,i) => (prog.shouldDo||[])[i]);
       const _aspireDone = (tile.aspireTo||[]).length > 0 && (tile.aspireTo||[]).every((_,i) => (prog.aspireTo||[])[i]);
-      const xpAmount = tile.type === 'lesson'
-        ? (10 + (_shouldDone ? 5 : 0) + (_aspireDone ? 5 : 0))
-        : tileXP(tile);
-      const goldAmount = tile.type === 'loot' ? 10 : (5 + (_shouldDone ? 3 : 0) + (_aspireDone ? 3 : 0));
+      const _nearpodDone = _rlSubmit && !!(prog.nearpod||[])[0];
+      const _wbDone = _rlSubmit && !!(prog.workbook||[])[0];
+      const xpAmount = _rlSubmit
+        ? (_nearpodDone ? 10 : 0) + (_wbDone ? 5 : 0)
+        : tile.type === 'lesson' ? (10 + (_shouldDone?5:0) + (_aspireDone?5:0)) : tileXP(tile);
+      const goldAmount = _rlSubmit
+        ? (_nearpodDone ? 5 : 0) + (_wbDone ? 3 : 0)
+        : tile.type === 'loot' ? 10 : (5 + (_shouldDone?3:0) + (_aspireDone?3:0));
       const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
       saveTileCompletion(STATE.student.id, tile.id, timeOnPage);
-      const { levelsGained, newLevel } = awardXP(STATE.student, xpAmount);
-      awardGold(STATE.student, goldAmount);
-      logActivity(STATE.student.id, '📖', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xpAmount} XP, +${goldAmount} 🪙)`);
+      updateBossStateOnTileComplete(STATE.student, tile.id, land);
+      let levelsGained = 0, newLevel = 0;
+      if (xpAmount > 0 || goldAmount > 0) {
+        const _lvl = awardXP(STATE.student, xpAmount);
+        levelsGained = _lvl.levelsGained; newLevel = _lvl.newLevel;
+        awardGold(STATE.student, goldAmount);
+      }
+      const _amtLabel = (xpAmount > 0 || goldAmount > 0) ? ` (+${xpAmount} XP, +${goldAmount} 🪙)` : '';
+      logActivity(STATE.student.id, '📖', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''}${_amtLabel}`);
       if (levelsGained > 0) logActivity(STATE.student.id, '⬆️', `Reached Level ${newLevel}!`);
+      if (_rlSubmit && !STATE.helpFlagged) {
+        const _assessLevel = (prog.selfAssessLevel || [])[0] || 0;
+        if (_assessLevel === 1) {
+          STATE.helpFlagged = true;
+          setHelpFlag(STATE.student.id, `Self-assessment: "I don't get it. I need help." (${tile.sessionTitle || tile.name || 'lesson'})`);
+          logActivity(STATE.student.id, '🚩', `Flagged for help via self-assessment on ${tile.sessionTitle || tile.name || 'lesson'}`);
+        }
+      }
       const hasExitTicket = getExitTicketEnabled(tile.id);
       const openSQPopup = (tileId) => {
         STATE.sideQuestModalOpen = true;
@@ -7582,14 +8245,15 @@ function bindEvents() {
       const finalCallback = hasExitTicket ? doAdvanceWithGrade : doAdvance;
 
       // XP toast fires after loot popup is dismissed (or after 2500ms), Gold toast follows XP
-      const _showMainXP = () => showXPCelebration(xpAmount, levelsGained, newLevel,
-        () => showGoldToast(goldAmount, finalCallback));
+      const _showMainXP = (xpAmount > 0 || goldAmount > 0)
+        ? () => showXPCelebration(xpAmount, levelsGained, newLevel, () => showGoldToast(goldAmount, finalCallback))
+        : () => finalCallback();
 
       // FIX 2: Tiered drop rates based on highest tier reached
       const _poolLand = (land && land.name) || (LANDS[0] && LANDS[0].name);
       const _dropRate = tile.type === 'loot' ? 1.0
                       : _aspireDone ? 0.55
-                      : _shouldDone ? 0.35
+                      : (_shouldDone || _wbDone) ? 0.35
                       : 0.15;
       const _hasPool = _poolLand && (EQUIP_POOLS[_poolLand] || PET_POOLS[_poolLand]);
       const _doNormalLoot = () => {
@@ -7634,6 +8298,53 @@ function bindEvents() {
         document.querySelector(".ls-tier-should")?.classList.toggle("ls-tier-dimmed", !allMust);
         document.querySelector(".ls-tier-aspire")?.classList.toggle("ls-tier-dimmed", !allMust);
 
+      });
+    });
+
+    // New lesson checklist checkboxes (regular reading tiles only)
+    document.querySelectorAll(".ls-check-new").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const kind    = cb.dataset.lsKind;
+        const tile    = STATE.lessonTile;
+        const student = STATE.student;
+        if (!student || !tile) return;
+        if (kind === 'nearpod') {
+          saveTaskCheck(student.id, tile.id, 'nearpod', 0, cb.checked);
+          if (cb.checked) saveTaskTimestamp(student.id, tile.id, 'nearpod', 0);
+          document.querySelectorAll(".ls-check-new[data-ls-kind='workbook']").forEach(w => {
+            w.disabled = !cb.checked;
+            w.closest('.sg-check-item, .ls-check-item')?.classList.toggle('sg-check-locked', !cb.checked);
+            w.closest('.sg-check-item, .ls-check-item')?.classList.toggle('ls-task-locked', !cb.checked);
+          });
+          const assessSection = document.getElementById('ls-assess-section');
+          if (assessSection) {
+            assessSection.classList.toggle('ls-section-locked', !cb.checked);
+            assessSection.querySelectorAll('.ls-assess-radio').forEach(r => { r.disabled = !cb.checked; });
+          }
+          const btn = $('ls-submit');
+          if (btn && btn.dataset.completed !== 'true') {
+            btn.disabled = !cb.checked;
+            btn.textContent = cb.checked ? "✅ I'm Ready!" : "Complete Lesson";
+          }
+          cb.closest('.ls-check-item')?.classList.toggle('ls-check-item-done', cb.checked);
+        } else if (kind === 'workbook') {
+          saveTaskCheck(student.id, tile.id, 'workbook', 0, cb.checked);
+          if (cb.checked) saveTaskTimestamp(student.id, tile.id, 'workbook', 0);
+          cb.closest('.ls-check-item')?.classList.toggle('ls-check-item-done', cb.checked);
+        }
+      });
+    });
+
+    // Self-assessment radio buttons
+    document.querySelectorAll(".ls-assess-radio").forEach(radio => {
+      radio.addEventListener("change", () => {
+        const level   = parseInt(radio.dataset.level);
+        const student = STATE.student;
+        const tile    = STATE.lessonTile;
+        if (!student || !tile) return;
+        saveTaskCheck(student.id, tile.id, 'selfAssessLevel', 0, level);
+        document.querySelectorAll(".ls-assess-item, .sg-assess-demo").forEach(el => el.classList.remove('ls-assess-selected'));
+        (radio.closest('.ls-assess-item') || radio.closest('.sg-assess-demo'))?.classList.add('ls-assess-selected');
       });
     });
 
@@ -7735,6 +8446,11 @@ function bindEvents() {
     }
   }
 
+  /* TEACHER STUDENT MAP */
+  if (STATE.screen === "teacher-student-map") {
+    $("tsm-back") && $("tsm-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; STATE.teacherViewStudent = null; mount(); });
+  }
+
   /* BOARD VIEW */
   if (STATE.screen === "board-view") {
     $("board-back") && $("board-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; mount(); });
@@ -7826,6 +8542,21 @@ async function seedAndMigrate() {
     await update(ref(db), writes);
   }
 
+  // One-time guild reset: clear all guild assignments if any retired key is present
+  const guildSnap = await get(ref(db, 'students'));
+  if (guildSnap.exists()) {
+    const _allStudents = guildSnap.val();
+    const _retiredGuilds = new Set(['crimson', 'shadow']);
+    const _hasRetired = Object.values(_allStudents).some(s => s && _retiredGuilds.has(s.guild));
+    if (_hasRetired) {
+      const _guildWrites = {};
+      for (const [_id, _s] of Object.entries(_allStudents)) {
+        if (_s && _s.guild) _guildWrites[`students/${_id}/guild`] = null;
+      }
+      if (Object.keys(_guildWrites).length) await update(ref(db), _guildWrites);
+    }
+  }
+
   // Migrate legacy overrides/ records to students/{number}
   const oldSnap = await get(ref(db, 'overrides'));
   if (oldSnap.exists()) {
@@ -7858,6 +8589,7 @@ Promise.all([
   CLASS_DATA = data;
   CLASS_DATA.periods.forEach(p => { p.students = getPeriodStudents(p.id); });
   fetch('/roster.local.json').then(r => r.ok ? r.json() : {}).then(r => { _roster = r; }).catch(() => {});
+  fetch('/bossSchedule.json').then(r => r.ok ? r.json() : {}).then(d => { BOSS_SCHEDULE = d; }).catch(() => {});
   seedAndMigrate().catch(console.error);
   STATE.screen = 'code';
   mount();
