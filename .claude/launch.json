@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "realm-of-ela",
-      "runtimeExecutable": "/Users/arodom00/Documents/GitHub/realmofela/.claude/node",
+      "runtimeExecutable": "/Users/arodom00/.local/bin/node",
       "runtimeArgs": ["/Users/arodom00/Documents/GitHub/realmofela/node_modules/vite/bin/vite.js"],
       "port": 5173
     }

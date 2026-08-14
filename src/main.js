@@ -1723,7 +1723,7 @@ function resetStudentFull(studentId) {
   // sentinel that getMergedStudent and getLandPos use to restore those defaults.
   const resetData = {
     _isReset: true,
-    currentLand: null, currentTile: 1, completedTiles: [], completedLand0: false,
+    currentLand: null, completedTiles: [], completedLand0: false,
     hp: 10, mp: 10, sp: 10, xp: 0, xpNext: 50, level: 1,
     taskProgress: {}, taskTimestamps: {},
     bosses: [], items: [], companions: [],

@@ -4,25 +4,25 @@
       "id": 1,
       "classCode": "REALM-P1",
       "periodName": "Period 1",
-      "teacher": "Ms. Thompson"
+      "teacher": "Ms. Love"
     },
     {
       "id": 2,
       "classCode": "REALM-P2",
       "periodName": "Period 2",
-      "teacher": "Ms. Thompson"
+      "teacher": "Ms. Richard"
     },
     {
       "id": 3,
       "classCode": "REALM-P3",
       "periodName": "Period 3",
-      "teacher": "Ms. Thompson"
+      "teacher": "Ms. Bilbo"
     },
     {
       "id": 4,
       "classCode": "REALM-P4",
       "periodName": "Period 4",
-      "teacher": "Ms. Thompson"
+      "teacher": "Ms. Odom"
     }
   ],
   "npcs": {

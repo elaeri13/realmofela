@@ -18,7 +18,6 @@ const COHORT_SIZE = 30;
 const RESET_STATE = {
   _isReset: true,
   claimed: false,
-  currentTile: 1,
   completedTiles: [],
   completedLand0: false,
   hp: 10, mp: 10, sp: 10,
