@@ -556,24 +556,25 @@ const LANDS = [
       "M 65 630 L 195 630 L 325 630 L 455 630 L 585 630 L 715 630 L 845 630 L 975 630",
     ],
     branchPaths:[
-      // S6 (Should Do) drops straight down from S5 (585,70)
+      // Top loot loop: S5→S6→S8→S7 rectangle
       "M 585 70 L 585 210",
-      // S8 (Aspire To) drops straight down from S7 (715,70)
-      "M 715 70 L 715 210",
-      // S12 (Should Do) stubs down-right from S13 (585,350)
-      "M 585 350 L 585 420 L 715 420 L 715 490",
-      // S14 (Aspire To) stubs down-left from S13 (585,350)
-      "M 585 350 L 585 420 L 455 420 L 455 490",
-      // S21 (Should Do) stubs down-left from Warden (325,630)
-      "M 325 630 L 325 700 L 195 700 L 195 750",
-      // S23 (Aspire To) stubs down-right from Warden (325,630)
-      "M 325 630 L 325 700 L 455 700 L 455 750",
+      "M 585 210 L 715 210",
+      "M 715 210 L 715 70",
+      // Middle loot chain: S11→S12→S14→S13
+      "M 715 350 L 715 490",
+      "M 715 490 L 455 490",
+      "M 455 490 L 455 420 L 585 420 L 585 350",
+      // Bottom loot chain: S20→S21→S23→Warden
+      "M 195 630 L 195 750",
+      "M 195 750 L 455 750",
+      "M 455 750 L 455 700 L 325 700 L 325 630",
     ],
     decorations:[],
     tiles:[
       // ── Row 0: main path L→R (S1–S5, S7, S9) ──
       {id: 1, type:"arrival",  name:"The Vale's Welcome",    x:65,   y:70},
       {id: 2, type:"lesson",   name:"S2",  x:195,  y:70,
+        video:"https://app.nearpod.com/?pin=E8SWM",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id: 3, type:"lesson",   name:"S3",  x:325,  y:70,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
@@ -611,12 +612,12 @@ const LANDS = [
       // Row 1 (y=210): S6 + S8 branch from S5 (lesson before Abysmara), rejoin at S7
       {id: 6, type:"loot", name:"S6",  skill:"Should Do", x:585,  y:210, parentTileId: 5, nextTile: 7},
       {id: 8, type:"loot", name:"S8",  skill:"Aspire To", x:715,  y:210, parentTileId: 5, nextTile: 7},
-      // Row 3 (y=490): S12 + S14 both branch from S13 (gate boss Feraxis tile)
-      {id:12, type:"loot", name:"S12", skill:"Should Do", x:715,  y:490, parentTileId:13, nextTile:13},
-      {id:14, type:"loot", name:"S14", skill:"Aspire To", x:455,  y:490, parentTileId:13, nextTile:13},
-      // Row 5 (y=750): S21 + S23 both branch from Warden (tile 27)
-      {id:21, type:"loot", name:"S21", skill:"Should Do", x:195,  y:750, parentTileId:27, nextTile:27},
-      {id:40, type:"loot", name:"S23", skill:"Aspire To", x:455,  y:750, parentTileId:27, nextTile:27},
+      // Row 3 (y=490): S12 unlocked by S11, S14 unlocked by S12, chain rejoins at S13
+      {id:12, type:"loot", name:"S12", skill:"Should Do", x:715,  y:490, parentTileId:11, nextTile:14},
+      {id:14, type:"loot", name:"S14", skill:"Aspire To", x:455,  y:490, parentTileId:12, nextTile:13},
+      // Row 5 (y=750): S21 unlocked by S20, S23 unlocked by S21, chain rejoins at Warden
+      {id:21, type:"loot", name:"S21", skill:"Should Do", x:195,  y:750, parentTileId:20, nextTile:40},
+      {id:40, type:"loot", name:"S23", skill:"Aspire To", x:455,  y:750, parentTileId:21, nextTile:27},
       // ── NPC tiles ──
       {id:36, type:"npc", npcKey:"thornkin_hint",          x:195,  y:210, landId:1},
       {id:37, type:"npc", npcKey:"thornkin_lore",          x:325,  y:210, landId:1},
@@ -2222,7 +2223,8 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               sanctumReturnOpen: false, sanctumReturnLandId: null,
               sanctumLand: null, sanctumTileOpen: null, writingEventReturnTo: 'quest-map',
               travelDestDesc: null, classSettingsOpen: false, cardMenuSid: null,
-              teacherViewStudent: null, genName: null, genEpithet: null};
+              teacherViewStudent: null, genName: null, genEpithet: null,
+              namingOptions: null, epithetOptions: null, _namingReturnScreen: null};
 
 /* ─── CHIBI SVG ─── */
 function chibiSVG(cls, size) {
@@ -2366,16 +2368,20 @@ function renderGrid() {
     const cls  = clsKey(s, m);
     const av   = m.avatar || "avatar_blankchibi.png";
     const charName = m.characterName;
-    const label = charName ? `${s.id} – ${charName}` : `${s.id}`;
+    const spaceIdx = charName ? charName.indexOf(' ') : -1;
+    const firstName = charName ? (spaceIdx > -1 ? charName.slice(0, spaceIdx) : charName) : '';
+    const epithet   = charName && spaceIdx > -1 ? charName.slice(spaceIdx + 1) : '';
     return `
     <button class="student-tile enter" style="animation-delay:${i*0.05}s" data-id="${s.id}">
       <div class="avatar-ring" style="border-color:${CLS_COLOR[cls]};padding:0">
-        <img src="/avatars/${av}" alt="${label}" width="130" height="130" loading="lazy"/>
+        <img src="/avatars/${av}" alt="${s.id}" width="130" height="130" loading="lazy"/>
       </div>
-      <div>
-        <div class="tile-name">${label}</div>
-        <div class="tile-cls" style="color:${CLS_COLOR[cls]}">Lv.${m.level} ${CLS_LABEL[cls]}</div>
+      <div class="tile-name-block">
+        <div class="tile-num">${s.id}</div>
+        <div class="tile-name">${firstName}</div>
+        ${epithet ? `<div class="tile-epithet">${epithet}</div>` : ''}
       </div>
+      <div class="tile-cls" style="color:${CLS_COLOR[cls]}">Lv.${m.level} ${CLS_LABEL[cls]}</div>
       <span class="tile-lvl" style="background:${CLS_COLOR[cls]}">⭐ ${m.level}</span>
     </button>`;
   }).join("");
@@ -2498,6 +2504,70 @@ function renderCharName() {
         <button class="btn btn-purple btn-lg" id="char-name-claim" ${!name ? "disabled" : ""}>
           <span>Claim This Name</span><span class="btn-arrow">→</span>
         </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderNaming() {
+  // Initialize option pools once per login session so they don't reshuffle on every mount()
+  if (!STATE.namingOptions) {
+    const sn = NAMES.slice().sort(() => Math.random() - 0.5);
+    STATE.namingOptions = sn.slice(0, 6);
+  }
+  if (!STATE.epithetOptions) {
+    const se = EPITHETS.slice().sort(() => Math.random() - 0.5);
+    STATE.epithetOptions = se.slice(0, 6);
+  }
+
+  const selName    = STATE.genName    || null;
+  const selEpithet = STATE.genEpithet;          // null = untouched, "" = skip, string = chosen
+  const epithetChosen = selEpithet != null;     // user has interacted with the epithet section
+
+  const previewText = selName
+    ? (selEpithet ? `${selName} ${selEpithet}` : selName)
+    : null;
+
+  const nameGrid = STATE.namingOptions.map(n => `
+    <button class="nm-pill${selName === n ? ' nm-pill-sel' : ''}" data-pick-name="${n}">${n}</button>
+  `).join('');
+
+  const epithetGrid = STATE.epithetOptions.map(e => `
+    <button class="nm-pill nm-epithet-pill${selEpithet === e ? ' nm-pill-sel' : ''}" data-pick-epithet="${e}">${e}</button>
+  `).join('') + `<button class="nm-pill nm-skip-pill${selEpithet === '' ? ' nm-pill-sel' : ''}" data-pick-skip>— Skip —</button>`;
+
+  return `
+  <div class="screen naming-screen">
+    ${starsHTML()}
+    <div class="nm-wrap">
+      <div class="nm-modal enter">
+
+        <div class="nm-header">
+          <div class="nm-title">⚔️ Choose Your Name</div>
+          <p class="nm-sub">This is who you will be in the Realm of ELA. Choose wisely.</p>
+        </div>
+
+        <div class="nm-preview${selName ? ' nm-preview-active' : ''}">
+          <span class="nm-preview-lbl">YOUR NAME</span>
+          <span class="nm-preview-val">${previewText || '—'}</span>
+        </div>
+
+        <div class="nm-section">
+          <div class="nm-section-hdr">First Name <span class="nm-req">*</span></div>
+          <div class="nm-grid">${nameGrid}</div>
+          <button class="nm-reroll-btn" id="nm-reroll-name">🔄 New Names</button>
+        </div>
+
+        <div class="nm-section">
+          <div class="nm-section-hdr">Epithet <span class="nm-opt">optional</span></div>
+          <div class="nm-grid nm-epithet-grid">${epithetGrid}</div>
+          <button class="nm-reroll-btn" id="nm-reroll-epithet">🔄 New Epithets</button>
+        </div>
+
+        <button class="nm-confirm-btn" id="nm-confirm" ${!selName ? 'disabled' : ''}>
+          ${selName ? '⚔️ Enter the Realm' : 'Choose a first name to continue'}
+        </button>
+
       </div>
     </div>
   </div>`;
@@ -3582,6 +3652,13 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
        </g>`
     : "";
 
+  // Ahead-of-player glow — slow-breathing outer ring for boss/gate tiles not yet completed
+  const _isBossVt = vt==='boss' || vt==='gatekeeper' || vt==='finalGatekeeper' || vt==='standaloneBoss';
+  const _glowColor = vt==='finalGatekeeper' ? '#7C3AED' : vt==='gatekeeper' ? '#D97706' : '#DC2626';
+  const bossAheadGlow = (_isBossVt && !done && !here && !brd)
+    ? `<rect class="boss-ahead-glow" x="${tx-11}" y="${ty-11}" width="${ts+22}" height="${ts+22}" rx="${r+9}" fill="none" stroke="${_glowColor}" stroke-width="2.5"/>`
+    : "";
+
   // Boss overlay badge — top-left corner, shown when a boss is in-flight for this student
   let bossOverlayBadge = "";
   if (bossOverlay && !locked && !brd) {
@@ -3604,7 +3681,7 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
     }
   }
 
-  return `<g data-tid="${id}">${dungRing}${evRing}${bossRing}${stdBossFightRing}${gateRing}${pulse}
+  return `<g data-tid="${id}">${bossAheadGlow}${dungRing}${evRing}${bossRing}${stdBossFightRing}${gateRing}${pulse}
     <clipPath id="clip-${id}"><rect x="0" y="0" width="${ts}" height="${ts}" rx="${r}"/></clipPath>
     <g clip-path="url(#clip-${id})" transform="translate(${tx},${ty})">${interior}${lockedOverlay}${doneBadge}</g>
     <rect x="${tx}" y="${ty}" width="${ts}" height="${ts}" rx="${r}" fill="none" stroke="${bc}" stroke-width="${bw}"/>
@@ -4358,7 +4435,7 @@ function renderLessonStop() {
       ${loreText ? `<p class="sg-modal-flavor">"${loreText}"</p>` : ''}
       <button class="ls-video-btn" id="ls-video-btn" style="margin-bottom:18px">
         <span class="ls-play-icon">▶</span>
-        <span>Open Video Lesson</span>
+        <span>Open NearPod Lesson</span>
       </button>
       <div class="sg-lesson-demo">
         <div class="sg-lesson-section ls-rlesson-red">
@@ -4432,7 +4509,7 @@ function renderLessonStop() {
       ${loreSection}
       <button class="ls-video-btn" id="ls-video-btn">
         <span class="ls-play-icon">▶</span>
-        <span>Open Video Lesson</span>
+        <span>Open NearPod Lesson</span>
       </button>
       <div class="ls-tiers">
         ${!videoOpened ? `<div class="ls-video-lock-hint">🔒 Watch the video first to unlock this checklist.</div>` : ''}
@@ -4955,7 +5032,7 @@ function renderQuestMap() {
     </div>
     <div class="lm-svg-wrap">
       <div class="lm-map-bg" ${land.bgImage ? `style="background-image:url('${land.bgImage}')"` : ""}></div>
-      <svg viewBox="0 -30 ${land.W||LW.W} ${(land.H||LW.H)+30}" style="width:100%;height:100%;max-width:${land.W||LW.W}px;display:block" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 -30 ${land.W||LW.W} ${(land.H||LW.H)+30}" style="width:100%;height:auto;max-width:${land.W||LW.W}px;display:block" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
         ${buildLandSVG(land,pos,false,"")}
       </svg>
     </div>
@@ -5183,7 +5260,7 @@ function renderTeacherStudentMap() {
     </div>
     <div class="lm-svg-wrap">
       <div class="lm-map-bg" ${land.bgImage ? `style="background-image:url('${land.bgImage}')"` : ""}></div>
-      <svg viewBox="0 -30 ${land.W||LW.W} ${(land.H||LW.H)+30}" style="width:100%;height:100%;max-width:${land.W||LW.W}px;display:block" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 -30 ${land.W||LW.W} ${(land.H||LW.H)+30}" style="width:100%;height:auto;max-width:${land.W||LW.W}px;display:block" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
         ${buildLandSVG(land, pos, false, "")}
       </svg>
     </div>
@@ -6361,6 +6438,7 @@ function mount() {
   if (STATE.screen === "code")           root.innerHTML = renderCode();
   if (STATE.screen === "grid")           root.innerHTML = renderGrid();
   if (STATE.screen === "pin")            root.innerHTML = renderPin();
+  if (STATE.screen === "naming")         root.innerHTML = renderNaming();
   if (STATE.screen === "hub")            root.innerHTML = renderHub();
   if (STATE.screen === "teacher-login")  root.innerHTML = renderTeacherLogin();
   if (STATE.screen === "teacher-dash")   root.innerHTML = renderTeacherDashboard();
@@ -6445,6 +6523,14 @@ function bindEvents() {
               const _pos = getLandPos(STATE.student);
               const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0;
               const _inSanctumLand = isInSanctum(STATE.student);
+              const _routeAfterPin = () => {
+                const _dst = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
+                if (!getMergedStudent(STATE.student).characterName) {
+                  STATE._namingReturnScreen = _dst;
+                  return "naming";
+                }
+                return _dst;
+              };
               if (_inSanctumLand) {
                 const _sLand = LANDS.find(l => l.id === _inSanctumLand);
                 if (_sLand) {
@@ -6454,10 +6540,10 @@ function bindEvents() {
                   STATE.writingEventReturnTo = 'sanctum-map';
                   STATE.screen = "sanctum-map";
                 } else {
-                  STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
+                  STATE.screen = _routeAfterPin();
                 }
               } else {
-                STATE.screen = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
+                STATE.screen = _routeAfterPin();
               }
               STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false; mount();
             } else {
@@ -6479,9 +6565,47 @@ function bindEvents() {
     });
   }
 
+  /* NAMING */
+  if (STATE.screen === "naming") {
+    document.querySelectorAll("[data-pick-name]").forEach(btn => {
+      btn.addEventListener("click", () => { STATE.genName = btn.dataset.pickName; mount(); });
+    });
+    document.querySelectorAll("[data-pick-epithet]").forEach(btn => {
+      btn.addEventListener("click", () => { STATE.genEpithet = btn.dataset.pickEpithet; mount(); });
+    });
+    document.querySelectorAll("[data-pick-skip]").forEach(btn => {
+      btn.addEventListener("click", () => { STATE.genEpithet = ""; mount(); });
+    });
+    $("nm-reroll-name") && $("nm-reroll-name").addEventListener("click", () => {
+      const sn = NAMES.slice().sort(() => Math.random() - 0.5);
+      STATE.namingOptions = sn.slice(0, 6);
+      STATE.genName = null;
+      mount();
+    });
+    $("nm-reroll-epithet") && $("nm-reroll-epithet").addEventListener("click", () => {
+      const se = EPITHETS.slice().sort(() => Math.random() - 0.5);
+      STATE.epithetOptions = se.slice(0, 6);
+      STATE.genEpithet = null;
+      mount();
+    });
+    $("nm-confirm") && $("nm-confirm").addEventListener("click", () => {
+      const name    = STATE.genName;
+      const epithet = STATE.genEpithet; // "" = skip, non-empty string = chosen
+      if (!name) return;
+      const charName = (epithet && epithet.length) ? `${name} ${epithet}` : name;
+      saveStudentOverride(STATE.student.id, { characterName: charName, claimed: true });
+      STATE.namingOptions = null; STATE.epithetOptions = null;
+      STATE.genName = null; STATE.genEpithet = null;
+      const dest = STATE._namingReturnScreen || "hub";
+      STATE._namingReturnScreen = null;
+      STATE.screen = dest;
+      mount();
+    });
+  }
+
   /* HUB */
   if (STATE.screen === "hub") {
-    $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; STATE.genName = null; STATE.genEpithet = null; mount(); });
+    $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; STATE.genName = null; STATE.genEpithet = null; STATE.namingOptions = null; STATE.epithetOptions = null; STATE._namingReturnScreen = null; mount(); });
     $("continue-quest-btn") && $("continue-quest-btn").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
     $("grade-reminder-banner") && $("grade-reminder-banner").addEventListener("click", () => {
       const reminders = getGradeReminders(STATE.student.id);
