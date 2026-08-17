@@ -255,13 +255,18 @@ input  { font-family: var(--font-body); }
 .item-img { width: 64px; height: 64px; object-fit: contain; display: block; }
 .item-name { font-size: 9px; font-weight: 700; color: var(--text-light); text-align: center; line-height: 1.2; }
 
-/* Bosses */
-.boss-list { display: flex; flex-direction: column; gap: 8px; }
-.boss-row  { display: flex; align-items: center; gap: 10px; background: linear-gradient(90deg,#d4edda,#e8f5e9); border: 1.5px solid #75be85; border-radius: 10px; padding: 10px 14px; }
-.boss-ico  { font-size: 22px; }
-.boss-nm   { flex: 1; font-size: 14px; font-weight: 800; color: var(--text-dark); }
-.boss-std  { font-size: 11px; font-weight: 900; color: white; background: var(--teal-dark); padding: 2px 8px; border-radius: 20px; flex-shrink: 0; }
-.boss-empty{ text-align:center; font-size:14px; font-weight:700; color:var(--text-light); font-style:italic; padding:12px 0; }
+/* Boss Trophy Grid */
+.trophy-grid { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; padding:4px 0 2px; }
+.trophy-cell { width:72px; display:flex; flex-direction:column; align-items:center; gap:3px; }
+.trophy-img-wrap { position:relative; width:72px; height:72px; border-radius:10px; overflow:hidden; border:2px solid rgba(255,255,255,.08); background:rgba(0,0,0,.15); }
+.trophy-earned .trophy-img-wrap { border-color:rgba(251,191,36,.65); box-shadow:0 0 10px rgba(251,191,36,.3),inset 0 0 4px rgba(251,191,36,.15); }
+.trophy-locked .trophy-img-wrap { border-color:rgba(255,255,255,.1); }
+.trophy-img { width:100%; height:100%; object-fit:cover; display:block; }
+.trophy-locked .trophy-img { filter:grayscale(1) brightness(.3); }
+.trophy-lock { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:20px; opacity:.55; }
+.trophy-name { font-size:10px; font-weight:700; text-align:center; line-height:1.2; max-width:72px; color:var(--text-dark); }
+.trophy-locked .trophy-name { color:var(--text-light); opacity:.45; }
+.trophy-std-tag { font-size:9px; font-weight:800; color:rgba(251,191,36,.8); letter-spacing:.03em; }
 /* Activity Feed */
 .act-feed-panel { display:flex; flex-direction:column; height:440px; }
 .act-feed { display:flex; flex-direction:column; gap:6px; flex:1; overflow-y:auto; min-height:0; }

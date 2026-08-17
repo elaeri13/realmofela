@@ -1723,6 +1723,7 @@ function resetStudentFull(studentId) {
   // sentinel that getMergedStudent and getLandPos use to restore those defaults.
   const resetData = {
     _isReset: true,
+    _resetVersion: Date.now(),
     currentLand: null, completedTiles: [], completedLand0: false,
     hp: 10, mp: 10, sp: 10, xp: 0, xpNext: 50, level: 1,
     taskProgress: {}, taskTimestamps: {},
@@ -2843,15 +2844,31 @@ function renderHub() {
     </div>`
   ].join('');
 
-  const bossRows = s.bosses.length
-    ? s.bosses.map(b => `
-        <div class="boss-row">
-          <span class="boss-ico">${BOSS_ICON[b]||"💀"}</span>
-          <span class="boss-nm">${b}</span>
-          <span class="boss-std">${BOSS_STANDARD[b]||""}</span>
-          <span>🏆</span>
-        </div>`).join("")
-    : `<p class="boss-empty">No bosses defeated yet — your quest awaits!</p>`;
+  const _trophyOv = _overrides[String(s.id)] || {};
+  const _stdBossState = _trophyOv.standardBossState || {};
+  const _bossStatusMap = _trophyOv.bossStatus || {};
+  const HUB_TROPHY_BOSSES = [
+    { key:'duskmantle', name:'Duskmantle',   std:'RL.5.1', img:'/trophies/trophy_duskmantle.jpeg', type:'std' },
+    { key:'keystone',   name:'The Keystone', std:'RI.5.2', img:'/trophies/trophy_keystone.jpeg',   type:'std' },
+    { key:'mirrorkin',  name:'Mirrorkin',    std:'RL.5.3', img:'/trophies/trophy_mirrorkin.jpeg',  type:'std' },
+    { key:'seraphine',  name:'Seraphine',    std:'RL.5.2', img:'/trophies/trophy_seraphine.jpeg',  type:'std' },
+    { key:'1_27',       name:'The Warden',   std:'',       img:'/trophies/trophy_warden.jpeg',     type:'dungeon' },
+  ];
+  const trophyGridHTML = `<div class="trophy-grid">${
+    HUB_TROPHY_BOSSES.map(b => {
+      const earned = b.type === 'std'
+        ? (_stdBossState[b.key] || {}).status === 'defeated'
+        : _bossStatusMap[b.key] === 'confirmed';
+      return `<div class="trophy-cell ${earned ? 'trophy-earned' : 'trophy-locked'}">
+        <div class="trophy-img-wrap">
+          <img src="${b.img}" class="trophy-img" alt="${b.name}" onerror="this.style.display='none'"/>
+          ${earned ? '' : '<div class="trophy-lock">🔒</div>'}
+        </div>
+        <div class="trophy-name">${b.name}</div>
+        ${earned && b.std ? `<div class="trophy-std-tag">${b.std}</div>` : ''}
+      </div>`;
+    }).join('')
+  }</div>`;
 
   const actEntries = getActivityLog(STATE.student.id);
   const actFeedHTML = actEntries.length
@@ -2995,8 +3012,8 @@ function renderHub() {
         </div>
       </div>
       <div class="hub-panel boss-panel-wrap enter" style="animation-delay:.16s">
-        <div class="panel-title">🏆 Bosses Defeated</div>
-        <div class="boss-list">${bossRows}</div>
+        <div class="panel-title">🏆 Boss Mastery</div>
+        ${trophyGridHTML}
       </div>
         ${(() => {
           const activeSQ = getActiveSideQuests(STATE.student);
@@ -3376,8 +3393,9 @@ function getLandPos(student) {
   // Firebase strips null on write, so absent currentLand always means "Land 0 not yet completed."
   // This covers new students, any reset (with or without _isReset flag in Firebase),
   // and Land 0 in-progress students. Never fall through to classData's currentLand.
-  if (ov.currentLand === undefined && !ov.completedLand0) {
-    return { land:0, tile: ov.currentTile || 2, completed: ov.completedTiles || [], studentId: String(student.id) };
+  // _isReset + !claimed means a full platform reset — ignore any stale progress written back by an active session.
+  if ((ov._isReset && !ov.claimed) || (ov.currentLand === undefined && !ov.completedLand0)) {
+    return { land:0, tile: 2, completed: [], studentId: String(student.id) };
   }
   return {
     land: ov.currentLand !== null ? ov.currentLand : 1,
@@ -6183,9 +6201,8 @@ function renderJudgmentHall() {
             if (pending.result === 'fail') return '<span class="jh-pill jh-pill-fail">Craft Binder</span>';
             if (pending.result === 'pass') {
               const isLast = isGate || state.encounterCount >= totalSessions;
-              return isLast
-                ? '<span class="jh-pill jh-pill-pass">Defeated</span>'
-                : '<span class="jh-pill jh-pill-wound">Wounded — continues</span>';
+              if (isLast) return '<span class="jh-pill jh-pill-pass">Defeated</span><span class="jh-mastery-badge">🏆 Mastery Achieved</span>';
+              return '<span class="jh-pill jh-pill-wound">Wounded — continues</span>';
             }
             return '<span class="jh-pill jh-pill-pending">Awaiting mark</span>';
           })();
@@ -6273,6 +6290,7 @@ function renderJudgmentHall() {
       .jh-pill-pass    { background:#064E3B; color:#34D399; }
       .jh-pill-wound   { background:#78350F; color:#FCD34D; }
       .jh-pill-fail    { background:#7F1D1D; color:#FCA5A5; }
+      .jh-mastery-badge { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:800; color:#FCD34D; background:rgba(251,191,36,.15); border:1px solid rgba(251,191,36,.5); border-radius:6px; padding:3px 8px; margin-left:6px; letter-spacing:.02em; vertical-align:middle; }
       .jh-chip { background:#1F2937; border:1px solid #374151; border-radius:8px; padding:8px 14px; font-size:12px; color:#9CA3AF; }
       .jh-chip-n { font-size:18px; font-weight:800; color:#F3F4F6; display:block; }
       .jh-legend { display:flex; gap:18px; flex-wrap:wrap; font-size:12px; color:#6B7280; margin:0 0 20px; }
@@ -6545,7 +6563,9 @@ function bindEvents() {
               } else {
                 STATE.screen = _routeAfterPin();
               }
-              STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false; mount();
+              STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false;
+              STATE._sessionResetVersion = (_overrides[String(STATE.student.id)] || {})._resetVersion ?? null;
+              mount();
             } else {
               STATE.pinError = "Incorrect secret number! Try again, brave adventurer.";
               STATE.pin = ""; mount();
@@ -8613,7 +8633,17 @@ function initFirebaseCache() {
     function checkReady() { if (ovReady && hfReady && crReady && stReady) resolve(); }
 
     onValue(ref(db, 'students'), (snap) => {
-      _overrides = snap.exists() ? snap.val() : {};
+      const newOverrides = snap.exists() ? snap.val() : {};
+      // Force-logout: if a logged-in student's _resetVersion changed, their session is stale.
+      if (STATE.student) {
+        const sid = String(STATE.student.id);
+        const incoming = (newOverrides[sid] || {})._resetVersion ?? null;
+        if (incoming !== null && incoming !== STATE._sessionResetVersion) {
+          window.location.reload();
+          return;
+        }
+      }
+      _overrides = newOverrides;
       if (!ovReady) { ovReady = true; checkReady(); }
       else liveMount();
     }, reject);
