@@ -4774,7 +4774,9 @@ function advanceSg0Tile(student, tileId) {
     const order = LAND0.pathOrder;
     const idx   = order.indexOf(tileId);
     const next  = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : tileId;
-    saveStudentOverride(student.id, { currentTile:next, completedTiles:completed });
+    // currentLand:0 must be written explicitly — without it getLandPos sees currentLand===undefined
+    // and resets the student back to tile 2 with empty completedTiles on every render
+    saveStudentOverride(student.id, { currentLand:0, currentTile:next, completedTiles:completed });
   }
 }
 
