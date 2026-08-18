@@ -31,6 +31,7 @@ const ITEMS = {
   health_potion:    { i:"🧪", img:"icon_potion_red.png",  n:"Health Potion",   desc:"Restore 2 HP" },
   behavior_potion:  { i:"🔵", img:"icon_potion_blue.png",  n:"Mana Potion",     desc:"Restore 2 MP" },
   stamina_potion:   { i:"💚", img:"icon_potion_green.png", n:"Focus Potion",    desc:"Restore 2 SP" },
+  gold_pouch:       { i:"💰", img:"icon_gold.png",         n:"Gold Pouch",      desc:"Open for +25 Gold" },
   scroll:           { i:"📜", img:"icon_scroll.png",       n:"Scroll",          desc:"Hint during boss fight" },
   shield:           { i:"🛡️", img:"icon_shield.png",       n:"Shield",          desc:"Protect 1 missed assignment" },
   amulet:           { i:"🟣", img:"icon_star.png",         n:"Starlight Sigil", desc:"Preview boss questions" },
@@ -260,6 +261,19 @@ const SOLO_QUESTS = [
   { title:"Evidence Hunter",    desc:"Find 2 pieces of text evidence that support your answer.",                      xp:10 },
   { title:"Lore Keeper",        desc:"Write one sentence connecting today's lesson to something you already knew.",    xp:10 },
 ];
+const LAND1_SOLO_QUESTS = {
+  5:  { title:"Metaphor Map",       desc:"Draw one metaphor from Garvey's Choice two ways — what it literally says, and what it really means.", xp:10 },
+  9:  { title:"The Implied Scene",  desc:"Draw a scene the text never directly describes — only implies. Label the text evidence that led you there.", xp:10 },
+  13: { title:"Central Idea Cover", desc:"Design a book cover for one nonfiction passage from this module that captures its central idea in a single image.", xp:10 },
+  17: { title:"Two Sides",          desc:"Draw two characters side-by-side showing one thing that makes them alike and one thing that makes them different.", xp:10 },
+  20: { title:"Theme as Symbol",    desc:"Illustrate a text's theme as a symbol, not a scene — force the abstract idea into one image.", xp:10 },
+  27: { title:"Trophy Shelf",       desc:"Draw a trophy shelf — one object representing each skill you mastered this unit.", xp:10 },
+  26: { title:"Your Story",         desc:"Illustrate a scene from your own piece of writing.", xp:10 },
+};
+function resolveSoloQuest(tileId, idx) {
+  if (tileId != null && LAND1_SOLO_QUESTS[tileId]) return LAND1_SOLO_QUESTS[tileId];
+  return SOLO_QUESTS[idx] || SOLO_QUESTS[0];
+}
 const COLLAB_QUESTS = [
   { title:"Guild Scholars",     desc:"Discuss the main idea with a partner. Agree on one key point together.",         xp:15 },
   { title:"Peer Forge",         desc:"Share your written response with a partner and give each other one piece of feedback.", xp:15 },
@@ -1595,7 +1609,7 @@ function completeSideQuest(student, key) {
   if (!entry) return;
   const quest = entry.type === 'collab'
     ? resolveCollabQuest(entry.tileId, findTileById(entry.tileId))
-    : (SOLO_QUESTS[entry.questIdx] || SOLO_QUESTS[0]);
+    : resolveSoloQuest(entry.tileId, entry.questIdx);
   delete sq[key];
   const history = [...(ov.completedQuests || []), {
     key, title: quest.title, type: entry.type, xp: quest.xp, landId: entry.landId || null, completedAt: new Date().toISOString()
@@ -2208,7 +2222,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               shopOpen:false, shopConfirmItem:null, shopSuccess:false,
               teacherGoldShopOpen:false,
               bossRosterPeriodIdx:0, bossRosterKey:null, bossRosterMarks:{},
-              judgmentHallMarks:{},
+              judgmentHallMarks:{}, jhExcellenceAwarded:{},
               sqInviteNotifOpen:false,
               questJournalTab:'active',
               craftingOpen:false, craftingStep:1, craftingSelected:null,
@@ -2785,7 +2799,7 @@ function renderHub() {
   const equipInventory = getEquipInventory(STATE.student);
   const legacySlots = s.items.map((it, idx) => {
     const def = ITEMS[it] || { i:"❓", n: it };
-    const usable = ['health_potion', 'behavior_potion', 'stamina_potion'].includes(it);
+    const usable = ['health_potion', 'behavior_potion', 'stamina_potion', 'gold_pouch'].includes(it);
     const equippable = EQUIPPABLE.has(it);
     const isEquipped = equippable && !!equipped[it];
     const imgTag = def.img
@@ -3044,7 +3058,7 @@ function renderHub() {
                 const activeTileId = parseInt(key.split('_')[0]);
                 const q = e.type === 'collab'
                   ? resolveCollabQuest(activeTileId, findTileById(activeTileId))
-                  : (SOLO_QUESTS[e.questIdx] || SOLO_QUESTS[0]);
+                  : resolveSoloQuest(activeTileId, e.questIdx);
                 const typeIcon = e.type === 'collab' ? '🤝' : '🗡️';
                 return `<div class="sq-hub-card">
                   <div class="sq-hub-type">${typeIcon} ${e.type === 'collab' ? 'Collaborative' : 'Solo'}</div>
@@ -3108,7 +3122,7 @@ function renderHub() {
               <div class="crafting-title">⚗️ Crafting Station</div>
               <div class="crafting-subtitle">What would you like to craft?</div>
               <div class="crafting-cards">
-                ${['health_potion','behavior_potion','stamina_potion'].map(key => {
+                ${['health_potion','behavior_potion','gold_pouch'].map(key => {
                   const def = ITEMS[key];
                   const imgTag = def.img
                     ? `<img class="crafting-card-img item-img" src="/icons/${def.img}" alt="${def.n}" width="64" height="64" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:32px">${def.i}</span>`
@@ -3415,11 +3429,23 @@ function tileState(tile, pos, board, land) {
     const bossKey = land ? `${land.id}-${id}` : String(id);
     if (!pos.completed.includes(id) && !getBossOpenKeys().includes(bossKey)) return "locked";
   }
-  if (typeof tile === "object" && tile.type === "dungeon" && tile.id === 27 && land && land.standardBosses && pos.studentId) {
-    const allDefeated = Object.keys(land.standardBosses).every(
-      bk => getStdBossState(pos.studentId, bk).status === 'defeated'
-    );
-    if (!allDefeated) return "locked";
+  // Gate boss lesson tiles (Land 1: Abysmara S7, Feraxis S13): teacher must unlock via bossOpenKeys
+  if (typeof tile === "object" && tile.type === "lesson" && land && land.gateBosses) {
+    const isGateBoss = Object.values(land.gateBosses).some(gb => gb.session === id);
+    if (isGateBoss) {
+      const bossKey = `${land.id}-${id}`;
+      if (!pos.completed.includes(id) && !getBossOpenKeys().includes(bossKey)) return "locked";
+    }
+  }
+  if (typeof tile === "object" && tile.type === "dungeon" && tile.id === 27 && land) {
+    const bossKey = `${land.id}-${id}`;
+    // Teacher can force-unlock the Warden via bossOpenKeys; otherwise all standard bosses must be defeated
+    if (!getBossOpenKeys().includes(bossKey) && land.standardBosses && pos.studentId) {
+      const allDefeated = Object.keys(land.standardBosses).every(
+        bk => getStdBossState(pos.studentId, bk).status === 'defeated'
+      );
+      if (!allDefeated) return "locked";
+    }
   }
   if (id === pos.tile) return "here";
   if (pos.completed.includes(id)) return "done";
@@ -4405,10 +4431,24 @@ function renderLessonStop() {
       const sq = STATE.student ? getActiveSideQuests(STATE.student) : {};
       const collabKey = `${tid}_collab`;
       const collabAccepted = !!sq[collabKey];
+      const soloL1 = LAND1_SOLO_QUESTS[tid];
+      const soloKey = `${tid}_solo`;
+      const soloAccepted = !!sq[soloKey];
       return `<div class="sq-overlay" id="sq-overlay">
         <div class="sq-modal">
           <div class="sq-title">⚔️ Side Quest Unlocked!</div>
           <p class="sq-sub">Complete this bonus challenge to earn extra XP!</p>
+          ${soloL1 ? `<div class="sq-card sq-solo">
+            <div class="sq-card-type">🎨 Art Deliverable</div>
+            <div class="sq-card-name">${soloL1.title}</div>
+            <div class="sq-card-desc">${soloL1.desc}</div>
+            <div class="sq-card-footer">
+              <span class="sq-xp">+${soloL1.xp} XP</span>
+              ${soloAccepted
+                ? `<span class="sq-accepted">✓ Accepted</span>`
+                : `<button class="btn-sq-accept" data-sq-key="${soloKey}" data-sq-idx="${STATE.sideQuestSoloIdx}" data-sq-type="solo">Accept</button>`}
+            </div>
+          </div>` : ''}
           <div class="sq-card sq-collab">
             <div class="sq-card-type">🤝 Collaborative Quest</div>
             <div class="sq-card-name">${collab.title}</div>
@@ -5537,17 +5577,33 @@ function renderTeacherDashboard() {
             <div class="cs-section-title">⚔️ Boss Fights — Locked by Default</div>
             <div class="cs-accordions">
               ${LANDS.map(land => {
-                const bossTiles = land.tiles.filter(t => t.type === 'boss');
-                if (!bossTiles.length) return '';
+                // Land 1 has no type:"boss" tiles — gatekeepers live on lesson tiles and the
+                // master boss is type:"dungeon". Build entries from gateBosses + dungeon instead.
+                let bossEntries;
+                if (land.gateBosses) {
+                  const GATE_NAMES = { abysmara:'Abysmara', feraxis:'Feraxis' };
+                  const gateEntries = Object.entries(land.gateBosses).map(([bk, gb]) => ({
+                    id: gb.session, name: GATE_NAMES[bk] || bk, skill: `S${gb.session}`,
+                  }));
+                  const dungeon = land.tiles.find(t => t.type === 'dungeon');
+                  bossEntries = dungeon
+                    ? [...gateEntries, { id: dungeon.id, name: dungeon.name }]
+                    : gateEntries;
+                } else {
+                  bossEntries = land.tiles
+                    .filter(t => t.type === 'boss')
+                    .map(t => ({ id: t.id, name: t.name, skill: t.skill }));
+                }
+                if (!bossEntries.length) return '';
                 return `<details class="cs-land-details" ${land.id === activeLandId ? 'open' : ''}>
                   <summary class="cs-land-summary">${land.name.toUpperCase()}</summary>
                   <div class="cs-land-body">
-                    ${bossTiles.map(t => {
-                      const bossKey = `${land.id}-${t.id}`;
+                    ${bossEntries.map(e => {
+                      const bossKey = `${land.id}-${e.id}`;
                       const open = getBossOpenKeys().includes(bossKey);
                       return `<div class="ss-row">
-                        <span class="ss-tile-name">⚔ ${t.name}${t.skill ? ` <span class="ss-skill-tag">${t.skill}</span>` : ''}</span>
-                        <button class="ss-toggle ${open ? 'ss-on' : 'ss-off'} boss-fight-toggle" data-boss-land="${land.id}" data-boss-tile="${t.id}" data-boss-open="${open ? '1' : '0'}">
+                        <span class="ss-tile-name">⚔ ${e.name}${e.skill ? ` <span class="ss-skill-tag">${e.skill}</span>` : ''}</span>
+                        <button class="ss-toggle ${open ? 'ss-on' : 'ss-off'} boss-fight-toggle" data-boss-land="${land.id}" data-boss-tile="${e.id}" data-boss-open="${open ? '1' : '0'}">
                           ${open ? '🔓 Boss Fight OPEN' : '🔒 Boss Fight LOCKED'}
                         </button>
                       </div>`;
@@ -6182,7 +6238,7 @@ function renderJudgmentHall() {
     const totalSessions = !isGate ? boss.sessions.length : 1;
 
     const rowsHTML = rows.length === 0
-      ? `<tr><td colspan="${isGate ? 3 : 5}" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No students awaiting judgment</td></tr>`
+      ? `<tr><td colspan="${isGate ? 4 : 5}" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No students awaiting judgment</td></tr>`
       : rows.map(({ student, state }) => {
           const markKey = `${bossKey}_${student.id}`;
           const pending = STATE.judgmentHallMarks[markKey] || {};
@@ -6206,6 +6262,13 @@ function renderJudgmentHall() {
             }
             return '<span class="jh-pill jh-pill-pending">Awaiting mark</span>';
           })();
+          const excellenceCell = isGate ? `<td>${
+            pending.result === 'pass'
+              ? (STATE.jhExcellenceAwarded[markKey]
+                  ? `<span class="jh-exc-awarded">✓ Awarded</span>`
+                  : `<button class="jh-exc-btn" data-jhk-exc="${markKey}" data-exc-sid="${student.id}">⭐ Excellence Bonus</button>`)
+              : ''
+          }</td>` : '';
           return `<tr>
             <td style="font-size:13px;font-weight:700">${getCharName(student)}</td>
             ${!isGate ? `<td>${encounterTag}</td>` : ''}
@@ -6217,6 +6280,7 @@ function renderJudgmentHall() {
             </td>
             ${gradeCell}
             <td>${currentStatus}</td>
+            ${excellenceCell}
           </tr>`;
         }).join('');
 
@@ -6235,6 +6299,7 @@ function renderJudgmentHall() {
           <th style="width:180px">Result</th>
           ${!isGate ? '<th>Post as grade</th>' : ''}
           <th>Status</th>
+          ${isGate ? '<th>Excellence</th>' : ''}
         </tr></thead>
         <tbody>${rowsHTML}</tbody>
       </table>
@@ -6270,34 +6335,37 @@ function renderJudgmentHall() {
       </div>
     </div>
     <style>
-      .jh-group { background:#1F2937; border:1px solid #374151; border-radius:10px; margin-bottom:18px; overflow:hidden; }
-      .jh-group-head { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; background:#111827; border-bottom:1px solid #374151; }
-      .jh-group-name { font-size:16px; font-weight:800; color:#F9FAFB; }
-      .jh-group-sub  { font-size:11px; color:#9CA3AF; margin-top:3px; }
-      .jh-bulk-pass  { font-size:12px; background:#1F2937; border:1px solid #374151; border-radius:6px; padding:6px 10px; cursor:pointer; color:#D1D5DB; }
-      .jh-bulk-pass:hover { background:#374151; }
+      .jh-group { background:#FFFFFF; border:1px solid #E5E7EB; border-radius:10px; margin-bottom:18px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+      .jh-group-head { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; background:#F9FAFB; border-bottom:1px solid #E5E7EB; }
+      .jh-group-name { font-size:16px; font-weight:800; color:#111827; }
+      .jh-group-sub  { font-size:11px; color:#6B7280; margin-top:3px; }
+      .jh-bulk-pass  { font-size:12px; background:#FFFFFF; border:1px solid #D1D5DB; border-radius:6px; padding:6px 10px; cursor:pointer; color:#374151; }
+      .jh-bulk-pass:hover { background:#F3F4F6; }
       .jh-table { width:100%; border-collapse:collapse; }
-      .jh-table th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#6B7280; font-weight:700; padding:8px 18px; border-bottom:1px solid #374151; }
-      .jh-table td { padding:10px 18px; border-bottom:1px solid #1F2937; font-size:13px; vertical-align:middle; color:#E5E7EB; }
+      .jh-table th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#6B7280; font-weight:700; padding:8px 18px; border-bottom:1px solid #E5E7EB; }
+      .jh-table td { padding:10px 18px; border-bottom:1px solid #F3F4F6; font-size:13px; vertical-align:middle; color:#111827; }
       .jh-table tr:last-child td { border-bottom:none; }
-      .jh-enc-tag { font-size:11px; background:#374151; border-radius:5px; padding:2px 7px; color:#9CA3AF; }
-      .jh-tog { border:1px solid #374151; background:#1F2937; border-radius:6px; padding:6px 12px; font-size:12px; cursor:pointer; color:#9CA3AF; }
-      .jh-tog-pass.jh-sel-pass { background:#064E3B; border-color:#10B981; color:#34D399; font-weight:700; }
-      .jh-tog-fail.jh-sel-fail { background:#7F1D1D; border-color:#EF4444; color:#FCA5A5; font-weight:700; }
-      .jh-grade-check { display:flex; align-items:center; gap:6px; font-size:12px; color:#9CA3AF; cursor:pointer; }
+      .jh-enc-tag { font-size:11px; background:#F3F4F6; border-radius:5px; padding:2px 7px; color:#6B7280; }
+      .jh-tog { border:1px solid #D1D5DB; background:#FFFFFF; border-radius:6px; padding:6px 12px; font-size:12px; cursor:pointer; color:#6B7280; }
+      .jh-tog-pass.jh-sel-pass { background:#D1FAE5; border-color:#10B981; color:#065F46; font-weight:700; }
+      .jh-tog-fail.jh-sel-fail { background:#FEE2E2; border-color:#EF4444; color:#991B1B; font-weight:700; }
+      .jh-grade-check { display:flex; align-items:center; gap:6px; font-size:12px; color:#6B7280; cursor:pointer; }
       .jh-pill { font-size:11px; border-radius:999px; padding:3px 10px; display:inline-block; }
-      .jh-pill-pending { background:#374151; color:#9CA3AF; }
-      .jh-pill-pass    { background:#064E3B; color:#34D399; }
-      .jh-pill-wound   { background:#78350F; color:#FCD34D; }
-      .jh-pill-fail    { background:#7F1D1D; color:#FCA5A5; }
-      .jh-mastery-badge { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:800; color:#FCD34D; background:rgba(251,191,36,.15); border:1px solid rgba(251,191,36,.5); border-radius:6px; padding:3px 8px; margin-left:6px; letter-spacing:.02em; vertical-align:middle; }
-      .jh-chip { background:#1F2937; border:1px solid #374151; border-radius:8px; padding:8px 14px; font-size:12px; color:#9CA3AF; }
-      .jh-chip-n { font-size:18px; font-weight:800; color:#F3F4F6; display:block; }
+      .jh-pill-pending { background:#F3F4F6; color:#6B7280; }
+      .jh-pill-pass    { background:#D1FAE5; color:#065F46; }
+      .jh-pill-wound   { background:#FEF3C7; color:#92400E; }
+      .jh-pill-fail    { background:#FEE2E2; color:#991B1B; }
+      .jh-mastery-badge { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:800; color:#92400E; background:rgba(251,191,36,.18); border:1px solid rgba(245,158,11,.5); border-radius:6px; padding:3px 8px; margin-left:6px; letter-spacing:.02em; vertical-align:middle; }
+      .jh-chip { background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 14px; font-size:12px; color:#6B7280; }
+      .jh-chip-n { font-size:18px; font-weight:800; color:#111827; display:block; }
       .jh-legend { display:flex; gap:18px; flex-wrap:wrap; font-size:12px; color:#6B7280; margin:0 0 20px; }
       .jh-legend span { display:flex; align-items:center; gap:5px; }
       .jh-swatch { width:10px; height:10px; border-radius:3px; display:inline-block; }
       .jh-groups { max-height:calc(100vh - 280px); overflow-y:auto; }
-      .jh-footer { display:flex; justify-content:space-between; align-items:center; padding:16px 0 0; border-top:1px solid #374151; margin-top:4px; }
+      .jh-footer { display:flex; justify-content:space-between; align-items:center; padding:16px 0 0; border-top:1px solid #E5E7EB; margin-top:4px; }
+      .jh-exc-btn { font-size:12px; background:#FEF3C7; border:1px solid #D97706; border-radius:6px; padding:6px 12px; cursor:pointer; color:#92400E; font-weight:600; white-space:nowrap; }
+      .jh-exc-btn:hover { background:#FDE68A; border-color:#B45309; }
+      .jh-exc-awarded { font-size:12px; color:#059669; font-weight:700; white-space:nowrap; }
     </style>
   </div>`;
 }
@@ -6759,7 +6827,11 @@ function bindEvents() {
         STATE.genName = null; STATE.genEpithet = null;
         if (getLandPos(STATE.student).land === 0) {
           STATE.screen = "quest-map";
-          if (STATE._sg0ReturnTile) { STATE.sg0Open = true; STATE.sg0Tile = STATE._sg0ReturnTile; STATE._sg0ReturnTile = null; }
+          if (STATE._sg0ReturnTile) {
+            // Customization complete — auto-advance past this tile instead of requiring a second "Continue" click
+            advanceSg0Tile(STATE.student, STATE._sg0ReturnTile.id);
+            STATE._sg0ReturnTile = null;
+          }
         }
         mount();
       });
@@ -6938,7 +7010,7 @@ function bindEvents() {
           STATE.sqPartnerPickSelected = null;
           mount();
         } else {
-          const quest = SOLO_QUESTS[idx] || SOLO_QUESTS[0];
+          const quest = resolveSoloQuest(tileId, idx);
           acceptSideQuest(STATE.student.id, tileId, type, idx, landId);
           logActivity(STATE.student.id, '📜', `Accepted quest: ${quest.title}`);
           mount();
@@ -7031,6 +7103,21 @@ function bindEvents() {
         floater.textContent = `+${cfg.amount} ${cfg.label} ${cfg.icon}`;
         (panel || document.body).appendChild(floater);
         setTimeout(() => { floater.remove(); mount(); }, 900);
+      });
+    });
+
+    // Gold Pouch — consume to remove from inventory and award 25 gold
+    document.querySelectorAll("[data-use-item='gold_pouch']").forEach(slot => {
+      slot.addEventListener("click", () => {
+        const s = getMergedStudent(STATE.student);
+        const items = [...(s.items || [])];
+        const idx = items.indexOf('gold_pouch');
+        if (idx === -1) return;
+        items.splice(idx, 1);
+        saveStudentOverride(STATE.student.id, { items });
+        awardGold(STATE.student, 25);
+        logActivity(STATE.student.id, '🪙', 'Opened Gold Pouch (+25 Gold)');
+        showGoldToast(25, () => mount());
       });
     });
 
@@ -7698,7 +7785,7 @@ function bindEvents() {
           STATE.sqPartnerPickSelected = null;
           mount();
         } else {
-          const quest = SOLO_QUESTS[idx] || SOLO_QUESTS[0];
+          const quest = resolveSoloQuest(tileId, idx);
           acceptSideQuest(STATE.student.id, tileId, type, idx, landId);
           logActivity(STATE.student.id, '📜', `Accepted quest: ${quest.title}`);
           mount();
@@ -8017,6 +8104,27 @@ function bindEvents() {
       document.body.appendChild(toast);
       setTimeout(() => { toast.classList.add("gold-toast-out"); setTimeout(() => toast.remove(), 380); }, 2400);
     });
+
+    // Gatekeeper Excellence Bonus — awards legendary loot to the student (teacher-triggered, no auto logic)
+    document.querySelectorAll("[data-jhk-exc]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const markKey = btn.dataset.jhkExc;
+        if (STATE.jhExcellenceAwarded[markKey]) return;
+        const studentId = btn.dataset.excSid;
+        const allPeriods = (CLASS_DATA && CLASS_DATA.periods) || [];
+        let foundStudent = null;
+        for (const p of allPeriods) {
+          foundStudent = (p.students || []).find(s => String(s.id) === studentId);
+          if (foundStudent) break;
+        }
+        if (!foundStudent) return;
+        STATE.jhExcellenceAwarded[markKey] = true;
+        const land = LANDS[0];
+        awardFromPool(foundStudent, land.name, 'legendary');
+        logActivity(studentId, '⭐', 'Gatekeeper Excellence Bonus awarded');
+        mount();
+      });
+    });
   }
 
   if (STATE.screen === "writing-event") {
@@ -8091,7 +8199,14 @@ function bindEvents() {
         setTimeout(() => {
           if (STATE.screen === "writing-transport") {
             STATE.writingEventReturnTo = 'quest-map';
-            STATE.screen = "quest-map"; mount();
+            STATE.screen = "quest-map";
+            if (LAND1_SOLO_QUESTS[tile.id]) {
+              STATE.sideQuestModalOpen = true;
+              STATE.sideQuestTileId = tile.id;
+              STATE.sideQuestSoloIdx = pickQuestIdx(SOLO_QUESTS, tile.id, 1);
+              STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
+            }
+            mount();
           }
         }, 2600);
       });
@@ -8241,7 +8356,16 @@ function bindEvents() {
       logActivity(student.id, '🪙', `Earned 20 Gold for defeating ${tile.name}!`);
       const _afterBossGold = _isFinalBoss
         ? () => triggerLandTravel(student, land)
-        : () => { STATE.screen = "quest-map"; mount(); };
+        : () => {
+            STATE.screen = "quest-map";
+            if (isDungeon && LAND1_SOLO_QUESTS[tile.id]) {
+              STATE.sideQuestModalOpen = true;
+              STATE.sideQuestTileId = tile.id;
+              STATE.sideQuestSoloIdx = pickQuestIdx(SOLO_QUESTS, tile.id, 1);
+              STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
+            }
+            mount();
+          };
       let companionFile = null;
       if (isDungeon) {
         companionFile = randFrom(companionsByRarity("rare")).file;
@@ -8393,28 +8517,25 @@ function bindEvents() {
         ? () => showXPCelebration(xpAmount, levelsGained, newLevel, () => showGoldToast(goldAmount, finalCallback))
         : () => finalCallback();
 
-      // FIX 2: Tiered drop rates based on highest tier reached
+      // Tiered loot: determined by tile type + skill, not by which checkboxes were ticked
       const _poolLand = (land && land.name) || (LANDS[0] && LANDS[0].name);
-      const _dropRate = tile.type === 'loot' ? 1.0
-                      : _aspireDone ? 0.55
-                      : (_shouldDone || _wbDone) ? 0.35
-                      : 0.15;
+      const _isAspireTile = tile.type === 'loot' && tile.skill === 'Aspire To';
+      const _isShouldTile = tile.type === 'loot' && tile.skill === 'Should Do';
+      // Aspire To → Rare; Should Do → Common with 15% upgrade to Rare; regular lesson → Common
+      const _dropTier = _isAspireTile ? 'rare'
+                      : (_isShouldTile && Math.random() < 0.15) ? 'rare'
+                      : 'common';
       const _hasPool = _poolLand && (EQUIP_POOLS[_poolLand] || PET_POOLS[_poolLand]);
       const _doNormalLoot = () => {
-        if (_hasPool && Math.random() < _dropRate) {
-          const _dropTier = (_shouldDone && _aspireDone) ? 'rare' : 'common';
+        if (_hasPool) {
           if (Math.random() < 0.2) awardSeasonalBadge(STATE.student);
           checkAndAwardSpecialBadges(STATE.student);
-          // Show loot popup first, then XP — with 2500ms fallback (FIX 1)
+          // Show loot popup first, then XP — with 2500ms fallback
           let _xpFired = false;
           const _showXPOnce = () => { if (!_xpFired) { _xpFired = true; _showMainXP(); } };
           setTimeout(_showXPOnce, 2500);
           awardFromPool(STATE.student, _poolLand, _dropTier, _showXPOnce);
         } else {
-          if (_hasPool) {
-            if (Math.random() < 0.2) awardSeasonalBadge(STATE.student);
-            checkAndAwardSpecialBadges(STATE.student);
-          }
           _showMainXP();
         }
       };
@@ -8511,7 +8632,7 @@ function bindEvents() {
           STATE.sqPartnerPickSelected = null;
           mount();
         } else {
-          const quest = SOLO_QUESTS[idx] || SOLO_QUESTS[0];
+          const quest = resolveSoloQuest(tileId, idx);
           acceptSideQuest(STATE.student.id, tileId, type, idx, landId);
           logActivity(STATE.student.id, '📜', `Accepted quest: ${quest.title}`);
           mount();
@@ -8544,7 +8665,7 @@ function bindEvents() {
             STATE.sqPartnerPickSelected = null;
             mount();
           } else {
-            const quest = SOLO_QUESTS[idx] || SOLO_QUESTS[0];
+            const quest = resolveSoloQuest(tid, idx);
             acceptSideQuest(STATE.student.id, tid, type, idx, landId);
             logActivity(STATE.student.id, '📜', `Accepted quest: ${quest.title}`);
             mount();

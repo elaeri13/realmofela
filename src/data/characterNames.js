@@ -1,6 +1,6 @@
 // characterNames.js
 // Word lists for Realm of ELA character name generation.
-// 60 names x 25 epithets = 1,500 possible combinations.
+// 60 names x 26 epithets = 1,560 possible combinations.
 //
 // BEFORE LAUNCH: scan NAMES against your actual class rosters and remove
 // anything close to a real student's first or last name. Nothing here is a
@@ -8,46 +8,28 @@
 // exact problem this system exists to prevent.
 
 export const NAMES = [
-  // Nature & wood
-  "Thornwick",  "Bramble",    "Yarrow",     "Briar",      "Juniper",
-  "Larkspur",   "Foxglove",   "Thistle",    "Hawthorn",   "Mossgrave",
-
-  // Sky, storm & light
-  "Kestrel",    "Zephyr",     "Lumen",      "Gale",       "Nimbus",
-  "Solden",     "Vireo",      "Skarn",      "Aurelis",    "Dawnmere",
-
-  // Stone & forge
-  "Ironvale",   "Slate",      "Brackenhold","Cinderfell", "Emberly",
-  "Pyrelle",    "Forgewyn",   "Basalt",     "Kindle",     "Hearthwyn",
-
-  // Depth & shadow
-  "Umbra",      "Nyric",      "Duskwood",   "Sable",      "Vandrel",
-  "Gloamwood",  "Nocturne",   "Fathom",     "Onyxal",     "Shalebrook",
-
-  // Old tongue
-  "Fennrick",   "Corwin",     "Dregan",     "Elowen",     "Ferrin",
-  "Jorvik",     "Kaldra",     "Alderic",    "Eldrin",     "Rowena",
-
-  // Sharp & swift
-  "Talon",      "Quill",      "Rune",       "Vexil",      "Wren",
-  "Rookwood",   "Stonewren",  "Ospra",      "Galebrook",  "Hollis",
+  "Blaze",    "Onyx",     "Storm",    "Kai",      "Nova",
+  "Raven",    "Phoenix",  "Sage",     "Wren",     "Ash",
+  "Rowan",    "Zephyr",   "Ember",    "Kestrel",  "Flint",
+  "Juniper",  "Cove",     "Vesper",   "Talon",    "Skye",
+  "Briar",    "Orion",    "Wilder",   "Hazel",    "Fable",
+  "Lark",     "Cypress",  "Rio",      "Indigo",   "Sparrow",
+  "Dash",     "Meadow",   "Atlas",    "Ivy",      "Ranger",
+  "Cricket",  "Ridley",   "Sable",    "Marlow",   "Sunny",
+  "Fox",      "Jett",     "Willow",   "Cedar",    "Reef",
+  "Sterling", "Piper",    "Blair",    "Aspen",    "Rune",
+  "Echo",     "Finch",    "Bay",      "Story",    "Vale",
+  "Quill",    "Frost",    "Lynx",     "Robin",    "Dune",
 ];
 
 export const EPITHETS = [
-  // Character
-  "the Bold",        "the Unbroken",   "the Steadfast",   "the Clever",
-  "the Swift",       "the Curious",    "the Relentless",  "the Undaunted",
-  "the Wandering",
-
-  // Elemental
-  "Stormtouched",    "Frostbitten",    "Emberkin",        "Sunlit",
-  "Thornclad",       "Ironhearted",    "Stonesung",       "Dawnbringer",
-  "Shadowsworn",
-
-  // Of the six lands
-  "of the Verdant Vale",   "of the Stone Kingdoms",  "of the Drowned Depths",
-  "of the Thornwood",      "of the Ashen Hollows",   "of the Stormspire",
-  "of the Silver Reach",
+  "the Fearless",     "the Swift",        "the Bold",         "the Unstoppable",
+  "the Daring",       "the Relentless",   "the Brave",        "the Clever",
+  "the Wise",         "the Mysterious",   "the Sharp-Eyed",   "Who Sees All",
+  "the Quiet One",    "the Riddler",      "the Legend",       "the Unbreakable",
+  "the Wanderer",     "the Fearless One", "of Legend",        "the Great",
+  "the Unshaken",     "the Kind",         "the Loyal",        "the Steady",
+  "the True",         "the Gentle Storm",
 ];
 
 // Optional: seeded shuffle helper so rerolls feel varied rather than random-

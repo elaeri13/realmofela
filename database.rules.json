@@ -1,6 +1,11 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null"
+    ".read": true,
+    ".write": true,
+    "students": {
+      "$id": {
+        ".validate": "!data.child('_resetVersion').exists() || (newData.child('_resetVersion').exists() && newData.child('_resetVersion').val() >= data.child('_resetVersion').val())"
+      }
+    }
   }
 }

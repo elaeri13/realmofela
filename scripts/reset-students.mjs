@@ -11,7 +11,8 @@
  *         boss states, craft requests, side quest invites, activity log, grade log.
  */
 
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { execSync } from 'child_process';
 import { createInterface } from 'readline';
 
 const COHORT_SIZE = 30;
@@ -122,15 +123,77 @@ function promptConfirm(question) {
   return new Promise(resolve => rl.question(question, a => { rl.close(); resolve(a.trim()); }));
 }
 
+// Deploy database.rules.json to Firebase so the server-side _resetVersion guard
+// is live before any reset data is written.
+//
+// Requires firebase-tools: npm install -g firebase-tools && firebase login
+// Or deploy manually: https://console.firebase.google.com/project/realm-of-ela/database/realm-of-ela-default-rtdb/rules
+function deployRules() {
+  const rulesPath = 'database.rules.json';
+  if (!existsSync(rulesPath) || !existsSync('firebase.json') || !existsSync('.firebaserc')) {
+    console.warn('⚠️  Skipping rules deployment — firebase.json / .firebaserc / database.rules.json missing.');
+    return false;
+  }
+
+  // Try common firebase CLI locations
+  const candidates = [
+    'firebase',
+    'npx firebase-tools',
+    `${process.env.HOME}/.local/bin/firebase`,
+    '/usr/local/bin/firebase',
+    '/opt/homebrew/bin/firebase',
+  ];
+
+  let firebaseCmd = null;
+  for (const cmd of candidates) {
+    try {
+      execSync(`${cmd} --version`, { stdio: 'ignore', shell: true });
+      firebaseCmd = cmd;
+      break;
+    } catch { /* try next */ }
+  }
+
+  if (!firebaseCmd) {
+    const rules = readFileSync(rulesPath, 'utf8');
+    console.warn('\n⚠️  firebase-tools not found — rules NOT deployed automatically.');
+    console.warn('   To protect resets, deploy these rules to Firebase Console:');
+    console.warn('   https://console.firebase.google.com/project/realm-of-ela/database/realm-of-ela-default-rtdb/rules\n');
+    console.warn('   Paste this into the Rules editor:\n');
+    console.warn(rules);
+    console.warn('\n   Install firebase-tools to automate this:');
+    console.warn('   npm install -g firebase-tools && firebase login\n');
+    return false;
+  }
+
+  console.log('🔒 Deploying security rules…');
+  try {
+    execSync(`${firebaseCmd} deploy --only database --project realm-of-ela`, {
+      stdio: 'inherit',
+      cwd: process.cwd(),
+      shell: true,
+    });
+    console.log('✅ Security rules deployed — _resetVersion write protection is now live.\n');
+    return true;
+  } catch (e) {
+    console.warn('⚠️  Rules deployment failed. Deploy manually:');
+    console.warn('   https://console.firebase.google.com/project/realm-of-ela/database/realm-of-ela-default-rtdb/rules');
+    return false;
+  }
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const isTest = args.includes('--test');
   const isFull = args.includes('--full');
+  const skipRules = args.includes('--skip-rules');
 
   if (!isTest && !isFull) {
-    console.log('Usage:\n  node scripts/reset-students.mjs --test <id>\n  node scripts/reset-students.mjs --full');
+    console.log('Usage:\n  node scripts/reset-students.mjs --test <id>\n  node scripts/reset-students.mjs --full [--skip-rules]');
     process.exit(0);
   }
+
+  // Deploy rules first so the server rejects any client write that would strip _resetVersion
+  if (!skipRules) deployRules();
 
   const env = parseEnv('.env.local');
   const baseUrl = env.VITE_FIREBASE_DATABASE_URL;
