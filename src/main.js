@@ -252,15 +252,6 @@ const STANDARD_NAMES = {
   "RI.5.8": "Reasoning and Evidence",
 };
 /* ─── SIDE QUESTS ─── */
-const SOLO_QUESTS = [
-  { title:"Word Wizard",        desc:"Look up 2 vocabulary words from today's lesson and write them in your notes.",  xp:10 },
-  { title:"Reflection Knight",  desc:"Write 3 sentences about something new you learned today.",                       xp:10 },
-  { title:"Text Detective",     desc:"Find one quote from the text that best supports the main idea.",                xp:10 },
-  { title:"Summary Scribe",     desc:"Summarize today's session in 5 words or fewer.",                                xp:10 },
-  { title:"Question Forger",    desc:"Write 2 questions you still have after today's lesson.",                        xp:10 },
-  { title:"Evidence Hunter",    desc:"Find 2 pieces of text evidence that support your answer.",                      xp:10 },
-  { title:"Lore Keeper",        desc:"Write one sentence connecting today's lesson to something you already knew.",    xp:10 },
-];
 const LAND1_SOLO_QUESTS = {
   5:  { title:"Metaphor Map",       desc:"Draw one metaphor from Garvey's Choice two ways — what it literally says, and what it really means.", xp:10 },
   9:  { title:"The Implied Scene",  desc:"Draw a scene the text never directly describes — only implies. Label the text evidence that led you there.", xp:10 },
@@ -270,9 +261,9 @@ const LAND1_SOLO_QUESTS = {
   27: { title:"Trophy Shelf",       desc:"Draw a trophy shelf — one object representing each skill you mastered this unit.", xp:10 },
   26: { title:"Your Story",         desc:"Illustrate a scene from your own piece of writing.", xp:10 },
 };
-function resolveSoloQuest(tileId, idx) {
-  if (tileId != null && LAND1_SOLO_QUESTS[tileId]) return LAND1_SOLO_QUESTS[tileId];
-  return SOLO_QUESTS[idx] || SOLO_QUESTS[0];
+const _SOLO_FALLBACK = { title:"Art Quest", desc:"", xp:10 };
+function resolveSoloQuest(tileId, _idx) {
+  return LAND1_SOLO_QUESTS[tileId] || _SOLO_FALLBACK;
 }
 const COLLAB_QUESTS = [
   { title:"Guild Scholars",     desc:"Discuss the main idea with a partner. Agree on one key point together.",         xp:15 },
@@ -8205,7 +8196,7 @@ function bindEvents() {
             if (LAND1_SOLO_QUESTS[tile.id]) {
               STATE.sideQuestModalOpen = true;
               STATE.sideQuestTileId = tile.id;
-              STATE.sideQuestSoloIdx = pickQuestIdx(SOLO_QUESTS, tile.id, 1);
+              STATE.sideQuestSoloIdx = 0;
               STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
             }
             mount();
@@ -8363,7 +8354,7 @@ function bindEvents() {
             if (isDungeon && LAND1_SOLO_QUESTS[tile.id]) {
               STATE.sideQuestModalOpen = true;
               STATE.sideQuestTileId = tile.id;
-              STATE.sideQuestSoloIdx = pickQuestIdx(SOLO_QUESTS, tile.id, 1);
+              STATE.sideQuestSoloIdx = 0;
               STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
             }
             mount();
@@ -8449,6 +8440,11 @@ function bindEvents() {
           : pos.tile === tile.id
       );
       if (!isActionable) return;
+      // Immediately lock: disable the button and pre-write completedTiles into the local cache.
+      // advanceStudentTile fires much later (after toast callbacks); without this pre-write the
+      // alreadyDone guard stays false for the entire toast duration, allowing re-entry.
+      if (btn) btn.disabled = true;
+      saveStudentOverride(STATE.student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
       const prog = getTaskProgress(STATE.student.id, tile.id);
       const _rlSubmit = tile.type === 'lesson' && !isBranchTile && !BOSS_SCHEDULE[String(tile.id)];
       const _shouldDone = (tile.shouldDo||[]).length > 0 && (tile.shouldDo||[]).every((_,i) => (prog.shouldDo||[])[i]);
@@ -8482,10 +8478,28 @@ function bindEvents() {
         }
       }
       const hasExitTicket = getExitTicketEnabled(tile.id);
+
+      // Increment per-student lesson counter and decide whether to show the collab popup.
+      // Counter persists across sessions via saveStudentOverride.
+      // Art-deliverable tiles (LAND1_SOLO_QUESTS) always show the popup regardless.
+      let _sqGate = false;
+      if (tile.type === 'lesson') {
+        const _ov = _overrides[String(STATE.student.id)] || {};
+        const _newLessonCount = ((_ov.lessonCompletionCount || 0) + 1);
+        saveStudentOverride(STATE.student.id, { lessonCompletionCount: _newLessonCount });
+        const _hasActiveCollab = Object.values(getActiveSideQuests(STATE.student)).some(q => q.type === 'collab');
+        _sqGate = (_newLessonCount % 3 === 0) && !_hasActiveCollab;
+      }
+
       const openSQPopup = (tileId) => {
+        const _hasArtDeliverable = !!LAND1_SOLO_QUESTS[tileId];
+        if (!_hasArtDeliverable && !_sqGate) {
+          STATE.screen = "quest-map";
+          return;
+        }
         STATE.sideQuestModalOpen = true;
         STATE.sideQuestTileId = tileId;
-        STATE.sideQuestSoloIdx = pickQuestIdx(SOLO_QUESTS, tileId, 1);
+        STATE.sideQuestSoloIdx = 0;
         STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tileId, 2);
       };
       const doAdvance = () => {
@@ -8504,8 +8518,9 @@ function bindEvents() {
         if (tile.type === 'lesson') {
           STATE.pendingSQAfterGrade = {
             tileId: tile.id,
-            soloIdx: pickQuestIdx(SOLO_QUESTS, tile.id, 1),
-            collabIdx: pickQuestIdx(COLLAB_QUESTS, tile.id, 2)
+            soloIdx: 0,
+            collabIdx: pickQuestIdx(COLLAB_QUESTS, tile.id, 2),
+            sqGate: _sqGate
           };
         }
         STATE.gradeModalOpen = true;
@@ -8683,12 +8698,17 @@ function bindEvents() {
         STATE.gradeModalOpen = false;
         STATE.gradeModalLessonId = null;
         if (STATE.pendingSQAfterGrade) {
-          const { tileId, soloIdx, collabIdx } = STATE.pendingSQAfterGrade;
+          const { tileId, soloIdx, collabIdx, sqGate } = STATE.pendingSQAfterGrade;
           STATE.pendingSQAfterGrade = null;
-          STATE.sideQuestModalOpen = true;
-          STATE.sideQuestTileId = tileId;
-          STATE.sideQuestSoloIdx = soloIdx;
-          STATE.sideQuestCollabIdx = collabIdx;
+          const _hasArtDeliverable = !!LAND1_SOLO_QUESTS[tileId];
+          if (_hasArtDeliverable || sqGate) {
+            STATE.sideQuestModalOpen = true;
+            STATE.sideQuestTileId = tileId;
+            STATE.sideQuestSoloIdx = soloIdx;
+            STATE.sideQuestCollabIdx = collabIdx;
+          } else {
+            STATE.screen = "quest-map";
+          }
         } else {
           STATE.screen = "quest-map";
         }
