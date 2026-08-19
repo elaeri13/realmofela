@@ -3543,7 +3543,7 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
     const tc = NPC_TYPE_COLOR[npcType] || "#888";
     const ts = LW.NPTILE;
     const tx = x - ts/2, ty = y - ts/2;
-    const locked = state === "locked";
+    const locked = state === "locked" || state === "capped";
     const filterId = `npc-f-${id}`;
     // Soft aura glow beneath the character — no hard box
     const aura = !locked
@@ -3599,7 +3599,7 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
            : LW.TILE;   // welcome, regular, boss, gatekeeper, finalGatekeeper all match base tile
   const r  = Math.round(ts*.14);
   const tx = x - ts/2, ty = y - ts/2;
-  const locked = state==="locked";
+  const locked = state==="locked" || state==="capped";
   const done   = state==="done";
   const here   = state==="here";
   const brd    = state==="board";
