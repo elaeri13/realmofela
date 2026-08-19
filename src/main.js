@@ -5703,17 +5703,24 @@ function renderTeacherDashboard() {
         const counts = getGuildCounts();
         const ov = getOverrides();
         const guildMembers = {};
-        Object.keys(guilds).forEach(k => { guildMembers[k] = []; });
+        const periodCounts = {};
+        Object.keys(guilds).forEach(k => { guildMembers[k] = []; periodCounts[k] = {}; });
         for (const p of CLASS_DATA.periods) {
           for (const st of p.students) {
             const sOv = ov.students[String(st.id)] || {};
             const g = sOv.guild || st.guild;
-            if (g && guildMembers[g]) guildMembers[g].push(getCharName(st));
+            if (g && guildMembers[g]) {
+              guildMembers[g].push(getCharName(st));
+              periodCounts[g][p.id] = (periodCounts[g][p.id] || 0) + 1;
+            }
           }
         }
         const chips = Object.keys(guilds).map(k => {
           const guild = guilds[k];
           const names = guildMembers[k] || [];
+          const breakdown = CLASS_DATA.periods
+            .map(p => `${p.periodName}: ${periodCounts[k][p.id] || 0}`)
+            .join(" · ");
           return `<div class="t-guild-chip" style="border-color:${guild.color}">
             <img class="t-guild-chip-crest" src="${guild.crest}" alt="${guild.name}" width="28" height="28"
               onerror="this.style.display='none'"/>
@@ -5723,6 +5730,7 @@ function renderTeacherDashboard() {
                 <span class="t-guild-chip-count" style="color:${guild.color}">${counts[k] || 0}</span>
               </div>
               <div class="t-guild-members">${names.length ? names.join(", ") : "No members yet"}</div>
+              <div class="t-guild-period-counts">${breakdown}</div>
             </div>
           </div>`;
         }).join("");
