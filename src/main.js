@@ -1455,6 +1455,21 @@ function denyCraft(studentId) {
 }
 function getPacingSettings() { return (_settings && _settings.pacing) || null; }
 function getBossOpenKeys() { return (_settings && _settings.bossOpenKeys) || []; }
+function getProgressCap(cohortId, landId) {
+  return (((_settings && _settings.progressCap) || {})[String(cohortId)] || {})[String(landId)] ?? null;
+}
+function setProgressCap(cohortId, landId, capTileId) {
+  if (!_settings) _settings = {};
+  if (!_settings.progressCap) _settings.progressCap = {};
+  const cid = String(cohortId);
+  if (!_settings.progressCap[cid]) _settings.progressCap[cid] = {};
+  if (capTileId === null) {
+    delete _settings.progressCap[cid][String(landId)];
+  } else {
+    _settings.progressCap[cid][String(landId)] = capTileId;
+  }
+  set(ref(db, `settings/progressCap/${cid}/${landId}`), capTileId).catch(console.error);
+}
 function logActivity(studentId, icon, message) {
   const sid = String(studentId);
   const entry = { icon, message, ts: new Date().toISOString() };
@@ -2228,7 +2243,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               writingTransportDir: 'in',
               sanctumReturnOpen: false, sanctumReturnLandId: null,
               sanctumLand: null, sanctumTileOpen: null, writingEventReturnTo: 'quest-map',
-              travelDestDesc: null, classSettingsOpen: false, cardMenuSid: null,
+              travelDestDesc: null, classSettingsOpen: false, cardMenuSid: null, capMessageOpen: false,
               teacherViewStudent: null, genName: null, genEpithet: null,
               namingOptions: null, epithetOptions: null, _namingReturnScreen: null};
 
@@ -3415,6 +3430,18 @@ function tileState(tile, pos, board, land) {
   if (board) return "board";
   if (typeof tile === "object" && tile.type === "npc") {
     return pos.land >= tile.landId ? "open" : "locked";
+  }
+  // Progress cap: lock tiles beyond the teacher-set cap for this cohort+land.
+  // Fires before boss locks so capped tiles show the friendly student message,
+  // not the boss-locked modal. Done/here tiles are exempt — they stay done.
+  if (land && land.pathOrder && pos.studentId && !pos.completed.includes(id) && id !== pos.tile) {
+    const _cohort = Math.floor(parseInt(pos.studentId) / 100);
+    const _cap = getProgressCap(_cohort, land.id);
+    if (_cap !== null) {
+      const _capIdx = land.pathOrder.indexOf(_cap);
+      const _tileIdx = land.pathOrder.indexOf(id);
+      if (_capIdx !== -1 && _tileIdx > _capIdx) return "capped";
+    }
   }
   if (typeof tile === "object" && tile.type === "boss") {
     const bossKey = land ? `${land.id}-${id}` : String(id);
@@ -5012,6 +5039,19 @@ function renderBossLockedModal() {
   </div>`;
 }
 
+function renderCapMessageModal() {
+  if (!STATE.capMessageOpen) return "";
+  return `<div class="npc-overlay" id="cap-msg-overlay">
+    <div class="npc-modal" style="max-width:360px">
+      <button class="npc-modal-close" id="cap-msg-close">✕</button>
+      <div style="font-size:48px;text-align:center;margin-bottom:12px">⏳</div>
+      <div class="npc-modal-name" style="font-size:17px">You've reached today's stopping point</div>
+      <div class="npc-modal-dialogue" style="margin-top:16px">"More quests will unlock soon — your teacher is preparing the next stretch of your journey. Keep practicing, side quests await!"</div>
+      <div class="npc-modal-footer"><button id="cap-msg-close-btn">Got it!</button></div>
+    </div>
+  </div>`;
+}
+
 function renderQuestMap() {
   const student = getMergedStudent(STATE.student);
   const pos     = getLandPos(STATE.student);
@@ -5102,6 +5142,7 @@ function renderQuestMap() {
     ${renderSg0Modal()}
     ${renderGuildReveal()}
     ${renderBossLockedModal()}
+    ${renderCapMessageModal()}
     ${STATE.sanctumReturnOpen ? (() => {
       const sanctumLand = LANDS.find(l => l.id === STATE.sanctumReturnLandId) || LANDS[0];
       const dungeonTile = sanctumLand.tiles.find(t => t.type === 'dungeon');
@@ -5566,7 +5607,7 @@ function renderTeacherDashboard() {
               }).join('')}
             </div>
           </div>
-          <div class="cs-section" style="border-bottom:none">
+          <div class="cs-section">
             <div class="cs-section-title">⚔️ Boss Fights — Locked by Default</div>
             <div class="cs-accordions">
               ${LANDS.map(land => {
@@ -5599,6 +5640,31 @@ function renderTeacherDashboard() {
                         <button class="ss-toggle ${open ? 'ss-on' : 'ss-off'} boss-fight-toggle" data-boss-land="${land.id}" data-boss-tile="${e.id}" data-boss-open="${open ? '1' : '0'}">
                           ${open ? '🔓 Boss Fight OPEN' : '🔒 Boss Fight LOCKED'}
                         </button>
+                      </div>`;
+                    }).join('')}
+                  </div>
+                </details>`;
+              }).join('')}
+            </div>
+          </div>
+          <div class="cs-section" style="border-bottom:none">
+            <div class="cs-section-title">🔒 Progress Lock</div>
+            <div class="cs-pl-note">Cap how far students can advance per period &amp; land. Students complete normally up to the cap — the next tile stays locked until you raise it or turn it off. Default is Off.</div>
+            <div class="cs-accordions">
+              ${LANDS.map(land => {
+                if (!land.pathOrder || !land.pathOrder.length) return '';
+                const _pathTiles = land.pathOrder.map(tid => land.tiles.find(t => t.id === tid)).filter(Boolean);
+                return `<details class="cs-land-details" ${land.id === activeLandId ? 'open' : ''}>
+                  <summary class="cs-land-summary">${land.name.toUpperCase()}</summary>
+                  <div class="cs-land-body">
+                    ${CLASS_DATA.periods.map(period => {
+                      const _cap = getProgressCap(period.id, land.id);
+                      return `<div class="ss-row">
+                        <span class="ss-tile-name">${period.periodName}</span>
+                        <select class="pl-cap-select" data-pl-cohort="${period.id}" data-pl-land="${land.id}">
+                          <option value="" ${_cap === null ? 'selected' : ''}>Off (unlimited)</option>
+                          ${_pathTiles.map(t => `<option value="${t.id}" ${_cap === t.id ? 'selected' : ''}>Through ${t.name}</option>`).join('')}
+                        </select>
                       </div>`;
                     }).join('')}
                   </div>
@@ -7363,6 +7429,17 @@ function bindEvents() {
       mount();
     });
 
+    // Progress Lock
+    document.querySelectorAll(".pl-cap-select").forEach(sel => {
+      sel.addEventListener("change", () => {
+        const cohortId = Number(sel.dataset.plCohort);
+        const landId   = Number(sel.dataset.plLand);
+        const capTileId = sel.value ? Number(sel.value) : null;
+        setProgressCap(cohortId, landId, capTileId);
+        mount();
+      });
+    });
+
     // Crafting approve / deny
     document.querySelectorAll("[data-approve-potion]").forEach(btn => {
       btn.addEventListener("click", e => {
@@ -7814,7 +7891,9 @@ function bindEvents() {
       const land = getLandData(pos.land);
       const tile = land.tiles.find(t => t.id === tid);
       if (!tile) return;
-      if (tileState(tile, pos, false, land) === "locked") {
+      const _ts = tileState(tile, pos, false, land);
+      if (_ts === "capped") { STATE.capMessageOpen = true; mount(); return; }
+      if (_ts === "locked") {
         if (tile.type === "boss" || tile.type === "dungeon") { STATE.bossLockedOpen = true; mount(); }
         return;
       }
@@ -7884,6 +7963,12 @@ function bindEvents() {
       $("boss-locked-close")     && $("boss-locked-close").addEventListener("click", closeBossLocked);
       $("boss-locked-close-btn") && $("boss-locked-close-btn").addEventListener("click", closeBossLocked);
       $("boss-locked-overlay")   && $("boss-locked-overlay").addEventListener("click", e => { if (e.target === $("boss-locked-overlay")) closeBossLocked(); });
+    }
+    if (STATE.capMessageOpen) {
+      const closeCapMsg = () => { STATE.capMessageOpen = false; mount(); };
+      $("cap-msg-close")     && $("cap-msg-close").addEventListener("click", closeCapMsg);
+      $("cap-msg-close-btn") && $("cap-msg-close-btn").addEventListener("click", closeCapMsg);
+      $("cap-msg-overlay")   && $("cap-msg-overlay").addEventListener("click", e => { if (e.target === $("cap-msg-overlay")) closeCapMsg(); });
     }
     // NPC modal close
     const closeNpc = () => { STATE.npcOpen = false; STATE.currentNpcKey = null; mount(); };
@@ -8827,7 +8912,7 @@ function initFirebaseCache() {
 function liveMount() {
   // Only auto-remount on screens that benefit from real-time updates.
   // Avoids wiping in-progress student lesson forms on foreign writes.
-  if (['teacher-dash', 'hub', 'grid'].includes(STATE.screen)) mount();
+  if (['teacher-dash', 'hub', 'grid', 'quest-map'].includes(STATE.screen)) mount();
 }
 
 async function seedAndMigrate() {
