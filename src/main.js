@@ -582,6 +582,7 @@ const LANDS = [
         video:"https://app.nearpod.com/?pin=E8SWM",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id: 3, type:"lesson",   name:"S3",  x:325,  y:70,
+        video:"https://wayground.com/join?gc=65248377",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id: 4, type:"lesson",   name:"S4",  x:455,  y:70,
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
@@ -4511,7 +4512,7 @@ function renderLessonStop() {
       ${loreText ? `<p class="sg-modal-flavor">"${loreText}"</p>` : ''}
       <button class="ls-video-btn" id="ls-video-btn" style="margin-bottom:18px">
         <span class="ls-play-icon">▶</span>
-        <span>Open NearPod Lesson</span>
+        <span>Open Lesson</span>
       </button>
       <div class="sg-lesson-demo">
         <div class="sg-lesson-section ls-rlesson-red">
@@ -4585,7 +4586,7 @@ function renderLessonStop() {
       ${loreSection}
       <button class="ls-video-btn" id="ls-video-btn">
         <span class="ls-play-icon">▶</span>
-        <span>Open NearPod Lesson</span>
+        <span>Open Lesson</span>
       </button>
       <div class="ls-tiers">
         ${!videoOpened ? `<div class="ls-video-lock-hint">🔒 Watch the video first to unlock this checklist.</div>` : ''}
