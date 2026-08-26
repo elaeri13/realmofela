@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Digital Lottery Board</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+      background: #f8fafc;
+      color: #1e293b;
+      margin: 0;
+    }
+    h1 { margin: 0 0 12px 0; }
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-draw { background: #2563eb; color: white; }
+    .btn-draw:hover { background: #1d4ed8; }
+    .btn-reset { background: #e2e8f0; color: #475569; }
+    .btn-reset:hover { background: #cbd5e1; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(10, 68px);
+      gap: 6px;
+      background: #e2e8f0;
+      padding: 10px;
+      border-radius: 12px;
+    }
+    .tile {
+      width: 68px;
+      height: 68px;
+      background: white;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px;
+      box-sizing: border-box;
+      cursor: pointer;
+      user-select: none;
+      border: 2px solid transparent;
+      transition: transform 0.1s ease, border-color 0.1s ease;
+    }
+    .tile:hover {
+      transform: translateY(-2px);
+      border-color: #93c5fd;
+    }
+    .tile .number {
+      font-size: 13px;
+      font-weight: 700;
+      color: #64748b;
+    }
+    .tile .initials {
+      font-size: 16px;
+      font-weight: 800;
+      color: #0f172a;
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tile.claimed {
+      background: #e0f2fe;
+      border-color: #38bdf8;
+    }
+    .tile.winner {
+      background: #fef08a !important;
+      border-color: #eab308 !important;
+      animation: pulse 0.8s infinite alternate;
+    }
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.08); }
+    }
+    #winner-banner {
+      margin-top: 16px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #15803d;
+      min-height: 28px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>100-Square Lottery Board</h1>
+  <div class="controls">
+    <button class="btn-draw" onclick="drawWinner()">🎲 Pick Random Winner</button>
+    <button class="btn-reset" onclick="resetBoard()">Reset All</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div id="winner-banner"></div>
+
+  <script>
+    const gridEl = document.getElementById('grid');
+    const bannerEl = document.getElementById('winner-banner');
+    const boardState = JSON.parse(localStorage.getItem('lottery_grid') || '{}');
+
+    function createBoard() {
+      gridEl.innerHTML = '';
+      for (let i = 1; i <= 100; i++) {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.id = `tile-${i}`;
+        
+        const num = document.createElement('div');
+        num.className = 'number';
+        num.textContent = i;
+        tile.appendChild(num);
+
+        const initials = document.createElement('div');
+        initials.className = 'initials';
+        if (boardState[i]) {
+          initials.textContent = boardState[i];
+          tile.classList.add('claimed');
+        }
+        tile.appendChild(initials);
+
+        tile.onclick = () => claimSpot(i);
+        gridEl.appendChild(tile);
+      }
+    }
+
+    function claimSpot(index) {
+      const current = boardState[index] || '';
+      const name = prompt(`Enter initials/name for Spot #${index}:`, current);
+      if (name === null) return;
+
+      if (name.trim() === '') {
+        delete boardState[index];
+      } else {
+        boardState[index] = name.trim().toUpperCase();
+      }
+      localStorage.setItem('lottery_grid', JSON.stringify(boardState));
+      createBoard();
+    }
+
+    function drawWinner() {
+      document.querySelectorAll('.tile').forEach(t => t.classList.remove('winner'));
+      const winningNumber = Math.floor(Math.random() * 100) + 1;
+      const winningTile = document.getElementById(`tile-${winningNumber}`);
+      
+      winningTile.classList.add('winner');
+      const owner = boardState[winningNumber];
+      bannerEl.textContent = owner 
+        ? `🎉 Winner: #${winningNumber} (${owner})!` 
+        : `🎉 Drawn: #${winningNumber} (Unclaimed)`;
+    }
+
+    function resetBoard() {
+      if (confirm('Clear all claimed spots?')) {
+        for (let key in boardState) delete boardState[key];
+        localStorage.removeItem('lottery_grid');
+        bannerEl.textContent = '';
+        createBoard();
+      }
+    }
+
+    createBoard();
+  </script>
+</body>
+</html>
