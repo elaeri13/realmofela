@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Digital Lottery Board</title>
+  <title>Multi-Class Digital Lottery Board</title>
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -14,13 +14,36 @@
       color: #1e293b;
       margin: 0;
     }
-    h1 { margin: 0 0 12px 0; }
+    h1 { margin: 0 0 16px 0; }
+    
+    .class-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      padding: 8px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      border: 2px solid #cbd5e1;
+      background: white;
+      color: #64748b;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .tab-btn.active {
+      background: #2563eb;
+      color: white;
+      border-color: #2563eb;
+    }
+
     .controls {
       display: flex;
       gap: 12px;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
-    button {
+    button.action-btn {
       padding: 10px 18px;
       font-size: 14px;
       font-weight: 600;
@@ -29,8 +52,8 @@
       cursor: pointer;
       transition: all 0.15s ease;
     }
-    .btn-draw { background: #2563eb; color: white; }
-    .btn-draw:hover { background: #1d4ed8; }
+    .btn-draw { background: #16a34a; color: white; }
+    .btn-draw:hover { background: #15803d; }
     .btn-reset { background: #e2e8f0; color: #475569; }
     .btn-reset:hover { background: #cbd5e1; }
 
@@ -100,22 +123,58 @@
 </head>
 <body>
 
-  <h1>100-Square Lottery Board</h1>
+  <h1>Digital Lottery Board</h1>
+
+  <div class="class-tabs">
+    <button class="tab-btn active" onclick="switchClass('Class 1')">Class 1</button>
+    <button class="tab-btn" onclick="switchClass('Class 2')">Class 2</button>
+    <button class="tab-btn" onclick="switchClass('Class 3')">Class 3</button>
+    <button class="tab-btn" onclick="switchClass('Class 4')">Class 4</button>
+  </div>
+
   <div class="controls">
-    <button class="btn-draw" onclick="drawWinner()">🎲 Pick Random Winner</button>
-    <button class="btn-reset" onclick="resetBoard()">Reset All</button>
+    <button class="action-btn btn-draw" onclick="drawWinner()">🎲 Pick Random Winner</button>
+    <button class="action-btn btn-reset" onclick="resetBoard()">Reset This Class</button>
   </div>
 
   <div class="grid" id="grid"></div>
   <div id="winner-banner"></div>
 
   <script>
+    let currentClass = 'Class 1';
     const gridEl = document.getElementById('grid');
     const bannerEl = document.getElementById('winner-banner');
-    const boardState = JSON.parse(localStorage.getItem('lottery_grid') || '{}');
 
-    function createBoard() {
+    function getAllData() {
+      return JSON.parse(localStorage.getItem('multi_class_lottery') || '{}');
+    }
+
+    function getClassData(className) {
+      const all = getAllData();
+      return all[className] || {};
+    }
+
+    function saveClassData(className, data) {
+      const all = getAllData();
+      all[className] = data;
+      localStorage.setItem('multi_class_lottery', JSON.stringify(all));
+    }
+
+    function switchClass(className) {
+      currentClass = className;
+      bannerEl.textContent = '';
+      
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent === className);
+      });
+      
+      renderBoard();
+    }
+
+    function renderBoard() {
       gridEl.innerHTML = '';
+      const classData = getClassData(currentClass);
+
       for (let i = 1; i <= 100; i++) {
         const tile = document.createElement('div');
         tile.className = 'tile';
@@ -128,8 +187,8 @@
 
         const initials = document.createElement('div');
         initials.className = 'initials';
-        if (boardState[i]) {
-          initials.textContent = boardState[i];
+        if (classData[i]) {
+          initials.textContent = classData[i];
           tile.classList.add('claimed');
         }
         tile.appendChild(initials);
@@ -140,17 +199,20 @@
     }
 
     function claimSpot(index) {
-      const current = boardState[index] || '';
-      const name = prompt(`Enter initials/name for Spot #${index}:`, current);
+      const classData = getClassData(currentClass);
+      const currentVal = classData[index] || '';
+      const name = prompt(`[${currentClass}] Enter initials for Spot #${index}:`, currentVal);
+      
       if (name === null) return;
 
       if (name.trim() === '') {
-        delete boardState[index];
+        delete classData[index];
       } else {
-        boardState[index] = name.trim().toUpperCase();
+        classData[index] = name.trim().toUpperCase();
       }
-      localStorage.setItem('lottery_grid', JSON.stringify(boardState));
-      createBoard();
+      
+      saveClassData(currentClass, classData);
+      renderBoard();
     }
 
     function drawWinner() {
@@ -158,23 +220,25 @@
       const winningNumber = Math.floor(Math.random() * 100) + 1;
       const winningTile = document.getElementById(`tile-${winningNumber}`);
       
-      winningTile.classList.add('winner');
-      const owner = boardState[winningNumber];
+      if (winningTile) winningTile.classList.add('winner');
+
+      const classData = getClassData(currentClass);
+      const owner = classData[winningNumber];
+      
       bannerEl.textContent = owner 
-        ? `🎉 Winner: #${winningNumber} (${owner})!` 
+        ? `🎉 ${currentClass} Winner: #${winningNumber} (${owner})!` 
         : `🎉 Drawn: #${winningNumber} (Unclaimed)`;
     }
 
     function resetBoard() {
-      if (confirm('Clear all claimed spots?')) {
-        for (let key in boardState) delete boardState[key];
-        localStorage.removeItem('lottery_grid');
+      if (confirm(`Clear all claimed spots for ${currentClass}?`)) {
+        saveClassData(currentClass, {});
         bannerEl.textContent = '';
-        createBoard();
+        renderBoard();
       }
     }
 
-    createBoard();
+    renderBoard();
   </script>
 </body>
 </html>
