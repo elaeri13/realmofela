@@ -582,48 +582,73 @@ const LANDS = [
         video:"https://app.nearpod.com/?pin=E8SWM",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id: 3, type:"lesson",   name:"S3",  x:325,  y:70,
-        video:"https://wayground.com/join?gc=65248377",
+        video:"https://wayground.com/join?gc=13389177",
+        sessionLore:"Two paths break from the ridge here, but they lead to the same clearing. Follow one traveler's footprints, then the other's — where they walk close together, where they pull apart, what calls each of them home. The Vale doesn't ask you to choose between them. It asks you to notice how two stories can walk side by side without ever becoming the same story.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id: 4, type:"lesson",   name:"S4",  x:455,  y:70,
+        video:"https://wayground.com/join?gc=33470713",
+        sessionLore:"The wind in this stretch doesn't just blow — it whispers, it races, it forgets itself in the tall grass. Nothing here means only what it says. Sit still long enough, and the sky, the swing, the grass beneath you will tell you things plain words never could.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id: 5, type:"lesson",   name:"S5",  x:585,  y:70,
+        video:"https://wayground.com/join?gc=40764153",
+        sessionLore:"She drifts between the trees like smoke that forgot how to fade. Her crown is still there, tilted, dull with dust. Villagers say she once ruled this whole Vale — that the rivers answered to her voice, that the Warden's stones didn't stand here until he did. Now she barely seems to remember her own name. Watch her carefully. Something took more from her than her throne.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id: 7, type:"lesson",   name:"S7",  x:715,  y:70,
+        sessionLore:"The road ahead is barred — not by claws or fire, but by something older and quieter, wrapped in dust and dust's silence. Abysmara doesn't fight like the others. She tests. Everything you've learned in this stretch of the Vale, she weighs at once, without blinking. Pass, and the way opens. Fail, and you'll stand before her again.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id: 9, type:"lesson",   name:"S9",  x:845,  y:70,
+        sessionLore:"The presence in the trees is close again. You've beaten it back once — the Vale wants to know if it was luck.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       // ── Row 2: main path R→L (S10–S11, S13, S15–S18) ──
       {id:10, type:"lesson",   name:"S10", x:845,  y:350,
+        sessionLore:"At the heart of the ruins stands a single stone, untouched by the rot spreading around it. Villagers whisper it holds the whole structure up — pull it loose, and everything built on top comes down with it. You haven't earned the right to touch it yet. But you've seen it now.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id:11, type:"lesson",   name:"S11", x:715,  y:350,
+        sessionLore:"The stone hums under your palm — waiting to see if you understand what it's holding together, or if you'll bring the whole ruin down trying.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id:13, type:"lesson",   name:"S13", x:585,  y:350,
+        sessionLore:"Feraxis doesn't ask what you remember. He asks what you can prove. Everything from this Module lies open before him, and he misses nothing. Show him you've earned the next chapter.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id:15, type:"lesson",   name:"S15", x:455,  y:350,
+        sessionLore:"Somewhere past the tree line, a shape moves through the underbrush — story-shaped, but not finished yet. You catch only pieces of it: a beginning here, a middle there. It isn't ready to be fought. Neither, yet, are you.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id:16, type:"lesson",   name:"S16", x:325,  y:350,
+        sessionLore:"She's harder to reach this time — more shadow than queen, her half-song sharper, almost a warning. Whatever's eating away at her is getting worse. You don't have much time left to reach who she used to be.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id:17, type:"lesson",   name:"S17", x:195,  y:350,
+        sessionLore:"Two tales drift past each other on the wind here, neither quite landing. You'll need sharper eyes than this to hold them both at once. Not today — but the Vale is taking notes on how closely you're watching.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id:18, type:"lesson",   name:"S18", x:65,   y:350,
+        sessionLore:"More faces in the water this time — more masks to sort through. You've learned the trick once. Prove it wasn't luck.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       // ── Row 4: main path L→R (S19–S20, Warden, Scribe's Calling) ──
       {id:19, type:"lesson",   name:"S19", x:65,   y:630,
+        sessionLore:"Third time facing the water, and it still tries to trick you into seeing only one face instead of many. This is the last time it gets to try.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
       {id:20, type:"lesson",   name:"S20", x:195,  y:630,
+        sessionLore:"Barely a queen at all now — more hollow than not. Whatever crowned her is nearly gone. This might be the last chance to reach her before there's nothing left to save.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:27, type:"dungeon",  name:"The Warden of the Vale", x:325, y:630, portrait:"boss_warden.png"},
+      {id:27, type:"dungeon",  name:"The Warden of the Vale", x:325, y:630, portrait:"boss_warden.png",
+        lore:"This is where he's ruled since he took the Vale — stone throne, stone crown, stone heart. The Warden doesn't ask if you're ready. He was never going to wait.",
+        loreDefeated:"The stone cracks. Then it splits. Where the Warden stood, the air goes quiet — quiet enough to hear a song finally finish.",
+        loreSeraphine:"The mist lifts off her like a held breath finally let go. The crown on her brow catches light for the first time in longer than she can say. 'You gave me back what he took,' she says. 'Now let me give you what you'll need next.' She leads you from the ruins toward a quiet room lit by candlelight, where a figure waits at a desk stacked high with unfinished pages."},
       {id:26, type:"event",    name:"The Scribe's Calling",  x:975,  y:630},
       // ── Loot branches — each pair branches independently from their hub tile ──
       // Row 1 (y=210): S6 + S8 branch from S5 (lesson before Abysmara), rejoin at S7
-      {id: 6, type:"loot", name:"S6",  skill:"Should Do", x:585,  y:210, parentTileId: 5, nextTile: 7},
-      {id: 8, type:"loot", name:"S8",  skill:"Aspire To", x:715,  y:210, parentTileId: 5, nextTile: 7},
+      {id: 6, type:"loot", name:"S6",  skill:"Should Do", x:585,  y:210, parentTileId: 5, nextTile: 7,
+        sessionLore:"The Forge doesn't fight for you — it sharpens what you already carry. Every sentence you shape here is a blade for later."},
+      {id: 8, type:"loot", name:"S8",  skill:"Aspire To", x:715,  y:210, parentTileId: 5, nextTile: 7,
+        sessionLore:"A small shape flinches back into the underbrush when you sit down — golden eyes, too thin, watching you eat before it dares get close. It doesn't trust the Vale's visitors yet. Can't blame it."},
       // Row 3 (y=490): S12 unlocked by S11, S14 unlocked by S12, chain rejoins at S13
-      {id:12, type:"loot", name:"S12", skill:"Should Do", x:715,  y:490, parentTileId:11, nextTile:14},
-      {id:14, type:"loot", name:"S14", skill:"Aspire To", x:455,  y:490, parentTileId:12, nextTile:13},
+      {id:12, type:"loot", name:"S12", skill:"Should Do", x:715,  y:490, parentTileId:11, nextTile:14,
+        sessionLore:"Back to the anvil. What you write here travels with you long after this session ends."},
+      {id:14, type:"loot", name:"S14", skill:"Aspire To", x:455,  y:490, parentTileId:12, nextTile:13,
+        sessionLore:"Pip's closer tonight. Still jumpy at loud noises, but it's started stealing bites from your pack when it thinks you're not looking."},
       // Row 5 (y=750): S21 unlocked by S20, S23 unlocked by S21, chain rejoins at Warden
-      {id:21, type:"loot", name:"S21", skill:"Should Do", x:195,  y:750, parentTileId:20, nextTile:40},
-      {id:40, type:"loot", name:"S23", skill:"Aspire To", x:455,  y:750, parentTileId:21, nextTile:27},
+      {id:21, type:"loot", name:"S21", skill:"Should Do", x:195,  y:750, parentTileId:20, nextTile:40,
+        sessionLore:"Last stop at the anvil before the Vale's final test. Sharpen everything — you'll need it."},
+      {id:40, type:"loot", name:"S23", skill:"Aspire To", x:455,  y:750, parentTileId:21, nextTile:27,
+        sessionLore:"Pip curls up against the fire without flinching this time. Whatever's been chasing it feels farther away lately. So does the Warden."},
       // ── NPC tiles ──
       {id:36, type:"npc", npcKey:"thornkin_hint",          x:195,  y:210, landId:1},
       {id:37, type:"npc", npcKey:"thornkin_lore",          x:325,  y:210, landId:1},
@@ -1012,6 +1037,7 @@ const LANDS = [
 /* ─── SCRIBE'S SANCTUM TILES ─── */
 const SANCTUM_TILES = [
   { id:1, name:"Planning Table",  img:"/tiles/01-planning-table.png",  action:"Plan",
+    lore:"Kaeltharion doesn't rush you here. 'A story worth telling,' he says, 'is a story worth planning first.'",
     checklist:[
       "I read the writing prompt carefully",
       "I know what type of writing this is asking for",
@@ -1020,6 +1046,7 @@ const SANCTUM_TILES = [
       "I brainstormed ideas before I started writing",
     ]},
   { id:2, name:"Drafting Desk",   img:"/tiles/02-drafting-desk.png",   action:"Outline",
+    lore:"The blank page is never as empty as it looks. Kaeltharion watches you fill it — not to judge the mess, but to see the shape underneath.",
     checklist:[
       "I created an outline for my writing",
       "My outline has an introduction, body, and conclusion",
@@ -1028,6 +1055,7 @@ const SANCTUM_TILES = [
       "My outline follows the prompt requirements",
     ]},
   { id:3, name:"Revision Mirror", img:"/tiles/03-revision-mirror.png", action:"Write",
+    lore:"Look again. Not at what you wrote — at what you meant. The Mirror only shows you the gap between the two.",
     checklist:[
       "I used my outline to write my draft",
       "I wrote a strong introduction",
@@ -1036,6 +1064,7 @@ const SANCTUM_TILES = [
       "I wrote a conclusion that wraps up my writing",
     ]},
   { id:4, name:"Editing Quill",   img:"/tiles/04-editing-quill.png",   action:"Edit",
+    lore:"Small marks now, for a stronger piece later. Kaeltharion trims what doesn't serve the story, and shows you how to do it yourself.",
     checklist:[
       "I checked my spelling",
       "I checked my punctuation and capitalization",
@@ -1044,6 +1073,7 @@ const SANCTUM_TILES = [
       "I made corrections to my draft",
     ]},
   { id:5, name:"Scribe's Podium", img:"/tiles/05-scribes-podium.png",  action:"Revise",
+    lore:"You read your work aloud, and for a moment, Kaeltharion is quiet. Then: 'The Scribe is pleased.' Seraphine, waiting at the door, only smiles. 'Land 2 is waiting for you both.'",
     checklist:[
       "I reread my entire piece from beginning to end",
       "My writing clearly answers the prompt",
@@ -1224,14 +1254,25 @@ function updateBossStateOnTileComplete(student, tileId, land) {
       const sessionIdx = boss.sessions.indexOf(tileId);
       if (sessionIdx < 0) return;
       const cur = getStdBossState(sid, bk);
+      if (cur.status === 'defeated') return;
       if (sessionIdx === 0) {
         if (cur.status === 'not_started') {
           setStdBossState(sid, bk, { status:'sighted', encounterCount:1, lastAttemptSession:tileId, failedAt:null });
         }
       } else {
-        if (cur.status !== 'defeated') {
+        const isLastSession = sessionIdx === boss.sessions.length - 1;
+        if (isLastSession) {
+          // Auto-defeat on final encounter session — no teacher judgment needed
           setStdBossState(sid, bk, {
-            status:'awaiting_judgment',
+            status:'defeated',
+            encounterCount: Math.max(cur.encounterCount, sessionIdx + 1),
+            lastAttemptSession:tileId, failedAt:null,
+            defeatedAt: new Date().toISOString().slice(0,19),
+          });
+        } else {
+          // Intermediate encounter — track without blocking student
+          setStdBossState(sid, bk, {
+            status:'sighted',
             encounterCount: Math.max(cur.encounterCount, sessionIdx + 1),
             lastAttemptSession:tileId, failedAt:null,
           });
@@ -1249,49 +1290,7 @@ function updateBossStateOnTileComplete(student, tileId, land) {
     });
   }
 }
-function backfillBossStates() {
-  // One-time backfill for students whose completedTiles were seeded before
-  // updateBossStateOnTileComplete existed. Safe to re-run: only writes states
-  // that are still 'not_started' or 'locked', never overwrites teacher marks.
-  const periods = CLASS_DATA.periods || [];
-  let count = 0;
-  LANDS.forEach(land => {
-    if (!land.standardBosses && !land.gateBosses) return;
-    periods.forEach(period => {
-      (period.students || []).forEach(student => {
-        const sid = String(student.id);
-        const completed = (_overrides[sid] || {}).completedTiles || [];
-        if (land.standardBosses) {
-          Object.entries(land.standardBosses).forEach(([bk, boss]) => {
-            const cur = getStdBossState(sid, bk);
-            if (cur.status !== 'not_started') return; // already set by teacher or real flow
-            let highestIdx = -1;
-            boss.sessions.forEach((sessId, idx) => {
-              if (completed.includes(sessId)) highestIdx = idx;
-            });
-            if (highestIdx < 0) return;
-            const newState = highestIdx === 0
-              ? { status:'sighted', encounterCount:1, lastAttemptSession:boss.sessions[0], failedAt:null }
-              : { status:'awaiting_judgment', encounterCount:highestIdx+1, lastAttemptSession:boss.sessions[highestIdx], failedAt:null };
-            setStdBossState(sid, bk, newState);
-            count++;
-          });
-        }
-        if (land.gateBosses) {
-          Object.entries(land.gateBosses).forEach(([bk, boss]) => {
-            const cur = getGateBossState(sid, bk);
-            if (cur.status !== 'locked') return;
-            if (completed.includes(boss.session)) {
-              setGateBossState(sid, bk, { status:'active' });
-              count++;
-            }
-          });
-        }
-      });
-    });
-  });
-  return count;
-}
+
 function getWriteStatus(student, landId) {
   return getBossStatus(student, `event_${landId}`);
 }
@@ -1373,13 +1372,17 @@ function getStudentFlags(student) {
   const completed = (ov.completedTiles || student.completedTiles || []).map(Number);
   const bossStatus = ov.bossStatus || {};
   const today = new Date();
-  // ⚡ RUSHED — any completed tile under 120s
-  const rushedTileId = completed.find(tid => {
-    const t = ts[String(tid)];
-    return t && t.timeOnPage !== undefined && t.timeOnPage !== null && t.timeOnPage < 120;
-  });
-  if (rushedTileId !== undefined) {
-    flags.push({ key:'rushed', icon:'⚡', color:'#CA8A04', tip:'Completed a tile in under 2 minutes' });
+  // ⚡ RUSHED — consecutive tile completions less than 5 minutes apart
+  let _rushed = false;
+  for (let _i = 1; _i < completed.length; _i++) {
+    const _prev = ts[String(completed[_i - 1])];
+    const _curr = ts[String(completed[_i])];
+    if (!_prev?.completedAt || !_curr?.completedAt) continue;
+    const _delta = (new Date(_curr.completedAt).getTime() - new Date(_prev.completedAt).getTime()) / 1000;
+    if (_delta >= 0 && _delta < 300) { _rushed = true; break; }
+  }
+  if (_rushed) {
+    flags.push({ key:'rushed', icon:'⚡', color:'#CA8A04', tip:'Completed tiles less than 5 minutes apart' });
   }
   // 🚩 STUCK — no advancement in 3+ school days
   if (completed.length > 0) {
@@ -4033,7 +4036,8 @@ function renderSanctumMap() {
       <div class="st-checklist-card">
         <div class="boss-intro-eyebrow">✦ Station ${openSt.id} of 5 — ${openSt.action} ✦</div>
         <img src="${openSt.img}" style="width:72px;height:72px;object-fit:contain;margin:0 auto 10px;display:block" onerror="this.style.display='none'"/>
-        <div class="boss-intro-name" style="margin-bottom:16px">${openSt.name}</div>
+        <div class="boss-intro-name" style="margin-bottom:${openSt.lore ? '10px' : '16px'}">${openSt.name}</div>
+        ${openSt.lore ? `<p class="boss-intro-text" style="margin-bottom:16px">"${openSt.lore}"</p>` : ''}
         <ul class="st-checklist">
           ${checkItems}
         </ul>
@@ -4103,7 +4107,9 @@ function renderBossScreen() {
   const skillCode = tile.skill   || "";
   const skillName = STANDARD_NAMES[skillCode] || "";
   const portrait  = tile.portrait || null;
-  const lore      = tile.lore    || "";
+  const lore         = tile.lore         || "";
+  const loreDefeated = tile.loreDefeated || "";
+  const loreSeraphine= tile.loreSeraphine|| "";
   const pearUrl   = tile.pearUrl || "https://app.peardeck.com/placeholder";
   const hp        = m.hp ?? 10;
   const hpLow     = hp < 5;
@@ -4112,6 +4118,7 @@ function renderBossScreen() {
   const bossKey = `${land.id}_${tile.id}`;
   const bossStatus = getBossStatus(student, bossKey);
   const alreadyConfirmed = bossStatus === 'confirmed' || (pos.completed || []).includes(tile.id);
+  const isDungeon = tile.type === 'dungeon';
 
   const hpDots = Array.from({length:10}, (_, i) =>
     `<span class="boss-hp-dot${i < hp ? " filled" : ""}"></span>`
@@ -4141,104 +4148,152 @@ function renderBossScreen() {
 
   let bodyHTML = '';
 
-  if (alreadyConfirmed) {
-    // State 1 — Already confirmed/completed
-    bodyHTML = `
-      <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
-        ${tombstoneHTML}
-      </div>
-      <div class="boss-defeated-banner enter" style="animation-delay:.10s">⚔️ DEFEATED</div>
-      <div class="boss-identity enter" style="animation-delay:.12s">
-        <h1 class="boss-name boss-name-defeated">${bossName}</h1>
-        ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
-      </div>
-      <div style="text-align:center;font-size:13px;font-weight:700;color:rgba(255,255,255,.4);margin-top:8px">✓ Already defeated</div>`;
-  } else if (bossStatus === 'defeated') {
-    // State 2 — Teacher marked defeated, awaiting student confirmation
-    bodyHTML = `
-      <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
-        ${tombstoneHTML}
-      </div>
-      <div class="boss-defeated-banner enter" style="animation-delay:.10s">⚔️ DEFEATED</div>
-      <div class="boss-identity enter" style="animation-delay:.12s">
-        <h1 class="boss-name boss-name-defeated">${bossName}</h1>
-        ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
-      </div>
-      ${lore ? `
-      <div class="boss-lore-card enter" style="animation-delay:.16s">
-        <p class="boss-lore">${lore}</p>
-      </div>` : ""}
-      <button class="boss-confirm-btn enter" id="boss-confirm-btn" style="animation-delay:.20s">
-        📜 I Reviewed My Results — Claim Reward
-      </button>`;
-  } else if (bossStatus === 'retake') {
-    // State 3 — Teacher marked retake
-    bodyHTML = `
-      <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
-        ${portraitHTML}
-      </div>
-      <div class="boss-identity enter" style="animation-delay:.12s">
-        <h1 class="boss-name">${bossName}</h1>
-        ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
-      </div>
-      <div class="boss-retake-card enter" style="animation-delay:.16s">
-        <div class="boss-retake-title">↩ Retake Needed</div>
-        <p class="boss-retake-msg">Your teacher has reviewed your results. Some areas need more work. Complete the Craft Binder activity below, then use the Retake button.</p>
-      </div>
-      <button class="boss-fight-btn enter" id="boss-fight-btn" style="animation-delay:.22s">
-        ↩ Retake Boss Fight
-      </button>`;
-  } else if (bossStatus === 'submitted') {
-    const holdLines = [
-      '"The ancient chamber awaits your results..."',
-      '"Your teacher is reviewing the scrolls..."',
-      '"Patience, young scholar. Judgment comes..."',
-    ];
-    const holdText = holdLines[Math.floor(Date.now()/4000) % holdLines.length];
-    bodyHTML = `
-      <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
-        ${portraitHTML}
-      </div>
-      <div class="boss-identity enter" style="animation-delay:.12s">
-        <h1 class="boss-name">${bossName}</h1>
-        ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ''}</div>` : ''}
-      </div>
-      <div class="boss-holding-card enter" style="animation-delay:.16s">
-        <div class="boss-holding-label">⏳ Awaiting Judgment</div>
-        <div class="boss-holding-spinner"></div>
-        <div class="boss-holding-text">${holdText}</div>
-      </div>
-      <p class="boss-awaiting-review enter" style="animation-delay:.22s">Your teacher will review your results and update your status here.</p>`;
+  if (isDungeon) {
+    // ── DUNGEON (Warden): full four-state flow unchanged ──────────────────
+    if (alreadyConfirmed) {
+      bodyHTML = `
+        <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
+          ${tombstoneHTML}
+        </div>
+        <div class="boss-defeated-banner enter" style="animation-delay:.10s">⚔️ DEFEATED</div>
+        <div class="boss-identity enter" style="animation-delay:.12s">
+          <h1 class="boss-name boss-name-defeated">${bossName}</h1>
+          ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
+        </div>
+        <div style="text-align:center;font-size:13px;font-weight:700;color:rgba(255,255,255,.4);margin-top:8px">✓ Already defeated</div>`;
+    } else if (bossStatus === 'defeated') {
+      bodyHTML = `
+        <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
+          ${tombstoneHTML}
+        </div>
+        <div class="boss-defeated-banner enter" style="animation-delay:.10s">⚔️ DEFEATED</div>
+        <div class="boss-identity enter" style="animation-delay:.12s">
+          <h1 class="boss-name boss-name-defeated">${bossName}</h1>
+          ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
+        </div>
+        ${loreDefeated ? `
+        <div class="boss-lore-card enter" style="animation-delay:.16s">
+          <p class="boss-lore">${loreDefeated}</p>
+        </div>` : ""}
+        ${loreSeraphine ? `
+        <div class="boss-lore-card enter" style="animation-delay:.19s;border-left:2px solid rgba(168,139,250,.45)">
+          <p class="boss-lore">${loreSeraphine}</p>
+        </div>` : ""}
+        <button class="boss-confirm-btn enter" id="boss-confirm-btn" style="animation-delay:.23s">
+          📜 I Reviewed My Results — Claim Reward
+        </button>`;
+    } else if (bossStatus === 'retake') {
+      bodyHTML = `
+        <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
+          ${portraitHTML}
+        </div>
+        <div class="boss-identity enter" style="animation-delay:.12s">
+          <h1 class="boss-name">${bossName}</h1>
+          ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
+        </div>
+        <div class="boss-retake-card enter" style="animation-delay:.16s">
+          <div class="boss-retake-title">↩ Retake Needed</div>
+          <p class="boss-retake-msg">Your teacher has reviewed your results. Some areas need more work. Complete the Craft Binder activity below, then use the Retake button.</p>
+        </div>
+        <button class="boss-fight-btn enter" id="boss-fight-btn" style="animation-delay:.22s">
+          ↩ Retake Boss Fight
+        </button>`;
+    } else if (bossStatus === 'submitted') {
+      const holdLines = [
+        '"The ancient chamber awaits your results..."',
+        '"Your teacher is reviewing the scrolls..."',
+        '"Patience, young scholar. Judgment comes..."',
+      ];
+      const holdText = holdLines[Math.floor(Date.now()/4000) % holdLines.length];
+      bodyHTML = `
+        <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
+          ${portraitHTML}
+        </div>
+        <div class="boss-identity enter" style="animation-delay:.12s">
+          <h1 class="boss-name">${bossName}</h1>
+          ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ''}</div>` : ''}
+        </div>
+        <div class="boss-holding-card enter" style="animation-delay:.16s">
+          <div class="boss-holding-label">⏳ Awaiting Judgment</div>
+          <div class="boss-holding-spinner"></div>
+          <div class="boss-holding-text">${holdText}</div>
+        </div>
+        <p class="boss-awaiting-review enter" style="animation-delay:.22s">Your teacher will review your results and update your status here.</p>`;
+    } else {
+      bodyHTML = `
+        <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
+          ${portraitHTML}
+        </div>
+        <div class="boss-identity enter" style="animation-delay:.12s">
+          <h1 class="boss-name">${bossName}</h1>
+          ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
+        </div>
+        ${lore ? `
+        <div class="boss-lore-card enter" style="animation-delay:.16s">
+          <p class="boss-lore">${lore}</p>
+        </div>` : ""}
+        <div class="boss-hp-card enter" style="animation-delay:.20s">
+          <div class="boss-hp-label">❤️ Your HP</div>
+          <div class="boss-hp-dots">${hpDots}</div>
+          <div class="boss-hp-val">${hp} / 10</div>
+        </div>
+        ${hpLow ? `
+        <div class="boss-hp-warning enter" style="animation-delay:.22s">
+          ⚠️ Your HP is low! Complete a Side Quest before challenging this boss.
+        </div>` : ""}
+        <button class="boss-fight-btn enter" id="boss-fight-btn" style="animation-delay:.25s">
+          ⚔️ Begin Boss Fight
+        </button>
+        <button class="boss-fight-btn enter" id="boss-complete-btn" style="animation-delay:.28s;background:linear-gradient(135deg,#059669,#047857);margin-top:8px">
+          ✅ My Battle Is Complete
+        </button>
+        <p class="boss-awaiting-review enter" style="animation-delay:.32s">Complete the assessment above, then tap "My Battle Is Complete" — your teacher will review and confirm your results.</p>`;
+    }
   } else {
-    // State 4 — Normal / not_attempted
-    bodyHTML = `
-      <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
-        ${portraitHTML}
-      </div>
-      <div class="boss-identity enter" style="animation-delay:.12s">
-        <h1 class="boss-name">${bossName}</h1>
-        ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
-      </div>
-      ${lore ? `
-      <div class="boss-lore-card enter" style="animation-delay:.16s">
-        <p class="boss-lore">${lore}</p>
-      </div>` : ""}
-      <div class="boss-hp-card enter" style="animation-delay:.20s">
-        <div class="boss-hp-label">❤️ Your HP</div>
-        <div class="boss-hp-dots">${hpDots}</div>
-        <div class="boss-hp-val">${hp} / 10</div>
-      </div>
-      ${hpLow ? `
-      <div class="boss-hp-warning enter" style="animation-delay:.22s">
-        ⚠️ Your HP is low! Complete a Side Quest before challenging this boss.
-      </div>` : ""}
-      <button class="boss-fight-btn enter" id="boss-fight-btn" style="animation-delay:.25s">
-        ⚔️ Begin Boss Fight
-      </button>
-      <button class="boss-fight-btn enter" id="boss-complete-btn" style="animation-delay:.28s;background:linear-gradient(135deg,#059669,#047857);margin-top:8px">
-        ✅ My Battle Is Complete
-      </button>
-      <p class="boss-awaiting-review enter" style="animation-delay:.32s">Complete the assessment above, then tap "My Battle Is Complete" — your teacher will review and confirm your results.</p>`;
+    // ── STANDARD BOSS: simplified two-state flow ──────────────────────────
+    if (alreadyConfirmed) {
+      // Already completed — show portrait (not tombstone), no grave transition
+      bodyHTML = `
+        <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
+          ${portraitHTML}
+        </div>
+        <div class="boss-defeated-banner enter" style="animation-delay:.10s">⚔️ CHALLENGE COMPLETE</div>
+        <div class="boss-identity enter" style="animation-delay:.12s">
+          <h1 class="boss-name boss-name-defeated">${bossName}</h1>
+          ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
+        </div>
+        <div style="text-align:center;font-size:13px;font-weight:700;color:rgba(255,255,255,.4);margin-top:8px">✓ Already completed — well done!</div>`;
+    } else {
+      // Active — exit ticket + single complete button
+      bodyHTML = `
+        <div class="boss-portrait-wrap enter" style="animation-delay:.06s">
+          ${portraitHTML}
+        </div>
+        <div class="boss-identity enter" style="animation-delay:.12s">
+          <h1 class="boss-name">${bossName}</h1>
+          ${skillCode ? `<div class="boss-skill">${skillCode}${skillName ? ` — ${skillName}` : ""}</div>` : ""}
+        </div>
+        ${lore ? `
+        <div class="boss-lore-card enter" style="animation-delay:.16s">
+          <p class="boss-lore">${lore}</p>
+        </div>` : ""}
+        <div class="boss-hp-card enter" style="animation-delay:.20s">
+          <div class="boss-hp-label">❤️ Your HP</div>
+          <div class="boss-hp-dots">${hpDots}</div>
+          <div class="boss-hp-val">${hp} / 10</div>
+        </div>
+        ${hpLow ? `
+        <div class="boss-hp-warning enter" style="animation-delay:.22s">
+          ⚠️ Your HP is low! Complete a Side Quest before challenging this boss.
+        </div>` : ""}
+        <button class="boss-fight-btn enter" id="boss-fight-btn" style="animation-delay:.25s">
+          ⚔️ Open Exit Ticket
+        </button>
+        <button class="boss-fight-btn enter" id="boss-complete-btn" style="animation-delay:.28s;background:linear-gradient(135deg,#059669,#047857);margin-top:8px">
+          ✅ My Battle Is Complete
+        </button>
+        <p class="boss-awaiting-review enter" style="animation-delay:.32s">Complete the exit ticket above, then tap "My Battle Is Complete" to finish this challenge.</p>`;
+    }
   }
 
   return `
@@ -5231,6 +5286,31 @@ function renderTeacherTileView() {
         </div>`
       : "";
 
+    const lessonAssessTexts = { 4:"Mastery — could teach it", 3:"Understands it", 2:"Getting there", 1:"Needs help" };
+    const _nearpodDone = !!(prog.nearpod || [])[0];
+    const _workbookDone = !!(prog.workbook || [])[0];
+    const _selfLevel = ((prog.selfAssessLevel || [])[0] || 0);
+    const lessonProgress = tile.type === "lesson"
+      ? `<div class="tt-tier-row tt-tier-must">
+          <div class="tt-tier-lbl">📋 Lesson Completion</div>
+          <div class="tt-task-item${_nearpodDone?" done":""}">
+            <span class="tt-check">${_nearpodDone?"✓":"○"}</span>
+            <span>Completed lesson activities</span>
+          </div>
+          <div class="tt-task-item${_workbookDone?" done":""}">
+            <span class="tt-check">${_workbookDone?"✓":"○"}</span>
+            <span>Showed workbook to peer/teacher</span>
+          </div>
+        </div>
+        <div class="tt-tier-row" style="margin-top:6px">
+          <div class="tt-tier-lbl">🧠 Comprehension Check</div>
+          <div class="tt-task-item${_selfLevel?" done":""}">
+            <span class="tt-check">${_selfLevel?"★":"○"}</span>
+            <span>${_selfLevel ? `Level ${_selfLevel} — ${lessonAssessTexts[_selfLevel]}` : "Not yet answered"}</span>
+          </div>
+        </div>`
+      : "";
+
     return `<div class="tt-student-row">
       <div class="tt-student-header">
         <div class="tt-av" style="border-color:${cc}"><img src="/avatars/${av}" alt="" width="40" height="40" loading="lazy"/></div>
@@ -5242,11 +5322,13 @@ function renderTeacherTileView() {
       <div class="tt-tiers">
         ${weData
           ? weProgress
-          : hasTasks
-            ? taskLines(mustDo,"mustDo","tt-tier-must","🔴","Must Do")
-              + taskLines(shouldDo,"shouldDo","tt-tier-should","🟡","Should Do")
-              + taskLines(aspireTo,"aspireTo","tt-tier-aspire","🟢","Aspire To")
-            : `<div style="font-size:12px;color:var(--text-light);font-style:italic">No tasks defined for this tile</div>`}
+          : tile.type === "lesson"
+            ? lessonProgress
+            : hasTasks
+              ? taskLines(mustDo,"mustDo","tt-tier-must","🔴","Must Do")
+                + taskLines(shouldDo,"shouldDo","tt-tier-should","🟡","Should Do")
+                + taskLines(aspireTo,"aspireTo","tt-tier-aspire","🟢","Aspire To")
+              : `<div style="font-size:12px;color:var(--text-light);font-style:italic">No tasks defined for this tile</div>`}
       </div>
     </div>`;
   }).join("");
@@ -5299,8 +5381,8 @@ function renderTeacherTileView() {
         ${onTile.length ? studentCards : `<div class="tt-empty">No students are currently on this tile</div>`}
       </div>
 
-      ${hasContent ? `
-      <div class="tt-section-hdr enter" style="animation-delay:.13s">📋 Lesson Tasks</div>
+      ${hasContent && tile.type !== "lesson" ? `
+      <div class="tt-section-hdr enter" style="animation-delay:.13s">📋 Tile Tasks</div>
       <div class="ls-tiers enter" style="animation-delay:.15s">
         ${tierSummary(mustDo,  "ls-tier-must",   "🔴","Must Do")}
         ${tierSummary(shouldDo,"ls-tier-should", "🟡","Should Do")}
@@ -5539,7 +5621,8 @@ function renderTeacherDashboard() {
           <button class="btn btn-outline-sm" id="t-board-view">📡 Board View</button>
           <button class="btn btn-outline-sm" id="t-boss-roster-btn">⚔️ Battle Records</button>
           <button class="btn btn-outline-sm" id="t-judgment-hall-btn">⚖️ Judgment Hall</button>
-          <button class="btn btn-outline-sm" id="t-boss-backfill-btn" title="One-time backfill for seeded test accounts">🔧 Backfill Boss States</button>
+          <button class="btn btn-outline-sm" id="t-flag-log-btn">🚨 Flag Log</button>
+
           <button class="btn btn-outline-sm" id="t-class-settings-btn">⚙️ Class Settings</button>
           <button class="btn btn-outline-sm t-gold-shop-btn" id="t-gold-shop-btn">
             🪙 Gold Shop${(() => { const n = Object.keys(getShopPending()).length; return n ? `<span class="t-gold-badge">${n}</span>` : ''; })()}
@@ -6256,7 +6339,8 @@ function renderJudgmentHall() {
     const rows = allStudents
       .map(({ student, period }) => {
         const state = getStdBossState(String(student.id), bk);
-        if (state.status !== 'awaiting_judgment') return null;
+        // Show all students who have encountered this boss (any status except not_started)
+        if (state.status === 'not_started') return null;
         return { student, period, state };
       })
       .filter(Boolean);
@@ -6283,7 +6367,8 @@ function renderJudgmentHall() {
   const totalMarked = Object.values(STATE.judgmentHallMarks).filter(m => m && m.result).length;
   const totalFailed = Object.values(STATE.judgmentHallMarks).filter(m => m && m.result === 'fail').length;
   const totalDefeated = Object.values(STATE.judgmentHallMarks).filter(m => m && m.result === 'pass').length;
-  const totalPending = allGroups.reduce((n, g) => n + g.rows.length, 0) - totalMarked;
+  // totalPending counts only gate boss rows (std bosses auto-resolve, no teacher action needed)
+  const totalPending = gateGroups.reduce((n, g) => n + g.rows.length, 0) - totalMarked;
 
   const bossDisplayNames = {
     duskmantle:'Duskmantle', mirrorkin:'Mirrorkin', seraphine:'Seraphine', keystone:'The Keystone',
@@ -6305,48 +6390,72 @@ function renderJudgmentHall() {
     const subLabel = isGate ? gateSessionLabels[bossKey] : stdStandardLabels[bossKey];
     const totalSessions = !isGate ? boss.sessions.length : 1;
 
+    if (!isGate) {
+      // Standard boss — read-only encounter record, no teacher marking required
+      const rowsHTML = rows.length === 0
+        ? `<tr><td colspan="3" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No students have encountered this boss yet</td></tr>`
+        : rows.map(({ student, state }) => {
+            const encounterTag = `<span class="jh-enc-tag">${state.encounterCount} of ${totalSessions}</span>`;
+            const statusPill = (() => {
+              if (state.status === 'defeated') return '<span class="jh-pill jh-pill-pass">✓ Completed</span>';
+              if (state.status === 'awaiting_judgment') return '<span class="jh-pill jh-pill-pending">Legacy — Awaiting</span>';
+              if (state.status === 'fightable') return '<span class="jh-pill jh-pill-wound">Legacy — Wounded</span>';
+              if (state.status === 'failed') return '<span class="jh-pill jh-pill-fail">Craft Binder</span>';
+              return '<span class="jh-pill jh-pill-pending">In Progress</span>';
+            })();
+            return `<tr>
+              <td style="font-size:13px;font-weight:700">${getCharName(student)} <span style="font-size:11px;font-weight:400;color:#9CA3AF">(${student.id})</span></td>
+              <td>${encounterTag}</td>
+              <td>${statusPill}</td>
+            </tr>`;
+          }).join('');
+      return `<div class="jh-group">
+        <div class="jh-group-head">
+          <div>
+            <div class="jh-group-name">${displayName}</div>
+            <div class="jh-group-sub">${subLabel}</div>
+          </div>
+          <span style="font-size:11px;color:#9CA3AF;font-style:italic">Record only — auto-completes on final session</span>
+        </div>
+        <table class="jh-table">
+          <thead><tr>
+            <th>Student</th>
+            <th>Encounter</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody>${rowsHTML}</tbody>
+        </table>
+      </div>`;
+    }
+
+    // Gate boss — full pass/fail UI (unchanged)
     const rowsHTML = rows.length === 0
-      ? `<tr><td colspan="${isGate ? 4 : 5}" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No students awaiting judgment</td></tr>`
+      ? `<tr><td colspan="4" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No students awaiting judgment</td></tr>`
       : rows.map(({ student, state }) => {
           const markKey = `${bossKey}_${student.id}`;
           const pending = STATE.judgmentHallMarks[markKey] || {};
           const pSel = pending.result === 'pass' ? ' jh-sel-pass' : '';
           const fSel = pending.result === 'fail' ? ' jh-sel-fail' : '';
-          const gradeChk = pending.postGrade ? 'checked' : '';
-          const encounterTag = !isGate
-            ? `<span class="jh-enc-tag">${state.encounterCount} of ${totalSessions}</span>`
-            : '';
-          const gradeCell = !isGate
-            ? `<td><label class="jh-grade-check">
-                <input type="checkbox" class="jh-grade-cb" data-jhk="${markKey}" ${gradeChk}> post grade
-               </label></td>`
-            : '';
           const currentStatus = (() => {
             if (pending.result === 'fail') return '<span class="jh-pill jh-pill-fail">Craft Binder</span>';
-            if (pending.result === 'pass') {
-              const isLast = isGate || state.encounterCount >= totalSessions;
-              if (isLast) return '<span class="jh-pill jh-pill-pass">Defeated</span><span class="jh-mastery-badge">🏆 Mastery Achieved</span>';
-              return '<span class="jh-pill jh-pill-wound">Wounded — continues</span>';
-            }
+            if (pending.result === 'pass') return '<span class="jh-pill jh-pill-pass">Defeated</span><span class="jh-mastery-badge">🏆 Mastery Achieved</span>';
             return '<span class="jh-pill jh-pill-pending">Awaiting mark</span>';
           })();
-          const excellenceCell = isGate ? `<td>${
+          const excellenceCell = `<td>${
             pending.result === 'pass'
               ? (STATE.jhExcellenceAwarded[markKey]
                   ? `<span class="jh-exc-awarded">✓ Awarded</span>`
                   : `<button class="jh-exc-btn" data-jhk-exc="${markKey}" data-exc-sid="${student.id}">⭐ Excellence Bonus</button>`)
               : ''
-          }</td>` : '';
+          }</td>`;
           return `<tr>
-            <td style="font-size:13px;font-weight:700">${getCharName(student)}</td>
-            ${!isGate ? `<td>${encounterTag}</td>` : ''}
+            <td style="font-size:13px;font-weight:700">${getCharName(student)} <span style="font-size:11px;font-weight:400;color:#9CA3AF">(${student.id})</span></td>
             <td>
               <div style="display:flex;gap:6px">
                 <button class="jh-tog jh-tog-pass${pSel}" data-jhk="${markKey}" data-jhr="pass">Pass</button>
                 <button class="jh-tog jh-tog-fail${fSel}" data-jhk="${markKey}" data-jhr="fail">Fail</button>
               </div>
             </td>
-            ${gradeCell}
             <td>${currentStatus}</td>
             ${excellenceCell}
           </tr>`;
@@ -6363,11 +6472,9 @@ function renderJudgmentHall() {
       <table class="jh-table">
         <thead><tr>
           <th>Student</th>
-          ${!isGate ? '<th>Encounter</th>' : ''}
           <th style="width:180px">Result</th>
-          ${!isGate ? '<th>Post as grade</th>' : ''}
           <th>Status</th>
-          ${isGate ? '<th>Excellence</th>' : ''}
+          <th>Excellence</th>
         </tr></thead>
         <tbody>${rowsHTML}</tbody>
       </table>
@@ -6392,9 +6499,8 @@ function renderJudgmentHall() {
         </div>
       </div>
       <div class="jh-legend">
-        <span><span class="jh-swatch" style="background:#10B981"></span> Pass = defeated or wounded, boss continues</span>
-        <span><span class="jh-swatch" style="background:#EF4444"></span> Fail = routes to Craft Binder, retry before next check-in</span>
-        <span><span class="jh-swatch" style="background:#D97706"></span> Post as grade = also sends score to PowerSchool (standard bosses only)</span>
+        <span><span class="jh-swatch" style="background:#10B981"></span> Gatekeeper Pass = Defeated; Fail = routes to Craft Binder</span>
+        <span>Standard bosses auto-complete on their final session — no teacher action needed</span>
       </div>
       <div class="jh-groups">${groupsHTML}</div>
       <div class="jh-footer">
@@ -6434,6 +6540,175 @@ function renderJudgmentHall() {
       .jh-exc-btn { font-size:12px; background:#FEF3C7; border:1px solid #D97706; border-radius:6px; padding:6px 12px; cursor:pointer; color:#92400E; font-weight:600; white-space:nowrap; }
       .jh-exc-btn:hover { background:#FDE68A; border-color:#B45309; }
       .jh-exc-awarded { font-size:12px; color:#059669; font-weight:700; white-space:nowrap; }
+    </style>
+  </div>`;
+}
+
+function renderFlagLog() {
+  const periods = CLASS_DATA.periods || [];
+  const allStudents = periods.flatMap(p => (p.students || []).map(s => ({ student: s, period: p })));
+
+  const guildSet = new Set();
+  allStudents.forEach(({ student }) => {
+    const g = getMergedStudent(student).guild || student.guild;
+    if (g) guildSet.add(g);
+  });
+  const guilds = [...guildSet].sort();
+  const selGuild = STATE.flagLogGuild || null;
+
+  const formatAge = (sinceMs) => {
+    if (!sinceMs) return '—';
+    const diffMs = Date.now() - sinceMs;
+    const diffDays = Math.floor(diffMs / 86400000);
+    const diffHrs  = Math.floor(diffMs / 3600000);
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffDays >= 1) return `${diffDays}d ago`;
+    if (diffHrs  >= 1) return `${diffHrs}h ago`;
+    if (diffMins >= 1) return `${diffMins}m ago`;
+    return 'just now';
+  };
+
+  const FLAG_TYPES = [
+    { key:'rushed',      icon:'⚡', label:'Rushed',           color:'#92400E', bg:'#FEF3C7' },
+    { key:'stuck',       icon:'🚩', label:'Stuck',            color:'#991B1B', bg:'#FEE2E2' },
+    { key:'failed_boss', icon:'❌', label:'Failed Boss',       color:'#7F1D1D', bg:'#FEE2E2' },
+    { key:'awaiting',    icon:'⏳', label:'Awaiting Judgment', color:'#4C1D95', bg:'#EDE9FE' },
+    { key:'help',        icon:'🤚', label:'Needs Help',        color:'#9A3412', bg:'#FFEDD5' },
+  ];
+
+  const byType = {};
+  FLAG_TYPES.forEach(ft => { byType[ft.key] = []; });
+
+  allStudents.forEach(({ student, period }) => {
+    const guild = getMergedStudent(student).guild || student.guild;
+    if (selGuild && guild !== selGuild) return;
+
+    const sid = String(student.id);
+    const ov = _overrides[sid] || {};
+    const ts = ov.taskTimestamps || {};
+    const completed = (ov.completedTiles || student.completedTiles || []).map(Number);
+    const bossStatus = ov.bossStatus || {};
+
+    // Rushed
+    for (let i = 1; i < completed.length; i++) {
+      const prev = ts[String(completed[i - 1])];
+      const curr = ts[String(completed[i])];
+      if (!prev?.completedAt || !curr?.completedAt) continue;
+      const delta = (new Date(curr.completedAt).getTime() - new Date(prev.completedAt).getTime()) / 1000;
+      if (delta >= 0 && delta < 300) {
+        byType.rushed.push({ student, guild, tileLabel:`S${completed[i-1]} → S${completed[i]}`, since: new Date(curr.completedAt).getTime() });
+        break;
+      }
+    }
+
+    // Stuck
+    if (completed.length > 0) {
+      const lastTileId = completed[completed.length - 1];
+      const lastTs = ts[String(lastTileId)];
+      const schoolDays = _countSchoolDays(lastTs ? lastTs.completedAt : null, new Date());
+      if (schoolDays >= 3) {
+        byType.stuck.push({ student, guild, tileLabel:`S${lastTileId} (${schoolDays} school days)`, since: lastTs ? new Date(lastTs.completedAt).getTime() : 0 });
+      }
+    }
+
+    // Failed Boss
+    const failedKeys = Object.entries(bossStatus).filter(([,v]) => v === 'retake').map(([k]) => k);
+    if (failedKeys.length) {
+      byType.failed_boss.push({ student, guild, tileLabel: failedKeys.join(', '), since: 0 });
+    }
+
+    // Awaiting Judgment
+    const awaitKeys = Object.entries(bossStatus).filter(([,v]) => v === 'submitted').map(([k]) => k);
+    if (awaitKeys.length) {
+      byType.awaiting.push({ student, guild, tileLabel: awaitKeys.join(', '), since: 0 });
+    }
+
+    // Needs Help
+    if (_helpflags[sid]) {
+      const flaggedAt = _helpflags[sid].flaggedAt;
+      const msg = _helpflags[sid].message;
+      byType.help.push({ student, guild, tileLabel: msg ? `"${msg}"` : '—', since: flaggedAt ? new Date(flaggedAt).getTime() : 0 });
+    }
+  });
+
+  FLAG_TYPES.forEach(ft => {
+    byType[ft.key].sort((a, b) => {
+      if (!a.since && !b.since) return 0;
+      if (!a.since) return 1;
+      if (!b.since) return -1;
+      return a.since - b.since;
+    });
+  });
+
+  const totalFlags = FLAG_TYPES.reduce((n, ft) => n + byType[ft.key].length, 0);
+
+  const guildTabs = [
+    `<button class="fl-guild-tab${!selGuild ? ' active' : ''}" data-fl-guild="">All Guilds</button>`,
+    ...guilds.map(g => `<button class="fl-guild-tab${selGuild === g ? ' active' : ''}" data-fl-guild="${g}">${g}</button>`),
+  ].join('');
+
+  const cardsHTML = FLAG_TYPES.map(ft => {
+    const rows = byType[ft.key];
+    const rowsHTML = rows.length === 0
+      ? `<tr><td colspan="4" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No active flags</td></tr>`
+      : rows.map(({ student, guild, tileLabel, since }) => `<tr>
+          <td style="font-size:13px;font-weight:700">${getCharName(student)} <span style="font-size:11px;font-weight:400;color:#9CA3AF">(${student.id})</span></td>
+          <td style="font-size:12px;color:#6B7280">${guild || '—'}</td>
+          <td style="font-size:12px;color:#6B7280">${tileLabel}</td>
+          <td style="font-size:12px;color:#9CA3AF;white-space:nowrap">${formatAge(since)}</td>
+        </tr>`).join('');
+    return `<div class="jh-group">
+      <div class="jh-group-head">
+        <div class="jh-group-name">${ft.icon} ${ft.label}</div>
+        <span class="fl-count-badge" style="background:${ft.bg};color:${ft.color}">${rows.length}</span>
+      </div>
+      <table class="jh-table">
+        <colgroup>
+          <col style="width:30%">
+          <col style="width:20%">
+          <col style="width:37%">
+          <col style="width:13%">
+        </colgroup>
+        <thead><tr>
+          <th>Student</th>
+          <th>Guild</th>
+          <th>Tile / Note</th>
+          <th>Active For</th>
+        </tr></thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+
+  return `<div class="screen boss-roster-screen">
+    <div class="boss-roster-wrap">
+      <div class="boss-roster-hdr">
+        <button class="btn-back" id="fl-back">← Dashboard</button>
+        <div>
+          <div style="font-size:20px;font-weight:900;color:#F3F4F6;letter-spacing:.5px">🚨 Flag Log</div>
+          <div style="font-size:12px;color:#9CA3AF;margin-top:2px">All active student flags — read only</div>
+        </div>
+        <div class="jh-chip"><span class="jh-chip-n">${totalFlags}</span> active flags</div>
+      </div>
+      <div class="fl-guild-tabs">${guildTabs}</div>
+      <div class="jh-groups">${cardsHTML}</div>
+    </div>
+    <style>
+      .fl-guild-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+      .fl-guild-tab { font-size:12px; background:#FFFFFF; border:1px solid #D1D5DB; border-radius:6px; padding:6px 12px; cursor:pointer; color:#374151; }
+      .fl-guild-tab:hover { background:#F3F4F6; }
+      .fl-guild-tab.active { background:#111827; border-color:#111827; color:#F9FAFB; font-weight:700; }
+      .fl-count-badge { font-size:13px; font-weight:800; border-radius:999px; padding:4px 12px; min-width:28px; text-align:center; display:inline-block; }
+      .jh-group { background:#FFFFFF; border:1px solid #E5E7EB; border-radius:10px; margin-bottom:18px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+      .jh-group-head { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; background:#F9FAFB; border-bottom:1px solid #E5E7EB; }
+      .jh-group-name { font-size:16px; font-weight:800; color:#111827; }
+      .jh-table { width:100%; border-collapse:collapse; }
+      .jh-table th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#6B7280; font-weight:700; padding:8px 18px; border-bottom:1px solid #E5E7EB; }
+      .jh-table td { padding:10px 18px; border-bottom:1px solid #F3F4F6; font-size:13px; vertical-align:middle; color:#111827; }
+      .jh-table tr:last-child td { border-bottom:none; }
+      .jh-chip { background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 14px; font-size:12px; color:#6B7280; }
+      .jh-chip-n { font-size:18px; font-weight:800; color:#111827; display:block; }
+      .jh-groups { max-height:calc(100vh - 280px); overflow-y:auto; }
     </style>
   </div>`;
 }
@@ -6613,6 +6888,7 @@ function mount() {
   if (STATE.screen === "teacher-student-map") root.innerHTML = renderTeacherStudentMap();
   if (STATE.screen === "teacher-boss-roster")  root.innerHTML = renderBossRoster();
   if (STATE.screen === "teacher-judgment-hall") root.innerHTML = renderJudgmentHall();
+  if (STATE.screen === "teacher-flag-log") root.innerHTML = renderFlagLog();
 
   // No scroll needed for land map (fits on screen)
 
@@ -7301,15 +7577,12 @@ function bindEvents() {
       STATE.judgmentHallMarks = {};
       mount();
     });
-    $("t-boss-backfill-btn") && $("t-boss-backfill-btn").addEventListener("click", () => {
-      const n = backfillBossStates();
-      const toast = document.createElement("div");
-      toast.className = "gold-toast";
-      toast.innerHTML = `<div class="gold-pop">🔧 Backfill complete — ${n} boss state${n !== 1 ? 's' : ''} written</div>`;
-      document.body.appendChild(toast);
-      setTimeout(() => { toast.classList.add("gold-toast-out"); setTimeout(() => toast.remove(), 380); }, 2500);
+    $("t-flag-log-btn") && $("t-flag-log-btn").addEventListener("click", () => {
+      STATE.screen = "teacher-flag-log";
+      STATE.flagLogGuild = null;
       mount();
     });
+
     $("t-class-settings-btn") && $("t-class-settings-btn").addEventListener("click", () => { STATE.classSettingsOpen = true; mount(); });
     if (STATE.classSettingsOpen) {
       const closeCS = () => { STATE.classSettingsOpen = false; mount(); };
@@ -8106,6 +8379,13 @@ function bindEvents() {
 
   if (STATE.screen === "teacher-judgment-hall") {
     $("jh-back") && $("jh-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; mount(); });
+    $("fl-back") && $("fl-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; mount(); });
+    document.querySelectorAll(".fl-guild-tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        STATE.flagLogGuild = btn.dataset.flGuild || null;
+        mount();
+      });
+    });
 
     // Pass / Fail toggle buttons
     document.querySelectorAll("[data-jhk][data-jhr]").forEach(btn => {
@@ -8132,24 +8412,19 @@ function bindEvents() {
       });
     });
 
-    // Mark all pass per boss group
+    // Mark all pass per gate boss group
     document.querySelectorAll("[data-jh-bulk]").forEach(btn => {
       btn.addEventListener("click", () => {
         const bossKey = btn.dataset.jhBulk;
         const land = LANDS[0];
+        if (land.standardBosses?.[bossKey]) return; // std bosses auto-resolve, no bulk-mark
         const periods = CLASS_DATA.periods || [];
         const allStudents = periods.flatMap(p => (p.students || []));
         allStudents.forEach(student => {
           const markKey = `${bossKey}_${student.id}`;
           const cur = STATE.judgmentHallMarks[markKey] || {};
-          const isStd = !!land.standardBosses?.[bossKey];
-          const state = isStd
-            ? getStdBossState(String(student.id), bossKey)
-            : getGateBossState(String(student.id), bossKey);
-          const isAwaiting = isStd
-            ? state.status === 'awaiting_judgment'
-            : (state.status === 'active' || state.status === 'awaiting_judgment');
-          if (isAwaiting) {
+          const state = getGateBossState(String(student.id), bossKey);
+          if (state.status === 'active' || state.status === 'awaiting_judgment') {
             STATE.judgmentHallMarks[markKey] = { ...cur, result:'pass' };
           }
         });
@@ -8168,13 +8443,8 @@ function bindEvents() {
         const studentId = key.slice(sep + 1);
         const isStd = !!land.standardBosses?.[bossKey];
         if (isStd) {
-          const boss = land.standardBosses[bossKey];
-          const cur = getStdBossState(studentId, bossKey);
-          const isLast = cur.encounterCount >= boss.sessions.length;
-          const newStatus = mark.result === 'pass'
-            ? (isLast ? 'defeated' : 'fightable')
-            : 'failed';
-          setStdBossState(studentId, bossKey, { ...cur, status:newStatus, failedAt: mark.result === 'fail' ? new Date().toISOString() : null });
+          // Standard bosses auto-resolve — skip any stale marks
+          return;
         } else if (land.gateBosses?.[bossKey]) {
           const cur = getGateBossState(studentId, bossKey);
           const newStatus = mark.result === 'pass' ? 'defeated' : 'failed';
@@ -8404,13 +8674,55 @@ function bindEvents() {
     // Boss intro overlay close
     $("boss-intro-close") && $("boss-intro-close").addEventListener("click", () => { STATE.bossIntroOpen = false; mount(); });
     $("boss-intro-overlay") && $("boss-intro-overlay").addEventListener("click", e => { if (e.target === $("boss-intro-overlay")) { STATE.bossIntroOpen = false; mount(); } });
-    // "My Battle Is Complete" — submit for teacher review
+    // "My Battle Is Complete"
     $("boss-complete-btn") && $("boss-complete-btn").addEventListener("click", () => {
       const tile = STATE.bossTile;
       const land = STATE.bossLand || LANDS[0];
+      const student = STATE.student;
       if (!tile) return;
-      setBossStatus(STATE.student.id, `${land.id}_${tile.id}`, 'submitted');
-      mount();
+      if (tile.type === 'dungeon') {
+        // Dungeon (Warden): submit for teacher review as before
+        setBossStatus(student.id, `${land.id}_${tile.id}`, 'submitted');
+        mount();
+        return;
+      }
+      // Standard boss: immediately award full rewards — no teacher judgment step
+      const bossKey = `${land.id}_${tile.id}`;
+      const isFirstBoss = !hasCompletedAnyBoss(student);
+      setBossStatus(student.id, bossKey, 'confirmed');
+      const pos = getLandPos(student);
+      const completed = [...(pos.completed||[])];
+      if (!completed.includes(tile.id)) completed.push(tile.id);
+      saveStudentOverride(student.id, { completedTiles: completed });
+      logActivity(student.id, '⚔️', `Defeated ${tile.name}!`);
+      const _pathOrder = land.pathOrder || [];
+      const _isFinalBoss = _pathOrder.length > 0 && tile.id === _pathOrder[_pathOrder.length - 1];
+      advanceStudentTile(student, land);
+      unlockCosmeticsForBoss(student, tile.name);
+      const _bossLandName = land && land.name;
+      awardGold(student, 20);
+      logActivity(student.id, '🪙', `Earned 20 Gold for defeating ${tile.name}!`);
+      const _afterBossGold = _isFinalBoss
+        ? () => triggerLandTravel(student, land)
+        : () => { STATE.screen = "quest-map"; mount(); };
+      let companionFile = null;
+      if (isFirstBoss) {
+        companionFile = randFrom(companionsByRarity("common")).file;
+      }
+      const _doBossLoot = () => {
+        if (_bossLandName) {
+          awardFromPool(student, _bossLandName, 'epic');
+          awardSeasonalBadge(student);
+          checkAndAwardSpecialBadges(student);
+        }
+        if (companionFile) {
+          awardCompanion(student, companionFile);
+          showCompanionReveal(companionFile, () => showGoldToast(20, _afterBossGold));
+        } else {
+          showGoldToast(20, _afterBossGold);
+        }
+      };
+      if (!tryMysteryDrop(student, 'boss', _doBossLoot)) _doBossLoot();
     });
     $("boss-fight-btn") && $("boss-fight-btn").addEventListener("click", () => {
       const url = STATE.bossTile?.pearUrl || "https://app.peardeck.com";
