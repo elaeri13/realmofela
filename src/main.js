@@ -209,6 +209,8 @@ const MYSTERY_POOL = [
   { id:'mys_fr_phoenix_flame',  type:'frame', displayName:'Phoenix Flame Frame',  assetPath:'/cosmetics/frames/legendary/phoenix-flame.png',  flavorText:'Born from ashes, reborn in glory...' },
   { id:'mys_fr_starfall',       type:'frame', displayName:'Starfall Frame',       assetPath:'/cosmetics/frames/legendary/starfall.png',       flavorText:'A constellation descended just for you...' },
   { id:'mys_fr_void_portal',    type:'frame', displayName:'Void Portal Frame',    assetPath:'/cosmetics/frames/legendary/void-portal.png',    flavorText:'A rift between worlds, captured in glass...' },
+  // ── Gold Pouch ───────────────────────────────────────────────────────────
+  { id:'gold_pouch', type:'gold', displayName:'Gold Pouch', flavorText:'A windfall from the Realm — 25 Gold!' },
 ];
 
 // Per-event mystery drop rates — tune these without touching drop logic
@@ -252,19 +254,6 @@ const STANDARD_NAMES = {
   "RI.5.8": "Reasoning and Evidence",
 };
 /* ─── SIDE QUESTS ─── */
-const LAND1_SOLO_QUESTS = {
-  5:  { title:"Metaphor Map",       desc:"Draw one metaphor from Garvey's Choice two ways — what it literally says, and what it really means.", xp:10 },
-  9:  { title:"The Implied Scene",  desc:"Draw a scene the text never directly describes — only implies. Label the text evidence that led you there.", xp:10 },
-  13: { title:"Central Idea Cover", desc:"Design a book cover for one nonfiction passage from this module that captures its central idea in a single image.", xp:10 },
-  17: { title:"Two Sides",          desc:"Draw two characters side-by-side showing one thing that makes them alike and one thing that makes them different.", xp:10 },
-  20: { title:"Theme as Symbol",    desc:"Illustrate a text's theme as a symbol, not a scene — force the abstract idea into one image.", xp:10 },
-  27: { title:"Trophy Shelf",       desc:"Draw a trophy shelf — one object representing each skill you mastered this unit.", xp:10 },
-  26: { title:"Your Story",         desc:"Illustrate a scene from your own piece of writing.", xp:10 },
-};
-const _SOLO_FALLBACK = { title:"Art Quest", desc:"", xp:10 };
-function resolveSoloQuest(tileId, _idx) {
-  return LAND1_SOLO_QUESTS[tileId] || _SOLO_FALLBACK;
-}
 const COLLAB_QUESTS = [
   { title:"Guild Scholars",     desc:"Discuss the main idea with a partner. Agree on one key point together.",         xp:15 },
   { title:"Peer Forge",         desc:"Share your written response with a partner and give each other one piece of feedback.", xp:15 },
@@ -280,6 +269,40 @@ const COLLAB_QUEST_TEMPLATES = [
   { title:"Evidence Hunter",      template:"With a partner, find two different quotes that could each support the main idea — compare which one is stronger and why.", xp:15 },
   { title:"Storyteller's Circle", template:"In a small group, retell [TEXT]'s key event in order — each person adds the next part.", xp:15 },
 ];
+/* ─── LOOT TILE CHALLENGES ─── */
+const LOOT_CHALLENGES = {
+  28: {
+    flavorText: "A weathered plaque clings to the cavern wall. The inscription reads: \"The bravest reader does not just decode — they question, connect, and create meaning from the unknown.\"",
+    questions: [
+      {
+        q: "What does the word 'decode' most likely mean in this inscription?",
+        choices: ["To hide a message", "To figure out the meaning of something", "To write in a secret code", "To memorize words"],
+        answer: 1
+      },
+      {
+        q: "According to the inscription, what makes a reader brave?",
+        choices: [
+          "Reading as fast as possible",
+          "Only questioning the author",
+          "Questioning, connecting, and creating meaning",
+          "Memorizing every word"
+        ],
+        answer: 2
+      },
+      {
+        q: "What does 'create meaning from the unknown' suggest a good reader does?",
+        choices: [
+          "Skips parts they don't understand",
+          "Uses clues and thinking to understand new ideas",
+          "Only reads books they already know",
+          "Asks someone else to explain everything"
+        ],
+        answer: 1
+      }
+    ]
+  }
+};
+
 function resolveCollabQuest(tileId, tile) {
   const idx = Math.abs(tileId * 17 + 31) % COLLAB_QUEST_TEMPLATES.length;
   const tmpl = COLLAB_QUEST_TEMPLATES[idx];
@@ -544,6 +567,30 @@ function hasCompletedAnyBoss(student) {
   return LANDS.some(land => land.tiles.some(t => t.type==="boss" && completed.includes(t.id)));
 }
 
+/* ─── LOOT BRANCH GENERATOR ─── */
+// Derives loot branch placements from a land's pathOrder automatically.
+// Rule: starting from each gate/master boss, a loot branch attaches off every
+// 2nd subsequent main-path tile until the next gate/master boss resets the count.
+// Returns [{counter, branchOffOf: tileId}] — positions must be assigned manually.
+function generateLootBranches(land) {
+  const order    = land.pathOrder || [];
+  const tileById = Object.fromEntries((land.tiles || []).map(t => [t.id, t]));
+  const gateIds  = new Set(land.gateBosses ? Object.values(land.gateBosses).map(gb => gb.session) : []);
+  const masterIds= new Set((land.tiles || []).filter(t => t.type === 'dungeon').map(t => t.id));
+  const branches = [];
+  let sinceGate  = null;
+  let n = 0;
+  order.forEach(tid => {
+    const tile = tileById[tid];
+    if (!tile) return;
+    if (gateIds.has(tid) || masterIds.has(tid)) { sinceGate = 0; return; }
+    if (sinceGate === null) return;
+    sinceGate += 1;
+    if (sinceGate % 2 === 0) branches.push({ counter: ++n, branchOffOf: tid });
+  });
+  return branches;
+}
+
 /* ─── QUEST BOARD DATA ─── */
 const QB = { W:1050, H:430, TILE:80, DTILE:96, LTILE:66 };
 const LW = { W:1050, H:560, TILE:88, BTILE:96, DTILE:132, ETILE:120, LTILE:72, NPTILE:120 };
@@ -555,107 +602,124 @@ const LANDS = [
     W:1195, H:980,
     mainPaths:[
       "M 65 70 L 195 70 L 325 70 L 455 70 L 585 70 L 715 70 L 845 70",
-      "M 845 70 C 895 70 895 350 845 350",
+      "M 845 70 L 845 350",
       "M 845 350 L 715 350 L 585 350 L 455 350 L 325 350 L 195 350 L 65 350",
-      "M 65 350 C 15 350 15 630 65 630",
-      "M 65 630 L 195 630 L 325 630 L 455 630 L 585 630 L 715 630 L 845 630 L 975 630",
+      "M 65 350 L 65 630",
+      "M 65 630 L 195 630 L 325 630 L 455 630 L 585 630 L 715 630 L 845 630",
+      "M 845 630 L 845 910",
+      "M 845 910 L 715 910 L 585 910 L 455 910 L 325 910 L 195 910",
     ],
     branchPaths:[
-      // Top loot loop: S5→S6→S8→S7 rectangle
-      "M 585 70 L 585 210",
-      "M 585 210 L 715 210",
-      "M 715 210 L 715 70",
-      // Middle loot chain: S11→S12→S14→S13
-      "M 715 350 L 715 490",
-      "M 715 490 L 455 490",
-      "M 455 490 L 455 420 L 585 420 L 585 350",
-      // Bottom loot chain: S20→S21→S23→Warden
-      "M 195 630 L 195 750",
-      "M 195 750 L 455 750",
-      "M 455 750 L 455 700 L 325 700 L 325 630",
+      // Loot branches (optional) — pathType:"loot"
+      "M 585 350 L 585 490",         // id:28 off S9
+      "M 455 350 L 455 210",         // id:30 off S10
+      "M 325 630 L 325 490",         // id:31 off S15
+      "M 715 630 L 715 490",         // id:32 off S18
+      "M 845 630 L 975 630",         // id:33 off S19
+      "M 455 910 L 455 750",         // id:34 off Warden
+      "M 845 910 L 975 910",         // id:35 off S20
     ],
     decorations:[],
     tiles:[
-      // ── Row 0: main path L→R (S1–S5, S7, S9) ──
-      {id: 1, type:"arrival",  name:"The Vale's Welcome",    x:65,   y:70},
-      {id: 2, type:"lesson",   name:"S2",  x:195,  y:70,
+      // ── Row 0 (y=70, L→R): S1 S2 S3 S4 S5 S6(Forge) S6b(StudyHall) ──
+      {id: 1, type:"arrival", pathType:"main",  name:"The Vale's Welcome",    x:65,   y:70},
+      {id: 2, type:"lesson", pathType:"main",   name:"S2",  x:195,  y:70,
         video:"https://app.nearpod.com/?pin=E8SWM",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id: 3, type:"lesson",   name:"S3",  x:325,  y:70,
+      {id: 3, type:"lesson", pathType:"main",   name:"S3",  x:325,  y:70,
         video:"https://wayground.com/join?gc=13389177",
         sessionLore:"Two paths break from the ridge here, but they lead to the same clearing. Follow one traveler's footprints, then the other's — where they walk close together, where they pull apart, what calls each of them home. The Vale doesn't ask you to choose between them. It asks you to notice how two stories can walk side by side without ever becoming the same story.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id: 4, type:"lesson",   name:"S4",  x:455,  y:70,
+      {id: 4, type:"lesson", pathType:"main",   name:"S4",  x:455,  y:70,
         video:"https://wayground.com/join?gc=33470713",
         sessionLore:"The wind in this stretch doesn't just blow — it whispers, it races, it forgets itself in the tall grass. Nothing here means only what it says. Sit still long enough, and the sky, the swing, the grass beneath you will tell you things plain words never could.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id: 5, type:"lesson",   name:"S5",  x:585,  y:70,
+      {id: 5, type:"lesson", pathType:"main",   name:"S5",  x:585,  y:70,
         video:"https://wayground.com/join?gc=40764153",
         sessionLore:"She drifts between the trees like smoke that forgot how to fade. Her crown is still there, tilted, dull with dust. Villagers say she once ruled this whole Vale — that the rivers answered to her voice, that the Warden's stones didn't stand here until he did. Now she barely seems to remember her own name. Watch her carefully. Something took more from her than her throne.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id: 7, type:"lesson",   name:"S7",  x:715,  y:70,
+      {id: 7, type:"lesson", pathType:"main",   name:"S7",  x:845,  y:350,
         sessionLore:"The road ahead is barred — not by claws or fire, but by something older and quieter, wrapped in dust and dust's silence. Abysmara doesn't fight like the others. She tests. Everything you've learned in this stretch of the Vale, she weighs at once, without blinking. Pass, and the way opens. Fail, and you'll stand before her again.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id: 9, type:"lesson",   name:"S9",  x:845,  y:70,
+      {id: 9, type:"lesson", pathType:"main",   name:"S9",  x:585,  y:350,
         sessionLore:"The presence in the trees is close again. You've beaten it back once — the Vale wants to know if it was luck.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      // ── Row 2: main path R→L (S10–S11, S13, S15–S18) ──
-      {id:10, type:"lesson",   name:"S10", x:845,  y:350,
+      // ── Row 1 (y=350, R→L): S7(Abysmara) S8(Camp) S9 S10 S11 S12(Forge) S12b(StudyHall) ──
+      {id:10, type:"lesson", pathType:"main",   name:"S10", x:455,  y:350,
         sessionLore:"At the heart of the ruins stands a single stone, untouched by the rot spreading around it. Villagers whisper it holds the whole structure up — pull it loose, and everything built on top comes down with it. You haven't earned the right to touch it yet. But you've seen it now.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:11, type:"lesson",   name:"S11", x:715,  y:350,
+      {id:11, type:"lesson", pathType:"main",   name:"S11", x:325,  y:350,
         sessionLore:"The stone hums under your palm — waiting to see if you understand what it's holding together, or if you'll bring the whole ruin down trying.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:13, type:"lesson",   name:"S13", x:585,  y:350,
+      {id:13, type:"lesson", pathType:"main",   name:"S13", x:65,   y:630,
         sessionLore:"Feraxis doesn't ask what you remember. He asks what you can prove. Everything from this Module lies open before him, and he misses nothing. Show him you've earned the next chapter.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:15, type:"lesson",   name:"S15", x:455,  y:350,
+      {id:15, type:"lesson", pathType:"main",   name:"S15", x:325,  y:630,
         sessionLore:"Somewhere past the tree line, a shape moves through the underbrush — story-shaped, but not finished yet. You catch only pieces of it: a beginning here, a middle there. It isn't ready to be fought. Neither, yet, are you.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:16, type:"lesson",   name:"S16", x:325,  y:350,
+      {id:16, type:"lesson", pathType:"main",   name:"S16", x:455,  y:630,
         sessionLore:"She's harder to reach this time — more shadow than queen, her half-song sharper, almost a warning. Whatever's eating away at her is getting worse. You don't have much time left to reach who she used to be.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:17, type:"lesson",   name:"S17", x:195,  y:350,
+      {id:17, type:"lesson", pathType:"main",   name:"S17", x:585,  y:630,
         sessionLore:"Two tales drift past each other on the wind here, neither quite landing. You'll need sharper eyes than this to hold them both at once. Not today — but the Vale is taking notes on how closely you're watching.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:18, type:"lesson",   name:"S18", x:65,   y:350,
+      {id:18, type:"lesson", pathType:"main",   name:"S18", x:715,  y:630,
         sessionLore:"More faces in the water this time — more masks to sort through. You've learned the trick once. Prove it wasn't luck.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      // ── Row 4: main path L→R (S19–S20, Warden, Scribe's Calling) ──
-      {id:19, type:"lesson",   name:"S19", x:65,   y:630,
+      // ── Row 2 (y=630, L→R): S13(Feraxis) S14(Camp) S15 S16 S17 S18 S19 ──
+      {id:19, type:"lesson", pathType:"main",   name:"S19", x:845,  y:630,
         sessionLore:"Third time facing the water, and it still tries to trick you into seeing only one face instead of many. This is the last time it gets to try.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:20, type:"lesson",   name:"S20", x:195,  y:630,
+      {id:20, type:"lesson", pathType:"main",   name:"S20", x:845,  y:910,
         sessionLore:"Barely a queen at all now — more hollow than not. Whatever crowned her is nearly gone. This might be the last chance to reach her before there's nothing left to save.",
         mustDo:["Completed Must Do activities in workbook"], shouldDo:["Completed Should Do activity"], aspireTo:["Completed optional Aspire To activity"]},
-      {id:27, type:"dungeon",  name:"The Warden of the Vale", x:325, y:630, portrait:"boss_warden.png",
+      {id:27, type:"dungeon", pathType:"main",  name:"The Warden of the Vale", x:455, y:910, portrait:"boss_warden.png",
         lore:"This is where he's ruled since he took the Vale — stone throne, stone crown, stone heart. The Warden doesn't ask if you're ready. He was never going to wait.",
         loreDefeated:"The stone cracks. Then it splits. Where the Warden stood, the air goes quiet — quiet enough to hear a song finally finish.",
         loreSeraphine:"The mist lifts off her like a held breath finally let go. The crown on her brow catches light for the first time in longer than she can say. 'You gave me back what he took,' she says. 'Now let me give you what you'll need next.' She leads you from the ruins toward a quiet room lit by candlelight, where a figure waits at a desk stacked high with unfinished pages."},
-      {id:26, type:"event",    name:"The Scribe's Calling",  x:975,  y:630},
-      // ── Loot branches — each pair branches independently from their hub tile ──
-      // Row 1 (y=210): S6 + S8 branch from S5 (lesson before Abysmara), rejoin at S7
-      {id: 6, type:"loot", name:"S6",  skill:"Should Do", x:585,  y:210, parentTileId: 5, nextTile: 7,
+      {id:26, type:"event", pathType:"main",    name:"The Scribe's Calling",  x:195,  y:910},
+      // ── Main path: Writer's Craft (forge), Study Hall, Camp ──
+      // Module 1 (Row 0 slots 5-6): S6(forge)→S6b(studyHall)
+      {id: 6, type:"forge", pathType:"main",     name:"S6",  x:715, y:70,
         sessionLore:"The Forge doesn't fight for you — it sharpens what you already carry. Every sentence you shape here is a blade for later."},
-      {id: 8, type:"loot", name:"S8",  skill:"Aspire To", x:715,  y:210, parentTileId: 5, nextTile: 7,
+      {id:50, type:"studyHall", pathType:"main", name:"S6b", x:845, y:70,
+        sessionLore:"Everything you've built in this module comes together here. Review, sharpen, and get ready — the Gate Boss is waiting."},
+      {id: 8, type:"camp", pathType:"main",      name:"S8",  x:715, y:350,
         sessionLore:"A small shape flinches back into the underbrush when you sit down — golden eyes, too thin, watching you eat before it dares get close. It doesn't trust the Vale's visitors yet. Can't blame it."},
-      // Row 3 (y=490): S12 unlocked by S11, S14 unlocked by S12, chain rejoins at S13
-      {id:12, type:"loot", name:"S12", skill:"Should Do", x:715,  y:490, parentTileId:11, nextTile:14,
+      // Module 2 (Row 1 slots 5-6): S12(forge)→S12b(studyHall)
+      {id:12, type:"forge", pathType:"main",     name:"S12", x:195, y:350,
         sessionLore:"Back to the anvil. What you write here travels with you long after this session ends."},
-      {id:14, type:"loot", name:"S14", skill:"Aspire To", x:455,  y:490, parentTileId:12, nextTile:13,
-        sessionLore:"Pip's closer tonight. Still jumpy at loud noises, but it's started stealing bites from your pack when it thinks you're not looking."},
-      // Row 5 (y=750): S21 unlocked by S20, S23 unlocked by S21, chain rejoins at Warden
-      {id:21, type:"loot", name:"S21", skill:"Should Do", x:195,  y:750, parentTileId:20, nextTile:40,
+      {id:51, type:"studyHall", pathType:"main", name:"S12b", x:65,  y:350,
+        sessionLore:"This is the review session before Feraxis. Everything from Module 2 is fair game — take stock of what you know."},
+      // Module 2 camp (Row 2 slot 1): S14(camp)
+      {id:14, type:"camp", pathType:"main",      name:"S14", x:195, y:630,
+        sessionLore:"Pip's closer tonight. Still jumpy at loud noises, but it's started stealing bites from your pack when it thinks you're not looking.",
+        standardsMastery:{ standard:"RI.5.2", form:"A", enabled:true }},
+      // Module 3 (Row 3 slots 1-2): S21(forge)→S21b(studyHall); Row 3 slot 4: S23(camp)
+      {id:21, type:"forge", pathType:"main",     name:"S21", x:715, y:910,
         sessionLore:"Last stop at the anvil before the Vale's final test. Sharpen everything — you'll need it."},
-      {id:40, type:"loot", name:"S23", skill:"Aspire To", x:455,  y:750, parentTileId:21, nextTile:27,
+      {id:52, type:"studyHall", pathType:"main", name:"S21b", x:585, y:910,
+        sessionLore:"The Warden is close. Use this session to gather yourself — review everything the Vale has asked of you."},
+      {id:40, type:"camp", pathType:"main",      name:"S23", x:325, y:910,
         sessionLore:"Pip curls up against the fire without flinching this time. Whatever's been chasing it feels farther away lately. So does the Warden."},
+      // ── Loot branches (pathType:"loot") — placeholder; content TBD ──
+      // After Abysmara gate (module 2)
+      {id:28, type:"loot", pathType:"loot", name:"L1-Loot-1", x:585,  y:490, parentTileId:9},
+      // After Feraxis gate (module 3)
+      {id:30, type:"loot", pathType:"loot", name:"L1-Loot-3", x:455,  y:210, parentTileId:10},
+      {id:31, type:"loot", pathType:"loot", name:"L1-Loot-4", x:325,  y:490, parentTileId:15},
+      {id:32, type:"loot", pathType:"loot", name:"L1-Loot-5", x:715,  y:490, parentTileId:18},
+      // After Warden (scribe area)
+      {id:33, type:"loot", pathType:"loot", name:"L1-Loot-6", x:975,  y:630, parentTileId:19},
+      {id:34, type:"loot", pathType:"loot", name:"L1-Loot-7", x:455,  y:750, parentTileId:27},
+      {id:35, type:"loot", pathType:"loot", name:"L1-Loot-8", x:975,  y:910, parentTileId:20},
       // ── NPC tiles ──
-      {id:36, type:"npc", npcKey:"thornkin_hint",          x:195,  y:210, landId:1},
-      {id:37, type:"npc", npcKey:"thornkin_lore",          x:325,  y:210, landId:1},
-      {id:38, type:"npc", npcKey:"thornkin_encouragement", x:65,   y:490, landId:1},
-      {id:39, type:"npc", npcKey:"thornkin_easter",        x:325,  y:490, landId:1},
+      {id:36, type:"npc", npcKey:"thornkin_hint",          x:975,  y:350, landId:1},
+      {id:37, type:"npc", npcKey:"thornkin_lore",          x:585,  y:210, landId:1},
+      {id:38, type:"npc", npcKey:"thornkin_encouragement", x:195,  y:490, landId:1},
+      {id:39, type:"npc", npcKey:"thornkin_easter",        x:715,  y:750, landId:1},
     ],
-    pathOrder:[1,2,3,4,5,7,9,10,11,13,15,16,17,18,19,20,27,26],
+    pathOrder:[1,2,3,4,5,6,50,7,8,9,10,11,12,51,13,14,15,16,17,18,19,20,21,52,27,40,26],
     standardBosses:{
       duskmantle: { standard:"RL.5.1", portrait:"boss_duskmantle.png", sessions:[2,9]     },
       mirrorkin:  { standard:"RL.5.3", portrait:"boss_mirrowick.png",  sessions:[3,18,19] },
@@ -1262,12 +1326,11 @@ function updateBossStateOnTileComplete(student, tileId, land) {
       } else {
         const isLastSession = sessionIdx === boss.sessions.length - 1;
         if (isLastSession) {
-          // Auto-defeat on final encounter session — no teacher judgment needed
+          // All encounters done — mark mastery available; teacher confirms to earn trophy
           setStdBossState(sid, bk, {
-            status:'defeated',
+            status:'mastery_available',
             encounterCount: Math.max(cur.encounterCount, sessionIdx + 1),
             lastAttemptSession:tileId, failedAt:null,
-            defeatedAt: new Date().toISOString().slice(0,19),
           });
         } else {
           // Intermediate encounter — track without blocking student
@@ -1351,6 +1414,43 @@ function clearHelpFlag(id) {
   delete _helpflags[sid];
   set(ref(db, `helpflags/${sid}`), null).catch(console.error);
 }
+function saveLessonFail(studentId, tileId) {
+  const sid = String(studentId);
+  const existing = (_overrides[sid] || {}).lessonFails || {};
+  saveStudentOverride(sid, { lessonFails: Object.assign({}, existing, { [String(tileId)]: { failedAt: new Date().toISOString() } }) });
+}
+function clearLessonFail(studentId, tileId) {
+  const sid = String(studentId);
+  const existing = (_overrides[sid] || {}).lessonFails || {};
+  const updated = Object.assign({}, existing);
+  delete updated[String(tileId)];
+  saveStudentOverride(sid, { lessonFails: updated });
+}
+function saveBossReteachNeeded(studentId, tileId) {
+  const sid = String(studentId);
+  const existing = (_overrides[sid] || {}).needsReteach || {};
+  saveStudentOverride(sid, { needsReteach: Object.assign({}, existing, { [String(tileId)]: { setAt: new Date().toISOString() } }) });
+}
+function clearStudentFlag(id, flagKey, context) {
+  const sid = String(id);
+  if (flagKey === 'help') { clearHelpFlag(sid); return; }
+  if (flagKey === 'lesson_fail') { saveStudentOverride(sid, { lessonFails: {} }); logActivity(sid, '🗑️', 'Lesson fail flag cleared by teacher'); return; }
+  const existing = (_overrides[sid] || {}).flagDismissals || {};
+  let updated;
+  if (flagKey === 'failed_boss' && context) {
+    const perBoss = Object.assign({}, existing.failed_boss || {});
+    context.split(',').forEach(bk => {
+      perBoss[bk.trim()] = { clearedAt: new Date().toISOString(), clearedBy: 'teacher' };
+    });
+    updated = Object.assign({}, existing, { failed_boss: perBoss });
+  } else {
+    updated = Object.assign({}, existing, {
+      [flagKey]: { clearedAt: new Date().toISOString(), clearedBy: 'teacher', context: context || null }
+    });
+  }
+  saveStudentOverride(sid, { flagDismissals: updated });
+  logActivity(sid, '🗑️', `Flag cleared by teacher: ${flagKey}${context ? ` (${context})` : ''}`);
+}
 function _countSchoolDays(fromIso, toDate) {
   if (!fromIso) return 0;
   const from = new Date(fromIso); from.setHours(0,0,0,0);
@@ -1372,6 +1472,32 @@ function getStudentFlags(student) {
   const completed = (ov.completedTiles || student.completedTiles || []).map(Number);
   const bossStatus = ov.bossStatus || {};
   const today = new Date();
+  // 🤚 NEEDS HELP — most urgent, appears topmost
+  if (_helpflags[sid]) {
+    const msg = _helpflags[sid].message;
+    flags.push({ key:'help', icon:'🤚', color:'#EA580C', label:'Needs Help', tip:`Needs help${msg ? ': ' + msg : ''}` });
+  }
+  // ❌ FAILED BOSS — any bossStatus === 'retake'
+  if (Object.values(bossStatus).some(v => v === 'retake')) {
+    flags.push({ key:'failed_boss', icon:'❌', color:'#991B1B', label:'Failed Boss', tip:'Failed a boss fight — needs to retake' });
+  }
+  // 📚 NEEDS PRACTICE — self-reported lesson fail
+  const _lessonFails = (_overrides[sid] || {}).lessonFails || {};
+  const _failCount = Object.keys(_lessonFails).length;
+  if (_failCount > 0) {
+    const _failTip = _failCount === 1
+      ? 'Self-reported needs more practice on a lesson'
+      : `Self-reported needs more practice on ${_failCount} lessons`;
+    flags.push({ key:'lesson_fail', icon:'📚', color:'#D97706', label:'Needs Practice', tip:_failTip });
+  }
+  // 🚩 STUCK — 2+ main-path tiles behind Expected Tile
+  if (calcHP(student) <= 6) {
+    flags.push({ key:'stuck', icon:'🚩', color:'#DC2626', label:'Stuck', tip:'2 or more tiles behind Expected Tile' });
+  }
+  // ⏳ AWAITING JUDGMENT — any bossStatus === 'submitted'
+  if (Object.values(bossStatus).some(v => v === 'submitted')) {
+    flags.push({ key:'awaiting', icon:'⏳', color:'#7C3AED', label:'Awaiting Review', tip:'Submitted work awaiting teacher review' });
+  }
   // ⚡ RUSHED — consecutive tile completions less than 5 minutes apart
   let _rushed = false;
   for (let _i = 1; _i < completed.length; _i++) {
@@ -1382,29 +1508,7 @@ function getStudentFlags(student) {
     if (_delta >= 0 && _delta < 300) { _rushed = true; break; }
   }
   if (_rushed) {
-    flags.push({ key:'rushed', icon:'⚡', color:'#CA8A04', tip:'Completed tiles less than 5 minutes apart' });
-  }
-  // 🚩 STUCK — no advancement in 3+ school days
-  if (completed.length > 0) {
-    const lastTileId = completed[completed.length - 1];
-    const lastTs = ts[String(lastTileId)];
-    const schoolDays = _countSchoolDays(lastTs ? lastTs.completedAt : null, today);
-    if (schoolDays >= 3) {
-      flags.push({ key:'stuck', icon:'🚩', color:'#DC2626', tip:`No tile advancement in ${schoolDays} school days` });
-    }
-  }
-  // ❌ FAILED BOSS — any bossStatus === 'retake'
-  if (Object.values(bossStatus).some(v => v === 'retake')) {
-    flags.push({ key:'failed_boss', icon:'❌', color:'#7F1D1D', tip:'Failed a boss fight — needs to retake' });
-  }
-  // ⏳ AWAITING JUDGMENT — any bossStatus === 'submitted'
-  if (Object.values(bossStatus).some(v => v === 'submitted')) {
-    flags.push({ key:'awaiting', icon:'⏳', color:'#7C3AED', tip:'Submitted work awaiting teacher review' });
-  }
-  // 🤚 NEEDS HELP
-  if (_helpflags[sid]) {
-    const msg = _helpflags[sid].message;
-    flags.push({ key:'help', icon:'🤚', color:'#EA580C', tip:`Needs help${msg ? ': ' + msg : ''}` });
+    flags.push({ key:'rushed', icon:'⚡', color:'#B45309', label:'Rushed', tip:'Completed tiles less than 5 minutes apart' });
   }
   return flags;
 }
@@ -1417,23 +1521,6 @@ function saveGradeLog(studentId, lessonId, rawGrade, convertedHP) {
   const entry = { rawGrade, convertedHP, timestamp: new Date().toISOString() };
   set(ref(db, `gradeLog/${sid}/${lessonId}`), entry).catch(console.error);
 }
-function saveGradeReminder(studentId, lessonId) {
-  const sid = String(studentId);
-  if (!_overrides[sid]) _overrides[sid] = {};
-  if (!_overrides[sid].gradeReminders) _overrides[sid].gradeReminders = {};
-  _overrides[sid].gradeReminders[String(lessonId)] = true;
-  set(ref(db, `overrides/${sid}/gradeReminders/${lessonId}`), true).catch(console.error);
-}
-function clearGradeReminder(studentId, lessonId) {
-  const sid = String(studentId);
-  if (_overrides[sid] && _overrides[sid].gradeReminders) {
-    delete _overrides[sid].gradeReminders[String(lessonId)];
-  }
-  set(ref(db, `overrides/${sid}/gradeReminders/${lessonId}`), null).catch(console.error);
-}
-function getGradeReminders(studentId) {
-  return (_overrides[String(studentId)] || {}).gradeReminders || {};
-}
 function getCraftRequests() { return Object.assign({}, _craftRequests); }
 function requestCraft(studentId, itemKey) {
   const sid = String(studentId);
@@ -1443,14 +1530,21 @@ function requestCraft(studentId, itemKey) {
 function approveCraft(studentId) {
   const sid = String(studentId);
   const req = _craftRequests[sid] || {};
-  const itemKey = req.itemRequested || 'health_potion';
+  const itemKey = req.itemRequested || '';
   delete _craftRequests[sid];
   set(ref(db, `craftRequests/${sid}`), null).catch(console.error);
-  const ov = _overrides[sid] || {};
-  const items = [...(ov.items || []), itemKey];
-  saveStudentOverride(studentId, { items });
-  const itemDef = ITEMS[itemKey] || { i:'🧪', n: itemKey };
-  logActivity(sid, itemDef.i, `Crafted ${itemDef.n}`);
+  const recipe = CRAFT_RECIPES.find(r => r.id === itemKey);
+  if (recipe && recipe.type === 'cosmetic') {
+    const student = _overrides[sid] ? { id: Number(sid) } : { id: Number(sid) };
+    unlockCosmetic(student, itemKey);
+    logActivity(sid, '⚗️', `Crafted ${recipe.name}`);
+  } else {
+    const ov = _overrides[sid] || {};
+    const items = [...(ov.items || []), itemKey];
+    saveStudentOverride(studentId, { items });
+    const itemDef = ITEMS[itemKey] || { i:'⚗️', n: itemKey };
+    logActivity(sid, itemDef.i, `Crafted ${itemDef.n}`);
+  }
 }
 function denyCraft(studentId) {
   const sid = String(studentId);
@@ -1458,7 +1552,54 @@ function denyCraft(studentId) {
   set(ref(db, `craftRequests/${sid}`), null).catch(console.error);
 }
 function getPacingSettings() { return (_settings && _settings.pacing) || null; }
+function getExpectedTile() { return (_settings && _settings.expectedTile) || null; }
+function saveExpectedTile(tileId) {
+  if (!_settings) _settings = {};
+  _settings.expectedTile = tileId ? Number(tileId) : null;
+  set(ref(db, 'settings/expectedTile'), _settings.expectedTile).catch(console.error);
+}
+function calcHP(student) {
+  const expectedTileId = getExpectedTile();
+  if (!expectedTileId) return 10;
+  const pos = getLandPos(student);
+  const land = LANDS.find(l => l.id === pos.land) || LANDS[0];
+  const pathOrder = (land && land.pathOrder) || [];
+  const expectedIdx = pathOrder.indexOf(Number(expectedTileId));
+  if (expectedIdx === -1) return 10;
+  const allIdx = [pos.tile, ...(pos.completed || [])]
+    .map(tid => pathOrder.indexOf(Number(tid)))
+    .filter(idx => idx !== -1);
+  const studentIdx = allIdx.length > 0 ? Math.max(...allIdx) : -1;
+  const tilesBehind = studentIdx === -1 ? expectedIdx + 1 : Math.max(0, expectedIdx - studentIdx);
+  return Math.max(0, 10 - 2 * tilesBehind);
+}
 function getBossOpenKeys() { return (_settings && _settings.bossOpenKeys) || []; }
+function getCollabQuestsEnabled() { return !!(_settings && _settings.collabQuestsEnabled); }
+function getMondayIso(date) {
+  const d = new Date(date); d.setHours(0,0,0,0);
+  const day = d.getDay();
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  return d.toISOString().slice(0, 10);
+}
+function getHomeworkQuest() {
+  const hq = _settings && _settings.homeworkQuest;
+  if (!hq || !hq.enabled) return null;
+  if (hq.weekOf !== getMondayIso(new Date())) return null;
+  return hq;
+}
+function saveHomeworkQuest(enabled, text) {
+  if (!_settings) _settings = {};
+  const weekOf = getMondayIso(new Date());
+  _settings.homeworkQuest = enabled
+    ? { enabled: true, text: text || '', weekOf }
+    : { enabled: false, text: (_settings.homeworkQuest && _settings.homeworkQuest.text) || '', weekOf: '' };
+  set(ref(db, 'settings/homeworkQuest'), _settings.homeworkQuest).catch(console.error);
+}
+function saveCollabQuestsEnabled(val) {
+  if (!_settings) _settings = {};
+  _settings.collabQuestsEnabled = !!val;
+  set(ref(db, 'settings/collabQuestsEnabled'), !!val).catch(console.error);
+}
 function getProgressCap(cohortId, landId) {
   return (((_settings && _settings.progressCap) || {})[String(cohortId)] || {})[String(landId)] ?? null;
 }
@@ -1531,6 +1672,44 @@ function setExitTicket(tileId, enabled) {
   if (!_settings.sessions[String(tileId)]) _settings.sessions[String(tileId)] = {};
   _settings.sessions[String(tileId)].hasExitTicket = enabled || null;
   set(ref(db, `settings/sessions/${tileId}/hasExitTicket`), enabled || null).catch(console.error);
+}
+function getLandContentTiles(land) {
+  const CONTENT_TYPES = new Set(['lesson', 'dungeon']);
+  const tileById = Object.fromEntries((land.tiles || []).map(t => [t.id, t]));
+  return (land.pathOrder || []).map(id => tileById[id]).filter(t => t && CONTENT_TYPES.has(t.type));
+}
+function getStoredTileLinks(landId) {
+  return ((_settings.tileLinks || {})[String(landId)] || {});
+}
+function saveTileLink(landId, tileId, field, url) {
+  if (!_settings.tileLinks) _settings.tileLinks = {};
+  const lid = String(landId), tid = String(tileId);
+  if (!_settings.tileLinks[lid]) _settings.tileLinks[lid] = {};
+  if (!_settings.tileLinks[lid][tid]) _settings.tileLinks[lid][tid] = {};
+  _settings.tileLinks[lid][tid][field] = url || null;
+  set(ref(db, `settings/tileLinks/${lid}/${tid}/${field}`), url || null).catch(console.error);
+}
+function saveTileLinksBulk(landId, tiles, field, urls) {
+  if (!_settings.tileLinks) _settings.tileLinks = {};
+  const lid = String(landId);
+  const current = Object.assign({}, _settings.tileLinks[lid] || {});
+  tiles.forEach((tile, i) => {
+    const tid = String(tile.id);
+    if (!current[tid]) current[tid] = {};
+    current[tid] = Object.assign({}, current[tid], { [field]: urls[i] || null });
+  });
+  _settings.tileLinks[lid] = current;
+  set(ref(db, `settings/tileLinks/${lid}`), current).catch(console.error);
+}
+function getEffectiveWayground(land, tile) {
+  const stored = (getStoredTileLinks(land.id)[String(tile.id)] || {}).wayground;
+  return stored != null ? stored : (tile.video || '');
+}
+function getEffectivePear(land, tile) {
+  const stored = (getStoredTileLinks(land.id)[String(tile.id)] || {}).pear;
+  if (stored != null) return stored;
+  const bs = BOSS_SCHEDULE[String(tile.id)];
+  return tile.pearUrl || (bs && (bs.assessmentUrl || bs.pearUrl)) || '';
 }
 function savePacingSettings(startDate, targetDate, targetCount) {
   if (!_settings) _settings = {};
@@ -1619,7 +1798,9 @@ function completeSideQuest(student, key) {
   if (!entry) return;
   const quest = entry.type === 'collab'
     ? resolveCollabQuest(entry.tileId, findTileById(entry.tileId))
-    : resolveSoloQuest(entry.tileId, entry.questIdx);
+    : entry.type === 'homework'
+    ? { title: '📚 Weekly Homework', xp: 20 }
+    : { title: 'Art Quest', xp: 10 };
   delete sq[key];
   const history = [...(ov.completedQuests || []), {
     key, title: quest.title, type: entry.type, xp: quest.xp, landId: entry.landId || null, completedAt: new Date().toISOString()
@@ -1628,9 +1809,9 @@ function completeSideQuest(student, key) {
   logActivity(sid, '✨', `Completed quest: ${quest.title} (+${quest.xp} XP)`);
   const { levelsGained, newLevel } = awardXP(student, quest.xp);
   if (levelsGained > 0) logActivity(sid, '⬆️', `Reached Level ${newLevel}!`);
-  // Rare drop for side quest completion
-  const _sqLand = entry.landId
-    ? LANDS.find(l => l.id === entry.landId) || findLandByTileId(entry.tileId)
+  // Rare drop for side quest completion (homework quests have no land — skip drop)
+  const _sqLand = entry.type === 'homework' ? null
+    : entry.landId ? LANDS.find(l => l.id === entry.landId) || findLandByTileId(entry.tileId)
     : findLandByTileId(entry.tileId);
   if (_sqLand) {
     const _doSQLoot = () => awardFromPool(student, _sqLand.name, 'rare');
@@ -1908,6 +2089,50 @@ function completeBranchTile(student, tileId) {
   if (!completed.includes(tileId)) completed.push(tileId);
   saveStudentOverride(student.id, { completedTiles: completed });
 }
+
+function jumpStudentToTile(student, targetTileId, land) {
+  const pos = getLandPos(student);
+  const order = land.pathOrder || [];
+  const currentIdx = order.indexOf(pos.tile);
+  const targetIdx  = order.indexOf(targetTileId);
+  if (currentIdx === -1 || targetIdx === -1) return;
+
+  const skippedIds = targetIdx > currentIdx
+    ? order.slice(currentIdx + 1, targetIdx)
+    : [];
+
+  const completed = (pos.completed || []).slice();
+  const flags     = {};
+  const rewards   = {};
+  skippedIds.forEach(tid => {
+    if (!completed.includes(tid)) completed.push(tid);
+    flags[String(tid)]   = { type:"Skipped", timestamp: new Date().toISOString() };
+    rewards[String(tid)] = { goldForfeited: true };
+  });
+
+  saveStudentOverride(student.id, {
+    currentTile: targetTileId,
+    completedTiles: completed,
+    jumpFlags: Object.assign({}, (_overrides[String(student.id)] || {}).jumpFlags || {}, flags),
+    tileRewards: Object.assign({}, (_overrides[String(student.id)] || {}).tileRewards || {}, rewards),
+  });
+  const skipNote = skippedIds.length ? ` (skipped: ${skippedIds.join(', ')})` : '';
+  logActivity(student.id, '🚀', `Jumped to tile ${targetTileId}${skipNote}`);
+}
+function resetTileProgress(studentId, tileId) {
+  const sid = String(studentId);
+  const tid = String(tileId);
+  const ov  = (_overrides[sid] || {});
+  const completedTiles = (ov.completedTiles || []).filter(id => Number(id) !== Number(tileId));
+  const tp = Object.assign({}, ov.taskProgress || {});
+  delete tp[tid];
+  const needsReteach = Object.assign({}, ov.needsReteach || {});
+  delete needsReteach[tid];
+  const lessonFails = Object.assign({}, ov.lessonFails || {});
+  delete lessonFails[tid];
+  saveStudentOverride(sid, { completedTiles, taskProgress: tp, needsReteach, lessonFails });
+  logActivity(sid, '🔄', `Progress reset for tile ${tileId}`);
+}
 function tileXP(tile) {
   if (!tile) return 0;
   if (tile.type === "loot") return tile.skill === "Aspire To" ? 20 : 15;
@@ -1958,6 +2183,18 @@ function awardGold(student, amount) {
 function spendGold(student, amount) {
   const current = getGold(student);
   saveStudentOverride(student.id, { gold: Math.max(0, current - amount) });
+}
+/* ─── MATERIALS HELPERS ─── */
+function getMaterials(student) {
+  return (_overrides[String(student.id)] || {}).materials || 0;
+}
+function awardMaterials(student, amount) {
+  const current = getMaterials(student);
+  saveStudentOverride(student.id, { materials: current + amount });
+}
+function spendMaterials(student, amount) {
+  const current = getMaterials(student);
+  saveStudentOverride(student.id, { materials: Math.max(0, current - amount) });
 }
 function showGoldToast(amount, onComplete) {
   const el = document.createElement("div");
@@ -2068,8 +2305,41 @@ function renderShopModal(student) {
   const gold = getGold(student);
   const confirmItem = STATE.shopConfirmItem ? SHOP_ITEMS.find(i => i.id === STATE.shopConfirmItem) : null;
   const enabledItems = SHOP_ITEMS.filter(i => getShopItemEnabled(i.id));
+
+  // Compute guild with fewest total XP from existing student data
+  let behindGuildName = null;
+  if (CLASS_DATA && CLASS_DATA.guilds && CLASS_DATA.periods) {
+    const guildXP = {};
+    Object.keys(CLASS_DATA.guilds).forEach(k => { guildXP[k] = 0; });
+    CLASS_DATA.periods.forEach(p => {
+      (p.students || []).forEach(s => {
+        const m = getMergedStudent(s);
+        const g = m.guild || s.guild;
+        if (g && guildXP[g] !== undefined) guildXP[g] += (m.xp || 0);
+      });
+    });
+    const populated = Object.entries(guildXP).filter(([,v]) => v > 0);
+    if (populated.length > 0) {
+      const minKey = populated.reduce((a, b) => a[1] <= b[1] ? a : b)[0];
+      behindGuildName = CLASS_DATA.guilds[minKey]?.name || minKey;
+    }
+  }
+
+  const TOBBLE_QUIPS = [
+    "Everything here is completely legitimate. Mostly.",
+    behindGuildName ? `${behindGuildName}'s a little behind on points this week. Just saying.` : "Best prices in the Realm. Possibly the only prices in the Realm.",
+    "New stock! Don't ask where it came from.",
+    "You didn't see me climb in through the window.",
+    "Best prices in the Realm. Possibly the only prices in the Realm.",
+  ];
+  const tobbleQuip = TOBBLE_QUIPS[STATE.shopTobbleIdx % TOBBLE_QUIPS.length];
+
   return `<div class="shop-overlay" id="shop-overlay">
     <div class="shop-modal">
+      <div class="shop-tobble">
+        <img class="shop-tobble-portrait" src="/npcs/npc_tobble.png" alt="Tobble" onerror="this.style.display='none'"/>
+        <div class="shop-tobble-quip">"${tobbleQuip}"</div>
+      </div>
       <div class="shop-hdr">
         <span class="shop-title">🏪 Item Shop</span>
         <span class="shop-gold-bal">🪙 ${gold} Gold</span>
@@ -2174,6 +2444,12 @@ function tryMysteryDrop(student, eventType, onComplete) {
   const eligible = MYSTERY_POOL.filter(item => !owned.has(item.id));
   if (!eligible.length) return false; // pool exhausted — caller falls through to normal tier
   const item = randFrom(eligible);
+  if (item.type === 'gold') {
+    awardGold(student, 25);
+    logActivity(student.id, '🪙', `Mystery Drop! Found a Gold Pouch (+25 Gold)`);
+    showMysteryReveal(item, onComplete);
+    return true;
+  }
   unlockCosmetic(student, item.id);
   logActivity(student.id, '✨', `Mystery Drop! Unlocked: ${item.displayName}`);
   showMysteryReveal(item, onComplete);
@@ -2181,20 +2457,22 @@ function tryMysteryDrop(student, eventType, onComplete) {
 }
 function showMysteryReveal(item, onComplete) {
   const isAvatar = item.type === 'avatar';
+  const isGold   = item.type === 'gold';
   const el = document.createElement('div');
   el.className = 'mystery-reveal-overlay';
   el.innerHTML = `
     <div class="mystery-reveal-card">
       <div class="mystery-stars">✦ ✧ ✦ ✧ ✦</div>
-      <div class="mystery-reveal-eyebrow">${isAvatar ? '✨ Mystery Arrival' : '⭐ Legendary Frame'}</div>
+      <div class="mystery-reveal-eyebrow">${isGold ? '🪙 Mystery Gold' : isAvatar ? '✨ Mystery Arrival' : '⭐ Legendary Frame'}</div>
       <div class="mystery-reveal-img-wrap">
-        <img src="${item.assetPath}" alt="${item.displayName}" width="120" height="120"
-          onerror="this.style.opacity='.2'"/>
+        ${isGold
+          ? `<div style="font-size:72px;line-height:1">🪙</div>`
+          : `<img src="${item.assetPath}" alt="${item.displayName}" width="120" height="120" onerror="this.style.opacity='.2'"/>`}
         <div class="mystery-reveal-glow"></div>
       </div>
       <div class="mystery-reveal-name">${item.displayName}</div>
       ${item.flavorText ? `<div class="mystery-reveal-flavor">"${item.flavorText}"</div>` : ''}
-      <div class="mystery-reveal-sub">Added to your Cosmetics tab</div>
+      <div class="mystery-reveal-sub">${isGold ? '+25 Gold added to your wallet' : 'Find it in Crafting Table → My Items'}</div>
       <button class="mystery-reveal-btn">Claim It!</button>
     </div>`;
   document.body.appendChild(el);
@@ -2211,9 +2489,68 @@ const TITLE_OPTIONS = [
   "Seeker of Tales","Ink and Iron","Verse Walker","Archive Knight",
 ];
 
+/* ─── CRAFT RECIPES ─── */
+const RARITY_COST = { common:{materials:3,gold:15}, rare:{materials:6,gold:30}, epic:{materials:10,gold:50}, legendary:{materials:15,gold:100} };
+const CRAFT_RECIPES = [
+  // ── Weapons ──────────────────────────────────────────────────────────────────────────────────────────
+  { id:'valeblade_common',     category:'weapon', rarity:'common',    name:'Valeblade',          assetPath:'/icons/valeblade_common.png',   type:'equip' },
+  { id:'valefang_common',      category:'weapon', rarity:'common',    name:'Valefang',           assetPath:'/icons/valefang_common.png',    type:'equip' },
+  { id:'valeblade_rare',       category:'weapon', rarity:'rare',      name:'Valeblade+',         assetPath:'/icons/valeblade_rare.png',     type:'equip' },
+  { id:'valefang_rare',        category:'weapon', rarity:'rare',      name:'Valefang+',          assetPath:'/icons/valefang_rare.png',      type:'equip' },
+  { id:'valeblade_epic',       category:'weapon', rarity:'epic',      name:'Valeblade Elite',    assetPath:'/icons/valeblade_epic.png',     type:'equip' },
+  { id:'valefang_epic',        category:'weapon', rarity:'epic',      name:'Valefang Elite',     assetPath:'/icons/valefang_epic.png',      type:'equip' },
+  { id:'valeblade_legendary',  category:'weapon', rarity:'legendary', name:'Valeblade Prime',    assetPath:'/icons/valeblade_legendary.png',type:'equip' },
+  // ── Frames ───────────────────────────────────────────────────────────────────────────────────────────
+  { id:'frame_land_1',         category:'frame',  rarity:'common',    name:'Verdant Vale Frame',    assetPath:'/cosmetics/frames/land/verdant-vale.png',              type:'cosmetic' },
+  { id:'frame_land_2',         category:'frame',  rarity:'common',    name:'Stone Kingdoms Frame',  assetPath:'/cosmetics/frames/land/stone-kingdoms.png',            type:'cosmetic' },
+  { id:'frame_land_3',         category:'frame',  rarity:'common',    name:'Drowned Depths Frame',  assetPath:'/cosmetics/frames/land/drowned-depths.png',            type:'cosmetic' },
+  { id:'frame_land_4',         category:'frame',  rarity:'common',    name:'Thornwood Frame',       assetPath:'/cosmetics/frames/land/thornwood.png',                 type:'cosmetic' },
+  { id:'frame_land_5',         category:'frame',  rarity:'common',    name:'Ashen Hollows Frame',   assetPath:'/cosmetics/frames/land/ashen-hollows.png',             type:'cosmetic' },
+  { id:'frame_land_6',         category:'frame',  rarity:'common',    name:'Stormspire Frame',      assetPath:'/cosmetics/frames/land/stormspire.png',                type:'cosmetic' },
+  { id:'frame_guild_ember',    category:'frame',  rarity:'rare',      name:'Ember Guild Frame',     assetPath:'/cosmetics/frames/guild/ember.png',                    type:'cosmetic' },
+  { id:'frame_guild_tide',     category:'frame',  rarity:'rare',      name:'Tide Guild Frame',      assetPath:'/cosmetics/frames/guild/tide.png',                     type:'cosmetic' },
+  { id:'frame_guild_thorn',    category:'frame',  rarity:'rare',      name:'Thorn Guild Frame',     assetPath:'/cosmetics/frames/guild/thorn.png',                    type:'cosmetic' },
+  { id:'frame_guild_storm',    category:'frame',  rarity:'rare',      name:'Storm Guild Frame',     assetPath:'/cosmetics/frames/guild/storm.png',                    type:'cosmetic' },
+  { id:'mys_fr_ancient_relic', category:'frame',  rarity:'legendary', name:'Ancient Relic Frame',   assetPath:'/cosmetics/frames/legendary/ancient-relic.png',        type:'cosmetic' },
+  { id:'mys_fr_dragon_scale',  category:'frame',  rarity:'legendary', name:'Dragon Scale Frame',    assetPath:'/cosmetics/frames/legendary/dragon-scale.png',         type:'cosmetic' },
+  { id:'mys_fr_phoenix_flame', category:'frame',  rarity:'legendary', name:'Phoenix Flame Frame',   assetPath:'/cosmetics/frames/legendary/phoenix-flame.png',        type:'cosmetic' },
+  { id:'mys_fr_starfall',      category:'frame',  rarity:'legendary', name:'Starfall Frame',        assetPath:'/cosmetics/frames/legendary/starfall.png',             type:'cosmetic' },
+  { id:'mys_fr_void_portal',   category:'frame',  rarity:'legendary', name:'Void Portal Frame',     assetPath:'/cosmetics/frames/legendary/void-portal.png',          type:'cosmetic' },
+  // ── Avatars ──────────────────────────────────────────────────────────────────────────────────────────
+  { id:'mys_av_goblin',         category:'avatar', rarity:'common',    name:'Goblin',            assetPath:'/cosmetics/avatars/Goblin_01_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_mummy_1',        category:'avatar', rarity:'common',    name:'Mummy I',           assetPath:'/cosmetics/avatars/Mummy_01_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_mummy_2',        category:'avatar', rarity:'common',    name:'Mummy II',          assetPath:'/cosmetics/avatars/Mummy_02_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_mummy_3',        category:'avatar', rarity:'common',    name:'Mummy III',         assetPath:'/cosmetics/avatars/Mummy_03_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_skull_1',        category:'avatar', rarity:'common',    name:'Skull I',           assetPath:'/cosmetics/avatars/Skull_01_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_skull_2',        category:'avatar', rarity:'common',    name:'Skull II',          assetPath:'/cosmetics/avatars/Skull_02_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_skull_3',        category:'avatar', rarity:'common',    name:'Skull III',         assetPath:'/cosmetics/avatars/Skull_03_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_barbarian',      category:'avatar', rarity:'rare',      name:'Barbarian',         assetPath:'/cosmetics/avatars/Barbarian_01_Idle_000.png',         type:'cosmetic' },
+  { id:'mys_av_dark_elf_1',     category:'avatar', rarity:'rare',      name:'Dark Elf I',        assetPath:'/cosmetics/avatars/Dark_Elf_01_Idle_000.png',          type:'cosmetic' },
+  { id:'mys_av_dark_elf_2',     category:'avatar', rarity:'rare',      name:'Dark Elf II',       assetPath:'/cosmetics/avatars/Dark_Elf_02_Idle_000.png',          type:'cosmetic' },
+  { id:'mys_av_dark_elf_3',     category:'avatar', rarity:'rare',      name:'Dark Elf III',      assetPath:'/cosmetics/avatars/Dark_Elf_03_Idle_000.png',          type:'cosmetic' },
+  { id:'mys_av_ninja_1',        category:'avatar', rarity:'rare',      name:'Ninja I',           assetPath:'/cosmetics/avatars/Ninja_01_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_ninja_2',        category:'avatar', rarity:'rare',      name:'Ninja II',          assetPath:'/cosmetics/avatars/Ninja_02_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_ninja_3',        category:'avatar', rarity:'rare',      name:'Ninja III',         assetPath:'/cosmetics/avatars/Ninja_03_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_satyr_1',        category:'avatar', rarity:'rare',      name:'Satyr I',           assetPath:'/cosmetics/avatars/Satyr_01_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_satyr_2',        category:'avatar', rarity:'rare',      name:'Satyr II',          assetPath:'/cosmetics/avatars/Satyr_03_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_demon_knight_1', category:'avatar', rarity:'epic',      name:'Demon Knight I',    assetPath:'/cosmetics/avatars/Demon_Knight_01_Idle_000.png',      type:'cosmetic' },
+  { id:'mys_av_demon_knight_2', category:'avatar', rarity:'epic',      name:'Demon Knight II',   assetPath:'/cosmetics/avatars/Demon_Knight_02_Idle_000.png',      type:'cosmetic' },
+  { id:'mys_av_demon_knight_3', category:'avatar', rarity:'epic',      name:'Demon Knight III',  assetPath:'/cosmetics/avatars/Demon_Knight_03_Idle_000.png',      type:'cosmetic' },
+  { id:'mys_av_elemental_1',    category:'avatar', rarity:'epic',      name:'Elemental I',       assetPath:'/cosmetics/avatars/Elemental_01_Idle_000.png',         type:'cosmetic' },
+  { id:'mys_av_elemental_2',    category:'avatar', rarity:'epic',      name:'Elemental II',      assetPath:'/cosmetics/avatars/Elemental_02_Idle_000.png',         type:'cosmetic' },
+  { id:'mys_av_elemental_3',    category:'avatar', rarity:'epic',      name:'Elemental III',     assetPath:'/cosmetics/avatars/Elemental_03_Idle_000.png',         type:'cosmetic' },
+  { id:'mys_av_vampire_1',      category:'avatar', rarity:'epic',      name:'Vampire I',         assetPath:'/cosmetics/avatars/Vampire_01_Idle_000.png',           type:'cosmetic' },
+  { id:'mys_av_vampire_2',      category:'avatar', rarity:'epic',      name:'Vampire II',        assetPath:'/cosmetics/avatars/Vampire_02_Idle_000.png',           type:'cosmetic' },
+  { id:'mys_av_vampire_3',      category:'avatar', rarity:'epic',      name:'Vampire III',       assetPath:'/cosmetics/avatars/Vampire_03_Idle_000.png',           type:'cosmetic' },
+  { id:'mys_av_druid',          category:'avatar', rarity:'legendary', name:'Druid',             assetPath:'/cosmetics/avatars/Druid_02_Idle_000.png',             type:'cosmetic' },
+  { id:'mys_av_necromancer',    category:'avatar', rarity:'legendary', name:'Necromancer',       assetPath:'/cosmetics/avatars/Necromancer_03_Idle_000.png',       type:'cosmetic' },
+  { id:'mys_av_wraith_1',       category:'avatar', rarity:'legendary', name:'Wraith I',          assetPath:'/cosmetics/avatars/Wraith_01_Idle_000.png',            type:'cosmetic' },
+  { id:'mys_av_wraith_2',       category:'avatar', rarity:'legendary', name:'Wraith II',         assetPath:'/cosmetics/avatars/Wraith_02_Idle_000.png',            type:'cosmetic' },
+  { id:'mys_av_wraith_3',       category:'avatar', rarity:'legendary', name:'Wraith III',        assetPath:'/cosmetics/avatars/Wraith_03_Idle_000.png',            type:'cosmetic' },
+];
+
 /* ─── STATE ─── */
 let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinError:"", studentNumEntry:"", helpFlagged:false, helpModalOpen:false,
-              gradeModalOpen:false, gradeModalLessonId:null,
               teacherPeriodIdx:0, teacherStudent:null, teacherEdit:null, boardLand:1,
               lessonTile:null, lessonLand:null, teacherTile:null, teacherTileLand:null,
               bossTile:null, bossLand:null, arrivalTile:null, arrivalLand:null,
@@ -2224,32 +2561,33 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               equipPickerOpen:false, equipPickerStudentId:null,
               tgDialogueOpen:false, tgContinueReady:false,
               bossLockedOpen:false,
-              weaponPickerOpen:false, shieldPickerOpen:false, collectiblesOpen:false, collectiblesTab:'collectibles', cosmTab:'frames',
+              weaponPickerOpen:false, shieldPickerOpen:false, collectiblesOpen:false, collectiblesTab:'collectibles',
+              craftingTab:'craft', cosmTab:'frames',
               mpBulkOpen:false, mpBulkSort:'asc', mpBulkPeriod:'all',
-              sideQuestModalOpen:false, sideQuestTileId:null, sideQuestSoloIdx:0, sideQuestCollabIdx:0,
-              pendingSQAfterGrade:null, sqBoardOpen:false, sqBoardLandId:null,
+              sideQuestModalOpen:false, sideQuestTileId:null, sideQuestCollabIdx:0,
+              sqBoardOpen:false, sqBoardLandId:null,
               sqPartnerPickOpen:false, sqPartnerPickKey:null, sqPartnerPickIdx:0, sqPartnerPickType:null, sqPartnerPickTile:null, sqPartnerPickLand:null, sqPartnerPickSelected:null,
-              shopOpen:false, shopConfirmItem:null, shopSuccess:false,
+              shopOpen:false, shopConfirmItem:null, shopSuccess:false, shopTobbleIdx:0,
               teacherGoldShopOpen:false,
               bossRosterPeriodIdx:0, bossRosterKey:null, bossRosterMarks:{},
               judgmentHallMarks:{}, jhExcellenceAwarded:{},
               sqInviteNotifOpen:false,
               questJournalTab:'active',
-              craftingOpen:false, craftingStep:1, craftingSelected:null,
+              craftingOpen:false, craftingStep:1, craftingCategory:null, craftingSelected:null,
               lessonOpenedAt:null,
               npcOpen:false, currentNpcKey:null,
               sg0Open:false, sg0Tile:null,
               sg0GuildReveal:null,
-              catchUpModalOpen:false, gradeFromCatchUp:false,
               teacherResetConfirm:false,
               scribeIntroOpen: false, bossIntroOpen: false,
               writingHoldIdx: 0, bossHoldIdx: 0,
               writingTransportDir: 'in',
               sanctumReturnOpen: false, sanctumReturnLandId: null,
               sanctumLand: null, sanctumTileOpen: null, writingEventReturnTo: 'quest-map',
-              travelDestDesc: null, classSettingsOpen: false, cardMenuSid: null, capMessageOpen: false,
+              travelDestDesc: null, classSettingsOpen: false, jumpToolOpen: false, clearFlagPending: null, cardMenuSid: null, capMessageOpen: false,
               teacherViewStudent: null, genName: null, genEpithet: null,
-              namingOptions: null, epithetOptions: null, _namingReturnScreen: null};
+              namingOptions: null, epithetOptions: null, _namingReturnScreen: null,
+              teacherLinksLandId: 1 };
 
 /* ─── CHIBI SVG ─── */
 function chibiSVG(cls, size) {
@@ -2472,46 +2810,6 @@ const AV_GENDERS = [
 ];
 function buildAvatarFile(gender, char, variant, tone) {
   return `avatar_${char}_${variant}_${tone}_${gender}.png`;
-}
-
-function renderCatchUpModal() {
-  if (!STATE.catchUpModalOpen) return '';
-  const reminders = getGradeReminders(STATE.student.id);
-  const keys = Object.keys(reminders).sort((a, b) => Number(a) - Number(b));
-  if (!keys.length) {
-    return `<div class="grade-modal-overlay" id="catchup-modal-overlay">
-      <div class="grade-modal" style="max-width:460px">
-        <div class="grade-modal-title">✅ All caught up!</div>
-        <p class="grade-modal-sub">All your grades have been logged. Your stats are up to date.</p>
-        <div class="grade-modal-btns">
-          <button class="btn btn-purple" id="catchup-close">Close</button>
-        </div>
-      </div>
-    </div>`;
-  }
-  const rows = keys.map(k => {
-    const id = Number(k);
-    const found = findTileById(id);
-    const label = found ? found.tile.name : `Lesson ${id}`;
-    const title = found && found.tile.sessionTitle ? found.tile.sessionTitle : label;
-    return `<div class="catchup-row">
-      <div class="catchup-row-info">
-        <span class="catchup-session-label">${label}</span>
-        <span class="catchup-lesson-name">${title !== label ? title : ''}</span>
-      </div>
-      <button class="btn btn-purple btn-sm catchup-log-btn" data-lesson-id="${id}">Log Grade</button>
-    </div>`;
-  }).join('');
-  return `<div class="grade-modal-overlay" id="catchup-modal-overlay">
-    <div class="grade-modal" style="max-width:460px;display:flex;flex-direction:column;max-height:80vh">
-      <div class="grade-modal-title">⚠️ Unlogged Grades</div>
-      <p class="grade-modal-sub">You have grades that haven't been logged yet. Log them below to keep your stats current.</p>
-      <div class="catchup-list">${rows}</div>
-      <div class="grade-modal-btns" style="margin-top:16px">
-        <button class="btn btn-outline-sm" id="catchup-close">Close</button>
-      </div>
-    </div>
-  </div>`;
 }
 
 function renderCharName() {
@@ -2778,29 +3076,14 @@ function renderHub() {
       </div>
     </div>` : "";
 
-  const pacingActive = (() => {
-    const p = getPacingSettings();
-    if (!p) return false;
-    const ov = _overrides[String(STATE.student.id)] || {};
-    if (ov.spOverrideAt && (Date.now() - new Date(ov.spOverrideAt).getTime()) < 24*60*60*1000) return false;
-    return calcPacedSP(STATE.student) !== null;
-  })();
-  const stats = [
-    ["hp", "HP", "#EF4444", "#FEE2E2"],
-    ["mp", "MP", "#3B82F6", "#DBEAFE"],
-    ["sp", "SP", "#10B981", "#D1FAE5"],
-  ].map(([k,label,color,bg]) => {
-    const val = k === 'sp' ? getEffectiveSP(STATE.student) : s[k];
-    const isPaced = k === 'sp' && pacingActive;
-    return `<div class="stat-row">
-      <span class="stat-lbl">${label}</span>
-      <div class="stat-track" style="background:${bg}">
-        <div class="stat-fill" style="background:${color}" data-w="${(val/10*100).toFixed(0)}"></div>
-        ${isPaced ? '<span class="sp-auto-badge" style="position:absolute;right:6px;top:50%;transform:translateY(-50%)">auto</span>' : ''}
-      </div>
-      <span class="stat-val">${val}/10</span>
-    </div>`;
-  }).join("");
+  const _hp = calcHP(STATE.student);
+  const stats = `<div class="stat-row">
+    <span class="stat-lbl">HP</span>
+    <div class="stat-track" style="background:#FEE2E2">
+      <div class="stat-fill" style="background:#EF4444" data-w="${(_hp/10*100).toFixed(0)}"></div>
+    </div>
+    <span class="stat-val">${_hp}/10</span>
+  </div>`;
 
   const craftReqs = getCraftRequests();
   const hasPendingPotion = !!craftReqs[String(s.id)];
@@ -2859,7 +3142,12 @@ function renderHub() {
 
   const equipSlotsHTML = [
     _equipPickerSlot(weaponEquippedId, 'Weapon', '⚔️', ownedWeapons, 'data-open-weapon-picker', '/equipment/weapon_valeblade_common.png'),
-    _equipPickerSlot(shieldEquippedId, 'Shield', '🛡️', ownedShields, 'data-open-shield-picker', '/equipment/shield_valeguard_common.png'),
+    `<div class="equip-slot equip-slot-crafting" data-open-crafting title="Crafting Table">
+      <div class="equip-slot-img" style="display:flex;align-items:center;justify-content:center">
+        <span style="font-size:36px;line-height:1">⚗️</span>
+      </div>
+      <span class="equip-slot-sub" style="margin-top:2px;font-size:10px;font-weight:700;color:var(--purple);letter-spacing:.3px">Crafting</span>
+    </div>`,
     `<div class="equip-slot equip-slot-collectibles${ownedCollectibles.length ? '' : ' equip-slot-empty'}" data-open-collectibles>
       <div class="equip-slot-img">
         <img src="/equipment/accessory_bag.png" alt="Collectibles" style="object-fit:contain" onerror="this.style.display='none'"/>
@@ -2880,16 +3168,32 @@ function renderHub() {
   ];
   const trophyGridHTML = `<div class="trophy-grid">${
     HUB_TROPHY_BOSSES.map(b => {
-      const earned = b.type === 'std'
-        ? (_stdBossState[b.key] || {}).status === 'defeated'
-        : _bossStatusMap[b.key] === 'confirmed';
-      return `<div class="trophy-cell ${earned ? 'trophy-earned' : 'trophy-locked'}">
+      let phase;
+      if (b.type === 'std') {
+        const stStatus = (_stdBossState[b.key] || {}).status;
+        phase = stStatus === 'defeated' ? 'earned'
+              : stStatus === 'mastery_requested' ? 'requested'
+              : stStatus === 'mastery_available' ? 'available'
+              : 'locked';
+      } else {
+        phase = _bossStatusMap[b.key] === 'confirmed' ? 'earned' : 'locked';
+      }
+      const cellClass = phase === 'earned' ? 'trophy-earned'
+                      : phase === 'requested' ? 'trophy-requested'
+                      : phase === 'available' ? 'trophy-available'
+                      : 'trophy-locked';
+      const tapAttr = phase === 'available' ? ` data-trophy-req="${b.key}"` : '';
+      return `<div class="trophy-cell ${cellClass}"${tapAttr}>
         <div class="trophy-img-wrap">
           <img src="${b.img}" class="trophy-img" alt="${b.name}" onerror="this.style.display='none'"/>
-          ${earned ? '' : '<div class="trophy-lock">🔒</div>'}
+          ${phase === 'locked' ? '<div class="trophy-lock">🔒</div>' : ''}
+          ${phase === 'available' ? '<div class="trophy-lock" style="font-size:16px">✦</div>' : ''}
+          ${phase === 'requested' ? '<div class="trophy-pending-badge">Pending…</div>' : ''}
         </div>
         <div class="trophy-name">${b.name}</div>
-        ${earned && b.std ? `<div class="trophy-std-tag">${b.std}</div>` : ''}
+        ${phase === 'earned' && b.std ? `<div class="trophy-std-tag">${b.std}</div>` : ''}
+        ${phase === 'available' ? `<div class="trophy-std-tag" style="color:rgba(251,191,36,.9)">Tap to Request</div>` : ''}
+        ${phase === 'requested' ? `<div class="trophy-std-tag" style="color:rgba(147,197,253,.85)">Trial Requested</div>` : ''}
       </div>`;
     }).join('')
   }</div>`;
@@ -2916,11 +3220,6 @@ function renderHub() {
         <button class="btn-back" id="hub-logout">🚪 Log Out</button>
         <div class="hub-badge">⚔️ The Realm of ELA</div>
       </div>
-      ${(() => {
-        const reminders = getGradeReminders(STATE.student.id);
-        if (!Object.keys(reminders).length) return '';
-        return `<button class="grade-reminder-banner" id="grade-reminder-banner">⚠️ You have unlogged grades. Tap here to catch up.</button>`;
-      })()}
       <div class="hub-inv-bosses">
         <!-- Left panel: Avatar + Equipment -->
         <div class="hub-panel char-card-unified enter" style="animation-delay:.05s">
@@ -2984,8 +3283,10 @@ function renderHub() {
                 <span class="xp-pct">${xpPct}%</span>
               </div>
               <div class="gold-sect">
-                <span class="gold-display">🪙 ${getGold(STATE.student)} Gold</span>
-                <button class="shop-open-btn" id="open-shop-btn">🏪 Shop</button>
+                <div class="gold-sect-top">
+                  <span class="gold-display">🪙 ${getGold(STATE.student)} Gold</span>
+                </div>
+                <button class="shop-open-btn" id="open-shop-btn">🏪 Visit Shop</button>
               </div>
             </div>
             <div class="stats-footer-divider"></div>
@@ -2996,17 +3297,21 @@ function renderHub() {
               const _guilds = CLASS_DATA && CLASS_DATA.guilds;
               if (!_gKey || !_guilds || !_guilds[_gKey]) return '';
               const _g = _guilds[_gKey];
+              const _hasDetails = !!((_g.motto || _g.values || _g.chant));
               return `<div class="guild-banner-compact" style="border-color:${_g.color};background:${_g.color}18">
-                <img class="guild-banner-crest-sm" src="${_g.crest}" alt="${_g.name}" width="32" height="32" onerror="this.style.display='none'"/>
+                <img class="guild-banner-crest-sm" src="${_g.crest}" alt="${_g.name}" width="28" height="28" onerror="this.style.display='none'"/>
                 <div class="guild-hub-info">
                   <div class="guild-hub-header">
                     <span class="guild-banner-label-sm">GUILD</span>
                     <span class="guild-hub-name" style="color:${_g.color}">${_g.name}</span>
                     ${_g.element ? `<span class="guild-hub-element" style="color:${_g.color}">· ${_g.element}</span>` : ''}
                   </div>
-                  ${_g.motto ? `<div class="guild-hub-motto">"${_g.motto}"</div>` : ''}
-                  ${_g.values ? `<div class="guild-hub-values">${_g.values}</div>` : ''}
-                  ${_g.chant ? `<div class="guild-hub-chant" style="color:${_g.color}">${_g.chant}</div>` : ''}
+                  ${_hasDetails ? `<button class="guild-hub-toggle" id="guild-hub-toggle">▼ Details</button>
+                  <div class="guild-hub-details" id="guild-hub-details">
+                    ${_g.motto ? `<div class="guild-hub-motto">"${_g.motto}"</div>` : ''}
+                    ${_g.values ? `<div class="guild-hub-values">${_g.values}</div>` : ''}
+                    ${_g.chant ? `<div class="guild-hub-chant" style="color:${_g.color}">${_g.chant}</div>` : ''}
+                  </div>` : ''}
                 </div>
               </div>`;
             })()}
@@ -3029,11 +3334,7 @@ function renderHub() {
       <div class="hub-panel inv-panel-wrap enter" style="animation-delay:.12s">
         <div class="panel-title">🎒 Inventory</div>
         <div class="inv-grid">${invSlots}</div>
-        <div class="brew-row">
-          ${hasPendingPotion
-            ? `<div class="brew-pending">⏳ Crafting request sent — awaiting teacher approval</div>`
-            : `<button class="btn-brew" id="brew-crafting-btn">⚗️ Visit Crafting Station</button>`}
-        </div>
+        ${hasPendingPotion ? `<div class="brew-pending" style="margin-top:8px">⏳ Crafting request sent — awaiting teacher approval</div>` : ''}
       </div>
       <div class="hub-panel boss-panel-wrap enter" style="animation-delay:.16s">
         <div class="panel-title">🏆 Boss Mastery</div>
@@ -3054,10 +3355,14 @@ function renderHub() {
           const questTile = (curTile && curTile.type === 'lesson') ? curTile : lastCompletedLesson;
           const completedKeys = new Set((completedSQ || []).map(c => c.key));
           const availQuests = [];
-          if (questTile) {
+          if (questTile && getCollabQuestsEnabled()) {
             const collabKey = `${questTile.id}_collab`;
             if (!activeSQ[collabKey] && !completedKeys.has(collabKey))
               availQuests.push({ key: collabKey, q: resolveCollabQuest(questTile.id, questTile), type:'collab', tileId: questTile.id, landId: curLand.id });
+          }
+          const _hwQuest = getHomeworkQuest();
+          if (_hwQuest && !activeSQ['hw_weekly'] && !completedKeys.has('hw_weekly')) {
+            availQuests.push({ key:'hw_weekly', q:{ title:'📚 Weekly Homework', desc:_hwQuest.text, xp:20 }, type:'homework', tileId:null, landId:null });
           }
           const tab = STATE.questJournalTab || 'active';
           const tabs = ['available','active','completed'].map(t =>
@@ -3068,15 +3373,18 @@ function renderHub() {
                 const activeTileId = parseInt(key.split('_')[0]);
                 const q = e.type === 'collab'
                   ? resolveCollabQuest(activeTileId, findTileById(activeTileId))
-                  : resolveSoloQuest(activeTileId, e.questIdx);
-                const typeIcon = e.type === 'collab' ? '🤝' : '🗡️';
+                  : e.type === 'homework'
+                  ? { title:'📚 Weekly Homework', desc:(_settings && _settings.homeworkQuest && _settings.homeworkQuest.text) || '', xp:20 }
+                  : { title:'Art Quest', desc:'', xp:10 };
+                const typeIcon = e.type === 'collab' ? '🤝' : e.type === 'homework' ? '📚' : '🎨';
+                const typeLabel = e.type === 'collab' ? 'Collaborative' : e.type === 'homework' ? 'Homework' : 'Art';
                 return `<div class="sq-hub-card">
-                  <div class="sq-hub-type">${typeIcon} ${e.type === 'collab' ? 'Collaborative' : 'Solo'}</div>
+                  <div class="sq-hub-type">${typeIcon} ${typeLabel}</div>
                   <div class="sq-hub-name">${q.title}</div>
                   <div class="sq-hub-desc">${q.desc}</div>
                   <div class="sq-hub-footer">
                     <span class="sq-hub-xp">+${q.xp} XP</span>
-                    <button class="sq-view-lesson-btn" data-sq-tile="${activeTileId}" data-sq-land="${e.landId || ''}">📖 View Lesson</button>
+                    ${e.type !== 'homework' ? `<button class="sq-view-lesson-btn" data-sq-tile="${activeTileId}" data-sq-land="${e.landId || ''}">📖 View Lesson</button>` : ''}
                     <button class="btn-sq-complete" data-sq-key="${key}">✓ Mark Complete</button>
                   </div>
                 </div>`;
@@ -3084,24 +3392,27 @@ function renderHub() {
             : `<div class="sq-empty">No active quests — accept some from your current lesson!</div>`;
           const availContent = availQuests.length
             ? availQuests.map(({key, q, type, tileId, landId}) => {
+                const _availIcon = type === 'homework' ? '📚' : '🤝';
+                const _availLabel = type === 'homework' ? 'Homework' : 'Collaborative';
                 return `<div class="sq-hub-card">
-                  <div class="sq-hub-type">🤝 Collaborative</div>
+                  <div class="sq-hub-type">${_availIcon} ${_availLabel}</div>
                   <div class="sq-hub-name">${q.title}</div>
                   <div class="sq-hub-desc">${q.desc}</div>
                   <div class="sq-hub-footer">
                     <span class="sq-hub-xp">+${q.xp} XP</span>
-                    <button class="sq-view-lesson-btn" data-sq-tile="${tileId}" data-sq-land="${landId || ''}">📖 View Lesson</button>
-                    <button class="ls-sq-accept-btn" data-sq-key="${key}" data-sq-idx="0" data-sq-type="${type}" data-sq-tile="${tileId}" data-sq-land="${landId || ''}">Accept</button>
+                    ${tileId ? `<button class="sq-view-lesson-btn" data-sq-tile="${tileId}" data-sq-land="${landId || ''}">📖 View Lesson</button>` : ''}
+                    <button class="ls-sq-accept-btn" data-sq-key="${key}" data-sq-idx="0" data-sq-type="${type}" data-sq-tile="${tileId || 0}" data-sq-land="${landId || ''}">Accept</button>
                   </div>
                 </div>`;
               }).join('')
             : `<div class="sq-empty">No quests available right now — complete your current tile first!</div>`;
           const completedContent = completedSQ.length
             ? [...completedSQ].reverse().map(c => {
-                const typeIcon = c.type === 'collab' ? '🤝' : '🗡️';
-                const doneTileId = c.key ? parseInt(c.key.split('_')[0]) : null;
+                const typeIcon = c.type === 'collab' ? '🤝' : c.type === 'homework' ? '📚' : '🎨';
+                const typeLabel = c.type === 'collab' ? 'Collaborative' : c.type === 'homework' ? 'Homework' : 'Art';
+                const doneTileId = (c.type !== 'homework' && c.key) ? parseInt(c.key.split('_')[0]) : null;
                 return `<div class="sq-hub-card sq-done-card">
-                  <div class="sq-hub-type">${typeIcon} ${c.type === 'collab' ? 'Collaborative' : 'Solo'}</div>
+                  <div class="sq-hub-type">${typeIcon} ${typeLabel}</div>
                   <div class="sq-hub-name">${c.title}</div>
                   <div class="sq-hub-footer">
                     <span class="sq-hub-xp">+${c.xp} XP</span>
@@ -3125,63 +3436,177 @@ function renderHub() {
         </div>
       </div>
       ${STATE.craftingOpen ? (() => {
-        if (STATE.craftingStep === 1) {
+        const RARITY_COLOR  = { common:'#6B7280', rare:'#3B82F6', epic:'#8B5CF6', legendary:'#F59E0B' };
+        const RARITY_LABEL  = { common:'Common', rare:'Rare', epic:'Epic', legendary:'Legendary' };
+        const CATEGORY_META = {
+          weapon: { icon:'⚔️', label:'Weapons',   desc:'Equip powerful arms for battle' },
+          frame:  { icon:'🖼️', label:'Frames',    desc:'Decorate your character portrait' },
+          avatar: { icon:'👤', label:'Avatars',   desc:'Unlock alternative characters' },
+        };
+        const materials = getMaterials(STATE.student);
+        const gold      = getGold(STATE.student);
+        const owned     = new Set(getUnlockedCosmetics(STATE.student));
+        const ownedEquip = new Set((_overrides[String(STATE.student.id)] || {}).items || []);
+        const cTab = STATE.craftingTab || 'craft';
+
+        const topTabs = `<div class="crafting-top-tabs">
+          <button class="crafting-top-tab${cTab==='craft'?' crafting-top-tab-active':''}" data-crafting-tab="craft">⚗️ Craft</button>
+          <button class="crafting-top-tab${cTab==='items'?' crafting-top-tab-active':''}" data-crafting-tab="items">🎒 My Items</button>
+        </div>`;
+
+        // ── My Items tab ──────────────────────────────────────────────────
+        if (cTab === 'items') {
+          const cosmSubTab = STATE.cosmTab || 'frames';
+          const equippedFrame  = getEquippedFrame(STATE.student);
+          const equippedAvatar = getEquippedAvatarOverride(STATE.student);
+          const _cosmSlot = (id, assetPath, displayName, unlocked, isEquipped, equipAttr) =>
+            '<div class="cosm-slot' + (unlocked ? '' : ' cosm-locked') + (isEquipped ? ' cosm-equipped' : '') + '" '
+            + (unlocked ? equipAttr + '="' + id + '"' : '') + '>'
+            + '<div class="cosm-img-wrap">'
+            + '<img src="' + assetPath + '" alt="' + displayName + '" width="64" height="64" '
+            + 'style="object-fit:contain' + (unlocked ? '' : ';filter:grayscale(100%) opacity(35%)') + '" onerror="this.style.display=\'none\'">'
+            + (isEquipped ? '<span class="cosm-check">✓</span>' : '')
+            + '</div>'
+            + '<span class="cosm-name">' + (unlocked ? displayName : '???') + '</span>'
+            + (unlocked ? '<span class="cosm-action">' + (isEquipped ? 'Unequip' : 'Equip') + '</span>'
+                        : '<span class="cosm-locked-lbl">Locked</span>')
+            + '</div>';
+
+          const framesGrid = '<div class="cosm-grid">'
+            + COSMETICS_MANIFEST.map(c =>
+                _cosmSlot(c.id, c.assetPath, c.displayName, isCosmeticUnlocked(STATE.student, c), equippedFrame === c.id, 'data-equip-frame')
+              ).join('')
+            + MYSTERY_POOL.filter(p => p.type === 'frame').map(p =>
+                _cosmSlot(p.id, p.assetPath, p.displayName, owned.has(p.id), equippedFrame === p.id, 'data-equip-frame')
+              ).join('')
+            + '</div>';
+
+          const revertBtn = equippedAvatar
+            ? '<button class="cosm-revert-btn" id="cosm-revert-avatar">↩ Revert to My Character</button>' : '';
+          const avatarsGrid = revertBtn + '<div class="cosm-grid">'
+            + COSMETIC_AVATARS.map(av =>
+                _cosmSlot(av.id, av.assetPath, av.displayName, isCosmeticUnlocked(STATE.student, av), equippedAvatar === av.id, 'data-equip-avatar')
+              ).join('')
+            + MYSTERY_POOL.filter(p => p.type === 'avatar').map(p =>
+                _cosmSlot(p.id, p.assetPath, p.displayName, owned.has(p.id), equippedAvatar === p.id, 'data-equip-avatar')
+              ).join('')
+            + '</div>';
+
+          const cosmSubToggle = '<div class="cosm-subtabs">'
+            + '<button class="cosm-subtab' + (cosmSubTab==='frames'?' cosm-subtab-active':'') + '" data-cosmtab="frames">🖼️ Frames</button>'
+            + '<button class="cosm-subtab' + (cosmSubTab==='avatars'?' cosm-subtab-active':'') + '" data-cosmtab="avatars">🧙 Avatars</button>'
+            + '</div>';
+
           return `<div class="crafting-overlay" id="crafting-overlay">
-            <div class="crafting-modal">
+            <div class="crafting-modal crafting-modal-lg">
               <button class="crafting-close" id="crafting-close">✕</button>
               <div class="crafting-title">⚗️ Crafting Station</div>
-              <div class="crafting-subtitle">What would you like to craft?</div>
-              <div class="crafting-cards">
-                ${['health_potion','behavior_potion','gold_pouch'].map(key => {
-                  const def = ITEMS[key];
-                  const imgTag = def.img
-                    ? `<img class="crafting-card-img item-img" src="/icons/${def.img}" alt="${def.n}" width="64" height="64" loading="lazy" onerror="this.style.display='none';this.nextSibling.style.display='block'"/><span style="display:none;font-size:32px">${def.i}</span>`
-                    : `<span style="font-size:32px">${def.i}</span>`;
-                  return `<div class="crafting-card" data-craft-pick="${key}">
-                  <div class="crafting-card-img-wrap">${imgTag}</div>
-                  <span class="crafting-card-name">${def.n}</span>
-                  <span class="crafting-card-desc">${def.desc}</span>
-                </div>`;
-                }).join('')}
+              ${topTabs}
+              ${cosmSubToggle}
+              <div class="equip-picker-list" style="margin-top:0">
+                ${cosmSubTab === 'frames' ? framesGrid : avatarsGrid}
               </div>
             </div>
           </div>`;
+        }
+
+        // ── Craft tab ─────────────────────────────────────────────────────
+        if (STATE.craftingStep === 1) {
+          return `<div class="crafting-overlay" id="crafting-overlay">
+            <div class="crafting-modal crafting-modal-lg">
+              <button class="crafting-close" id="crafting-close">✕</button>
+              <div class="crafting-title">⚗️ Crafting Station</div>
+              ${topTabs}
+              <div class="crafting-resources">
+                <span class="craft-res-chip">🧪 ${materials} Materials</span>
+                <span class="craft-res-chip">🪙 ${gold} Gold</span>
+              </div>
+              <div class="crafting-subtitle">What would you like to craft?</div>
+              <div class="crafting-category-grid">
+                ${Object.entries(CATEGORY_META).map(([key, meta]) => `
+                  <div class="crafting-cat-card" data-craft-cat="${key}">
+                    <span class="crafting-cat-icon">${meta.icon}</span>
+                    <span class="crafting-cat-label">${meta.label}</span>
+                    <span class="crafting-cat-desc">${meta.desc}</span>
+                  </div>`).join('')}
+              </div>
+            </div>
+          </div>`;
+
+        } else if (STATE.craftingStep === 2) {
+          const recipes = CRAFT_RECIPES.filter(r => r.category === STATE.craftingCategory);
+          const catMeta = CATEGORY_META[STATE.craftingCategory] || { icon:'⚗️', label:'Items' };
+          const byRarity = ['common','rare','epic','legendary'];
+          const sections = byRarity.map(rar => {
+            const items = recipes.filter(r => r.rarity === rar);
+            if (!items.length) return '';
+            const cost = RARITY_COST[rar];
+            const canAfford = materials >= cost.materials && gold >= cost.gold;
+            return `<div class="craft-rarity-section">
+              <div class="craft-rarity-hdr" style="color:${RARITY_COLOR[rar]}">
+                <span class="craft-rarity-dot" style="background:${RARITY_COLOR[rar]}"></span>
+                ${RARITY_LABEL[rar]} — <span class="craft-cost-badge">🧪 ${cost.materials}M · 🪙 ${cost.gold}G</span>
+              </div>
+              <div class="craft-item-grid">
+                ${items.map(r => {
+                  const isOwned = r.type === 'cosmetic' ? owned.has(r.id) : ownedEquip.has(r.id);
+                  return `<div class="craft-item-card ${isOwned ? 'craft-item-owned' : canAfford ? '' : 'craft-item-cant-afford'}" data-craft-pick="${r.id}" ${isOwned ? 'data-craft-owned' : ''}>
+                    <div class="craft-item-img-wrap">
+                      <img src="${r.assetPath}" alt="${r.name}" width="56" height="56" loading="lazy" onerror="this.style.opacity='.15'"/>
+                    </div>
+                    <span class="craft-item-name">${r.name}</span>
+                    ${isOwned ? `<span class="craft-item-badge craft-item-badge-owned">Owned</span>` : !canAfford ? `<span class="craft-item-badge craft-item-badge-locked">Can't afford</span>` : ''}
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>`;
+          }).join('');
+          return `<div class="crafting-overlay" id="crafting-overlay">
+            <div class="crafting-modal crafting-modal-lg">
+              <button class="crafting-back" id="crafting-back">← Back</button>
+              <button class="crafting-close" id="crafting-close">✕</button>
+              <div class="crafting-title">${catMeta.icon} ${catMeta.label}</div>
+              <div class="crafting-resources">
+                <span class="craft-res-chip">🧪 ${materials} Materials</span>
+                <span class="craft-res-chip">🪙 ${gold} Gold</span>
+              </div>
+              <div class="craft-item-list">${sections}</div>
+            </div>
+          </div>`;
+
         } else {
-          const sel = ITEMS[STATE.craftingSelected] || { i:'⚗️', n: STATE.craftingSelected, desc:'' };
+          const recipe = CRAFT_RECIPES.find(r => r.id === STATE.craftingSelected);
+          if (!recipe) return '';
+          const cost = RARITY_COST[recipe.rarity];
+          const canAfford = materials >= cost.materials && gold >= cost.gold;
           return `<div class="crafting-overlay" id="crafting-overlay">
             <div class="crafting-modal">
               <button class="crafting-back" id="crafting-back">← Back</button>
               <button class="crafting-close" id="crafting-close">✕</button>
-              <div class="crafting-title">⚗️ Crafting Station</div>
+              <div class="crafting-title">⚗️ Confirm Craft</div>
               <div class="crafting-selected-card">
-                <span class="crafting-card-icon" style="font-size:48px">${sel.i}</span>
-                <span class="crafting-card-name" style="font-size:18px">${sel.n}</span>
-                <span class="crafting-card-desc">${sel.desc}</span>
+                <div class="craft-confirm-img-wrap">
+                  <img src="${recipe.assetPath}" alt="${recipe.name}" width="80" height="80" onerror="this.style.opacity='.15'"/>
+                </div>
+                <span class="crafting-card-name" style="font-size:17px;margin-top:8px">${recipe.name}</span>
+                <span class="craft-rarity-pill" style="color:${RARITY_COLOR[recipe.rarity]};border-color:${RARITY_COLOR[recipe.rarity]}">${RARITY_LABEL[recipe.rarity]}</span>
+                <div class="craft-confirm-cost">
+                  <span class="craft-cost-line ${materials < cost.materials ? 'craft-cost-short' : ''}">🧪 ${cost.materials} Materials <span class="craft-cost-have">(you have ${materials})</span></span>
+                  <span class="craft-cost-line ${gold < cost.gold ? 'craft-cost-short' : ''}">🪙 ${cost.gold} Gold <span class="craft-cost-have">(you have ${gold})</span></span>
+                </div>
               </div>
               <label class="crafting-checkbox-row">
                 <input type="checkbox" id="crafting-confirm-cb"/>
-                <span>I have completed the crafting binder activity for this item and I am ready for my teacher to review it.</span>
+                <span>I have completed the crafting binder activity and I am ready for my teacher to review it.</span>
               </label>
-              <button class="btn-brew crafting-submit" id="crafting-submit" disabled>Submit Request</button>
+              <button class="btn-brew crafting-submit" id="crafting-submit" disabled ${!canAfford ? 'title="Not enough resources"' : ''}>Submit Request</button>
+              ${!canAfford ? `<div class="craft-cant-afford-msg">You need more resources to craft this item.</div>` : ''}
             </div>
           </div>`;
         }
       })() : ''}
     </div>
     ${custHTML}
-    ${renderCatchUpModal()}
-    ${STATE.gradeModalOpen && STATE.gradeFromCatchUp ? `
-    <div class="grade-modal-overlay" id="grade-modal-overlay">
-      <div class="grade-modal">
-        <div class="grade-modal-title">📊 Log Your Progress</div>
-        <p class="grade-modal-sub">Enter the grade you received on this lesson's assignment. This keeps your stats current.</p>
-        <input type="number" class="grade-modal-input" id="grade-modal-input" min="0" max="100" placeholder="0 – 100" />
-        <div class="grade-modal-btns">
-          <button class="btn btn-outline-sm" id="grade-modal-skip">Remind Me Later</button>
-          <button class="btn btn-purple" id="grade-modal-submit">✅ Save Grade</button>
-        </div>
-      </div>
-    </div>` : ''}
     ${renderPartnerPickerModal()}
     ${STATE.sqInviteNotifOpen ? renderInviteNotifModal() : ''}
     ${STATE.helpModalOpen ? `
@@ -3239,30 +3664,6 @@ function renderHub() {
         </div>
       </div>`;
     })() : ''}
-    ${STATE.shieldPickerOpen ? (() => {
-      const dedupedShields = [...new Set(ownedShields)];
-      return `<div class="equip-picker-overlay" id="shield-picker-overlay">
-        <div class="equip-picker-box">
-          <button class="npc-modal-close" id="shield-picker-close">✕</button>
-          <div class="equip-picker-title">🛡️ Shields</div>
-          <div class="equip-picker-list">
-            ${dedupedShields.length ? dedupedShields.map(id => {
-              const def = getEquipItemDef(id);
-              const isEq = shieldEquippedId === id;
-              return `<div class="equip-picker-item${isEq ? ' equip-picker-item-eq' : ''}" data-pick-shield="${id}" data-equip-unequip="${isEq}" style="--tier-color:${def.tierColor}">
-                <img src="${def.img}" alt="${def.n}" class="equip-picker-img" onerror="this.style.display='none';this.nextSibling.style.display='block'"/>
-                <span style="display:none;font-size:36px">${def.icon}</span>
-                <div class="equip-picker-info">
-                  <span class="equip-picker-name" style="color:${def.tierColor}">${def.n}</span>
-                  <span class="equip-picker-tier">${def.tier.charAt(0).toUpperCase()+def.tier.slice(1)}</span>
-                </div>
-                <button class="equip-picker-btn${isEq ? ' equip-picker-btn-eq' : ''}">${isEq ? '✓ Unequip' : 'Equip'}</button>
-              </div>`;
-            }).join('') : '<p class="equip-picker-empty">No shields owned yet.</p>'}
-          </div>
-        </div>
-      </div>`;
-    })() : ''}
     ${STATE.collectiblesOpen ? (() => {
       const tab = STATE.collectiblesTab || 'collectibles';
       const today = new Date().toISOString().slice(0,10);
@@ -3310,52 +3711,6 @@ function renderHub() {
         }).join('')
         + '</div>';
 
-      // ── Tab: Cosmetics ─────────────────────────────────────────────────
-      const cosmSubTab = STATE.cosmTab || 'frames';
-      const equippedFrame   = getEquippedFrame(STATE.student);
-      const equippedAvatar  = getEquippedAvatarOverride(STATE.student);
-
-      const _ownedCosmetics = new Set(getUnlockedCosmetics(STATE.student));
-      const _cosmSlot = (id, assetPath, displayName, unlocked, isEquipped, equipAttr) =>
-        '<div class="cosm-slot' + (unlocked ? '' : ' cosm-locked') + (isEquipped ? ' cosm-equipped' : '') + '" '
-        + (unlocked ? equipAttr + '="' + id + '"' : '') + '>'
-        + '<div class="cosm-img-wrap">'
-        + '<img src="' + assetPath + '" alt="' + displayName + '" width="64" height="64" '
-        + 'style="object-fit:contain' + (unlocked ? '' : ';filter:grayscale(100%) opacity(35%)') + '" onerror="this.style.display=\'none\'">'
-        + (isEquipped ? '<span class="cosm-check">✓</span>' : '')
-        + '</div>'
-        + '<span class="cosm-name">' + (unlocked ? displayName : '???') + '</span>'
-        + (unlocked ? '<span class="cosm-action">' + (isEquipped ? 'Unequip' : 'Equip') + '</span>'
-                    : '<span class="cosm-locked-lbl">Locked</span>')
-        + '</div>';
-
-      const framesGrid = '<div class="cosm-grid">'
-        + COSMETICS_MANIFEST.map(c =>
-            _cosmSlot(c.id, c.assetPath, c.displayName, isCosmeticUnlocked(STATE.student, c), equippedFrame === c.id, 'data-equip-frame')
-          ).join('')
-        + MYSTERY_POOL.filter(p => p.type === 'frame').map(p =>
-            _cosmSlot(p.id, p.assetPath, p.displayName, _ownedCosmetics.has(p.id), equippedFrame === p.id, 'data-equip-frame')
-          ).join('')
-        + '</div>';
-
-      const revertBtn = equippedAvatar
-        ? '<button class="cosm-revert-btn" id="cosm-revert-avatar">↩ Revert to My Character</button>'
-        : '';
-      const avatarsGrid = revertBtn + '<div class="cosm-grid">'
-        + COSMETIC_AVATARS.map(av =>
-            _cosmSlot(av.id, av.assetPath, av.displayName, isCosmeticUnlocked(STATE.student, av), equippedAvatar === av.id, 'data-equip-avatar')
-          ).join('')
-        + MYSTERY_POOL.filter(p => p.type === 'avatar').map(p =>
-            _cosmSlot(p.id, p.assetPath, p.displayName, _ownedCosmetics.has(p.id), equippedAvatar === p.id, 'data-equip-avatar')
-          ).join('')
-        + '</div>';
-
-      const cosmSubToggle = '<div class="cosm-subtabs">'
-        + '<button class="cosm-subtab' + (cosmSubTab==='frames'?' cosm-subtab-active':'') + '" data-cosmtab="frames">🖼️ Frames</button>'
-        + '<button class="cosm-subtab' + (cosmSubTab==='avatars'?' cosm-subtab-active':'') + '" data-cosmtab="avatars">🧙 Avatars</button>'
-        + '</div>';
-      const cosmeticsContent = cosmSubToggle + (cosmSubTab === 'frames' ? framesGrid : avatarsGrid);
-
       return '<div class="equip-picker-overlay" id="collectibles-overlay">'
         + '<div class="equip-picker-box">'
         + '<button class="npc-modal-close" id="collectibles-close">✕</button>'
@@ -3363,10 +3718,9 @@ function renderHub() {
         + '<div class="coll-tabs">'
         + '<button class="coll-tab' + (tab==='collectibles'?' coll-tab-active':'') + '" data-colltab="collectibles">🏔️ Collectibles</button>'
         + '<button class="coll-tab' + (tab==='special'?' coll-tab-active':'') + '" data-colltab="special">🏅 Special</button>'
-        + '<button class="coll-tab' + (tab==='cosmetics'?' coll-tab-active':'') + '" data-colltab="cosmetics">✨ Cosmetics</button>'
         + '</div>'
         + '<div class="equip-picker-list" style="margin-top:0">'
-        + (tab === 'collectibles' ? collectiblesContent : tab === 'special' ? specialContent : cosmeticsContent)
+        + (tab === 'collectibles' ? collectiblesContent : specialContent)
         + '</div>'
         + '</div>'
         + '</div>';
@@ -3403,11 +3757,14 @@ const BIOME_TILE_IMGS = [
   "/tiles/tile_stormspire.png",
 ];
 function tileImgURL(type, biome) {
-  if (type==="dungeon") return "/tiles/tile_dungeon_entrance.png";
-  if (type==="event")   return "/tiles/tile_writing_event.png";
-  if (type==="boss")    return "/tiles/tile_boss.png";
-  if (type==="loot")    return "/tiles/tile_loot.png";
-  if (type==="arrival") return "/tiles/tile_arrival.png";
+  if (type==="dungeon")    return "/tiles/tile_dungeon_entrance.png";
+  if (type==="event")      return "/tiles/tile_writing_event.png";
+  if (type==="boss")       return "/tiles/tile_boss.png";
+  if (type==="loot")       return "/tiles/tile_loot.png";
+  if (type==="forge")      return "/tiles/tile_forge.jpeg";
+  if (type==="studyHall")  return "/tiles/tile_studyhall.jpeg";
+  if (type==="camp")       return "/tiles/tile_camp.jpeg";
+  if (type==="arrival")    return "/tiles/tile_arrival.png";
   if (type==="sg" || biome===0) return "/tiles/tile_starting_grounds.png";
   return BIOME_TILE_IMGS[(biome||1)-1];
 }
@@ -3463,9 +3820,10 @@ function tileState(tile, pos, board, land) {
     const bossKey = `${land.id}-${id}`;
     // Teacher can force-unlock the Warden via bossOpenKeys; otherwise all standard bosses must be defeated
     if (!getBossOpenKeys().includes(bossKey) && land.standardBosses && pos.studentId) {
-      const allDefeated = Object.keys(land.standardBosses).every(
-        bk => getStdBossState(pos.studentId, bk).status === 'defeated'
-      );
+      const allDefeated = Object.keys(land.standardBosses).every(bk => {
+        const st = getStdBossState(pos.studentId, bk).status;
+        return st === 'defeated' || st === 'mastery_available' || st === 'mastery_requested';
+      });
       if (!allDefeated) return "locked";
     }
   }
@@ -3585,12 +3943,15 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
      gateVisual   = gate boss data for this tile (Abysmara, Feraxis)
      bossTileVisual = standard boss data (sighted or boss_fight)
   ── */
-  const vt = type==='arrival'   ? 'welcome'
-           : type==='dungeon'   ? 'finalGatekeeper'
-           : type==='event'     ? 'scribesCalling'
-           : type==='loot'      ? 'loot'
-           : type==='boss'      ? 'standaloneBoss'
-           : gateVisual         ? 'gatekeeper'
+  const vt = type==='arrival'    ? 'welcome'
+           : type==='dungeon'    ? 'finalGatekeeper'
+           : type==='event'      ? 'scribesCalling'
+           : type==='loot'       ? 'loot'
+           : type==='forge'      ? 'forge'
+           : type==='studyHall'  ? 'studyHall'
+           : type==='camp'       ? 'camp'
+           : type==='boss'       ? 'standaloneBoss'
+           : gateVisual          ? 'gatekeeper'
            : bossTileVisual?.type === 'boss_fight' ? 'boss'
            : 'regular';
 
@@ -3621,6 +3982,9 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
        : vt==='standaloneBoss'  ? "#EF4444"
        : vt==='scribesCalling'  ? "#F59E0B"
        : vt==='loot'            ? "#10B981"
+       : vt==='forge'           ? "#F59E0B"
+       : vt==='studyHall'       ? "#60A5FA"
+       : vt==='camp'            ? "#10B981"
        : vt==='welcome'         ? "#34D399"
        : "#F59E0B";
     bw=2.5;
@@ -3631,6 +3995,9 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
        : vt==='standaloneBoss'  ? "#7F1D1D"
        : vt==='scribesCalling'  ? "#92400E"
        : vt==='loot'            ? "#065F46"
+       : vt==='forge'           ? "#B45309"
+       : vt==='studyHall'       ? "#1D4ED8"
+       : vt==='camp'            ? "#065F46"
        : vt==='welcome'         ? "#1A3A2A"
        : SG                     ? "#92400E"
        : "#374151";
@@ -3672,7 +4039,8 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
     <text x="${x}" y="${ty-13}" text-anchor="middle" font-size="8" fill="#C4B5FD">▼</text></g>` : "";
 
   /* ── Tile art interior ── */
-  const tileArtURL = vt==='finalGatekeeper' && tile.portrait ? `/bosses/${tile.portrait}`
+  const tileArtURL = vt==='finalGatekeeper' ? `/tiles/tile_warden.jpeg`
+    : vt==='gatekeeper' && !board && bossOverlay?.bossState?.status === 'defeated' ? `/bosses/defeated-tombstone.png`
     : vt==='gatekeeper'    ? `/tiles/tile_gatekeeper.png`
     : vt==='boss'          ? `/tiles/tile_boss.png`
     : tileImgURL(type, biome);
@@ -3680,11 +4048,10 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
   const portraitFilter = vt==='finalGatekeeper' ? 'filter:brightness(.82) saturate(1.2);' : '';
 
   const interior = locked
-    ? `<rect width="${ts}" height="${ts}" rx="${r}" fill="#111"/>`
+    ? `<foreignObject x="0" y="0" width="${ts}" height="${ts}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${ts}px;height:${ts}px;background-image:url(${tileArtURL});background-size:cover;background-position:${portraitPos};filter:grayscale(100%);"></div></foreignObject>`
     : `<foreignObject x="0" y="0" width="${ts}" height="${ts}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${ts}px;height:${ts}px;background-image:url(${tileArtURL});background-size:cover;background-position:${portraitPos};${portraitFilter}"></div></foreignObject>`;
 
   const lockedOverlay = locked ? `
-    <rect width="${ts}" height="${ts}" rx="${r}" fill="rgba(0,0,0,.78)"/>
     <text x="${ts/2}" y="${ts/2+1}" text-anchor="middle" dominant-baseline="central" font-size="${vt==='finalGatekeeper'?24:20}">🔒</text>` : "";
   const doneBadge = !brd && done ? `
     <circle cx="${ts-13}" cy="13" r="10" fill="#F59E0B" stroke="#78350F" stroke-width="1.5"/>
@@ -3708,6 +4075,12 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
       ? `<text x="${x}" y="${nameY+(skill?26:13)}" text-anchor="middle" font-size="7" fill="${done||brd?"#FCA5A5":"#F87171"}" font-family="Arial" font-weight="900" letter-spacing=".5">⚔ BOSS</text>`
     : vt==='scribesCalling'
       ? `<text x="${x}" y="${nameY+14}" text-anchor="middle" font-size="8" fill="#F59E0B" font-family="Arial" font-weight="900" letter-spacing=".5">✦ WRITING EVENT ✦</text>`
+    : vt==='forge'
+      ? `<text x="${x}" y="${nameY+14}" text-anchor="middle" font-size="7" fill="${done||brd?"#FDE68A":"#F59E0B"}" font-family="Arial" font-weight="900" letter-spacing=".5">⚒ WRITER'S CRAFT</text>`
+    : vt==='studyHall'
+      ? `<text x="${x}" y="${nameY+14}" text-anchor="middle" font-size="7" fill="${done||brd?"#BAE6FD":"#93C5FD"}" font-family="Arial" font-weight="900" letter-spacing=".5">📖 STUDY HALL</text>`
+    : vt==='camp'
+      ? `<text x="${x}" y="${nameY+14}" text-anchor="middle" font-size="7" fill="${done||brd?"#6EE7B7":"#34D399"}" font-family="Arial" font-weight="900" letter-spacing=".5">⛺ CAMP</text>`
     : ""
   ) : "";
 
@@ -3816,8 +4189,9 @@ function buildLandSVG(land, pos, board, extraSVG) {
   }
 
   // Build tile visual map: session[0] = sighted silhouette, session[1+] = boss_fight reskin
+  // Built unconditionally (board view included) so tiles always render with boss styling.
   const tileBossVisualMap = {};
-  if (!board && land.standardBosses) {
+  if (land.standardBosses) {
     Object.entries(land.standardBosses).forEach(([bk, boss]) => {
       if (!boss.sessions || !boss.portrait) return;
       tileBossVisualMap[boss.sessions[0]] = { type:'sighted',    bossKey:bk, boss };
@@ -3827,9 +4201,9 @@ function buildLandSVG(land, pos, board, extraSVG) {
     });
   }
 
-  // Build gate tile visual map: each gate boss session → boss info with portrait
+  // Built unconditionally so gate boss tiles (lesson type) always render with gatekeeper styling.
   const gateTileVisualMap = {};
-  if (!board && land.gateBosses) {
+  if (land.gateBosses) {
     Object.entries(land.gateBosses).forEach(([bk, boss]) => {
       if (boss.session && boss.portrait) {
         gateTileVisualMap[boss.session] = { bossKey: bk, boss };
@@ -4111,7 +4485,7 @@ function renderBossScreen() {
   const loreDefeated = tile.loreDefeated || "";
   const loreSeraphine= tile.loreSeraphine|| "";
   const pearUrl   = tile.pearUrl || "https://app.peardeck.com/placeholder";
-  const hp        = m.hp ?? 10;
+  const hp        = calcHP(student);
   const hpLow     = hp < 5;
   const pos = getLandPos(student);
 
@@ -4451,12 +4825,17 @@ function renderLessonStop() {
   const mustAllDone = mustDo.length === 0 || mustDo.every((_, i) => (progress.mustDo || [])[i]);
   const pos = student ? getLandPos(student) : {};
   const isCompleted  = (pos.completed || []).includes(tile.id);
-  const isBranchTile = !!tile.parentTileId;
-  const isRegularLesson = tile.type === 'lesson' && !isBranchTile && !BOSS_SCHEDULE[String(tile.id)];
-  const nearpodDone    = isRegularLesson && !!(progress.nearpod       || [])[0];
-  const workbookDone   = isRegularLesson && !!(progress.workbook      || [])[0];
-  const selfAssessLevel= isRegularLesson ?  ((progress.selfAssessLevel|| [])[0] || 0) : 0;
-  const ASSESS_TEXTS   = { 4:"I understand it and could teach it to someone else.", 3:"I understand it.", 2:"I think I get it, but I'm still getting some problems wrong.", 1:"I don't get it. I need help." };
+  const isBranchTile = tile.pathType === 'loot' || !!tile.parentTileId;
+  const isLessonTile  = tile.type === 'lesson' && !isBranchTile;
+  const isBossSession = isLessonTile && !!BOSS_SCHEDULE[String(tile.id)];
+  const bossScheduleEntry = isBossSession ? BOSS_SCHEDULE[String(tile.id)] : null;
+  const waygroundDone    = !!(progress.wayground       || [])[0];
+  const workbookDone     = !!(progress.workbook        || [])[0];
+  const bothChecked      = waygroundDone && workbookDone;
+  const exitTicketOpened = !!(progress.exitTicketOpened|| [])[0];
+  const outcomeRecorded  = !!(progress.outcomeRecorded || [])[0];
+  const outcomeWasFail   = !!(progress.outcomeFail     || [])[0];
+  const pearUrl = getEffectivePear(land, tile);
   // Branch tiles are actionable when their parent is completed and they aren't yet.
   // Main-path tiles are actionable only when they are the student's current tile.
   const isActionable = !isCompleted && (
@@ -4505,25 +4884,11 @@ function renderLessonStop() {
       const sq = STATE.student ? getActiveSideQuests(STATE.student) : {};
       const collabKey = `${tid}_collab`;
       const collabAccepted = !!sq[collabKey];
-      const soloL1 = LAND1_SOLO_QUESTS[tid];
-      const soloKey = `${tid}_solo`;
-      const soloAccepted = !!sq[soloKey];
       return `<div class="sq-overlay" id="sq-overlay">
         <div class="sq-modal">
           <div class="sq-title">⚔️ Side Quest Unlocked!</div>
           <p class="sq-sub">Complete this bonus challenge to earn extra XP!</p>
-          ${soloL1 ? `<div class="sq-card sq-solo">
-            <div class="sq-card-type">🎨 Art Deliverable</div>
-            <div class="sq-card-name">${soloL1.title}</div>
-            <div class="sq-card-desc">${soloL1.desc}</div>
-            <div class="sq-card-footer">
-              <span class="sq-xp">+${soloL1.xp} XP</span>
-              ${soloAccepted
-                ? `<span class="sq-accepted">✓ Accepted</span>`
-                : `<button class="btn-sq-accept" data-sq-key="${soloKey}" data-sq-idx="${STATE.sideQuestSoloIdx}" data-sq-type="solo">Accept</button>`}
-            </div>
-          </div>` : ''}
-          <div class="sq-card sq-collab">
+          ${getCollabQuestsEnabled() ? `<div class="sq-card sq-collab">
             <div class="sq-card-type">🤝 Collaborative Quest</div>
             <div class="sq-card-name">${collab.title}</div>
             <div class="sq-card-desc">${collab.desc}</div>
@@ -4533,73 +4898,356 @@ function renderLessonStop() {
                 ? `<span class="sq-accepted">✓ Accepted</span>`
                 : `<button class="btn-sq-accept" data-sq-key="${collabKey}" data-sq-idx="0" data-sq-type="collab">Accept</button>`}
             </div>
-          </div>
+          </div>` : ''}
           <button class="btn-sq-close" id="sq-close">Continue to Quest Map →</button>
         </div>
       </div>`;
     })() : ''}
-    ${STATE.gradeModalOpen ? `
-    <div class="grade-modal-overlay" id="grade-modal-overlay">
-      <div class="grade-modal">
-        <div class="grade-modal-title">📊 Log Your Progress</div>
-        <p class="grade-modal-sub">Enter the grade you received on this lesson's assignment. This keeps your stats current.</p>
-        <input type="number" class="grade-modal-input" id="grade-modal-input" min="0" max="100" placeholder="0 – 100" />
-        <div class="grade-modal-btns">
-          <button class="btn btn-outline-sm" id="grade-modal-skip">Remind Me Later</button>
-          <button class="btn btn-purple" id="grade-modal-submit">✅ Save Grade</button>
-        </div>
-      </div>
-    </div>` : ''}
     ${renderPartnerPickerModal()}`;
 
-  if (isRegularLesson) {
+  const _bsGK = BOSS_SCHEDULE[String(tile.id)];
+  const isGatekeeper = _bsGK && _bsGK.type === 'gatekeeper';
+
+  if (isGatekeeper) {
+    const assessUrl = _bsGK.assessmentUrl || '';
+    const bossDisplayName = _bsGK.bossName || tile.name || 'Gatekeeper';
+    const portraitSrc = _bsGK.portrait ? `/bosses/${_bsGK.portrait}` : null;
     return `
-  <div class="screen ls-screen">
-    <div class="sg-modal ls-rlesson-modal enter">
-      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
-      <div class="sg-modal-icon" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="rgba(30,27,75,.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+<style>
+.gk-screen { background:#0d0a1a !important; }
+.gk-modal {
+  position:relative;
+  max-width:560px;
+  margin:0 auto;
+  padding-bottom:40px;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  min-height:100vh;
+}
+.gk-hero {
+  width:100%;
+  aspect-ratio:16/9;
+  overflow:hidden;
+  background:#1a1030;
+  flex-shrink:0;
+}
+.gk-hero img {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.gk-hero-fallback {
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:80px;
+  background:linear-gradient(160deg,#1a1030 0%,#2a1a50 100%);
+}
+.gk-eyebrow {
+  text-align:center;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:2.5px;
+  text-transform:uppercase;
+  color:rgba(251,191,36,.75);
+  padding:22px 24px 0;
+}
+.gk-boss-name {
+  text-align:center;
+  font-size:clamp(28px,6vw,40px);
+  font-weight:900;
+  letter-spacing:-0.5px;
+  color:#f5e9c8;
+  padding:8px 24px 0;
+  line-height:1.15;
+}
+.gk-lore {
+  margin:20px 24px 0;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;
+  padding:14px 16px;
+  color:rgba(245,233,200,.75);
+  font-style:italic;
+  font-size:14px;
+  line-height:1.65;
+}
+.gk-cta {
+  margin:28px 24px 0;
+  padding:16px;
+  background:linear-gradient(135deg,#b86e18 0%,#e8a22a 100%);
+  color:#1a0d00;
+  font-weight:800;
+  font-size:17px;
+  letter-spacing:.4px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  transition:opacity .15s;
+  text-align:center;
+}
+.gk-cta:hover { opacity:.88; }
+.gk-cta-hint {
+  text-align:center;
+  margin-top:10px;
+  font-size:12px;
+  color:rgba(245,233,200,.35);
+}
+.gk-close {
+  position:absolute;
+  top:14px;
+  right:14px;
+  background:rgba(0,0,0,.5);
+  border:1px solid rgba(255,255,255,.15);
+  color:rgba(255,255,255,.65);
+  border-radius:50%;
+  width:32px;
+  height:32px;
+  font-size:14px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:10;
+  line-height:1;
+}
+.gk-close:hover { background:rgba(0,0,0,.75);color:#fff; }
+</style>
+<div class="screen ls-screen gk-screen">
+  <div class="gk-modal">
+    <button class="gk-close ls-back-btn" aria-label="Close">✕</button>
+    <div class="gk-hero">
+      ${portraitSrc
+        ? `<img src="${portraitSrc}" alt="${bossDisplayName}" onerror="this.parentNode.innerHTML='<div class=\\'gk-hero-fallback\\'>⚔️</div>'"/>`
+        : `<div class="gk-hero-fallback">⚔️</div>`}
+    </div>
+    <div class="gk-eyebrow">Trial of the Vale</div>
+    <div class="gk-boss-name">${bossDisplayName}</div>
+    ${loreText ? `<div class="gk-lore">"${loreText}"</div>` : ''}
+    <button class="gk-cta" id="gk-begin-btn" data-url="${assessUrl}">⚔️ Begin the Trial</button>
+    ${!assessUrl ? `<div class="gk-cta-hint">Assessment link coming soon</div>` : ''}
+  </div>
+  ${_overlays}
+</div>`;
+  }
+
+  if (isLessonTile) {
+    const pearBtnLabel  = isBossSession ? '⚔️ Defeat the Boss' : '🏹 Battle Training';
+    const passLabel     = isBossSession ? '🏆 I Won!' : '✅ Training Complete!';
+    const failLabel     = isBossSession ? '💀 I Was Defeated' : '🔄 Needs More Practice';
+    const showOutcome   = exitTicketOpened && !outcomeRecorded;
+    const showDone      = isCompleted || outcomeRecorded;
+
+    const portraitHtml = (() => {
+      const bs = bossScheduleEntry;
+      if (bs && bs.portrait) {
+        const isFGK = bs.type === 'finalGatekeeper';
+        const w = isFGK ? 'clamp(220px,85%,340px)' : 'clamp(180px,75%,280px)';
+        const bookFallback = "<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' width=\\'48\\' height=\\'48\\' fill=\\'none\\' stroke=\\'rgba(30,27,75,.2)\\' stroke-width=\\'1.5\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><path d=\\'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z\\'/><path d=\\'M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z\\'/></svg>";
+        return `<div style="text-align:center;padding:12px 0 4px">
+          ${isFGK ? `<div style="font-size:11px;font-weight:800;letter-spacing:1.8px;color:rgba(251,191,36,.85);text-transform:uppercase;margin-bottom:8px">Final Trial of the Vale</div>` : ''}
+          <div style="width:${w};aspect-ratio:16/9;overflow:hidden;border-radius:10px;margin:0 auto;background:rgba(30,27,75,.08)">
+            <img src="/bosses/${bs.portrait}" alt="${bs.bossName || ''}"
+                 style="width:100%;height:100%;object-fit:cover;display:block"
+                 onerror="this.outerHTML='${bookFallback}'"/>
+          </div>
+        </div>`;
+      }
+      const PIP_TILES = { 8:'npc_pip1.png', 14:'npc_pip2.png', 40:'npc_pip3.png' };
+      const pipImg = PIP_TILES[tile.id];
+      if (pipImg) {
+        return `<div style="text-align:center;padding:12px 0 4px">
+          <img src="/npcs/${pipImg}" alt="Pip"
+               style="width:clamp(120px,45%,180px);height:auto;border-radius:10px;display:inline-block"
+               onerror="this.style.display='none'"/>
+        </div>`;
+      }
+      return `<div style="text-align:center;padding:12px 0 4px" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="rgba(30,27,75,.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
           <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
         </svg>
+      </div>`;
+    })();
+
+    return `
+  <div class="screen ls-screen">
+    <div class="ls-card enter">
+      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
+      <div class="ls-breadcrumb" style="padding-right:28px;margin-bottom:4px">
+        <button class="ls-bc-back ls-back-btn">← Quest Map</button>
+        <span class="ls-bc-sep" style="margin:0 4px;opacity:.35">|</span>
+        <span class="ls-bc-land">${land.name}</span>
+        <span class="ls-bc-sep">›</span>
+        <span class="ls-bc-tile">${tile.name || ""}${tile.sessionTitle ? ` — ${tile.sessionTitle}` : ""}</span>
       </div>
-      <div class="sg-modal-title">${tile.sessionTitle || tile.name || "Lesson"}</div>
-      ${loreText ? `<p class="sg-modal-flavor">"${loreText}"</p>` : ''}
-      <button class="ls-video-btn" id="ls-video-btn" style="margin-bottom:18px">
+      ${portraitHtml}
+      ${loreSection}
+      <button class="ls-video-btn" id="ls-video-btn">
         <span class="ls-play-icon">▶</span>
-        <span>Open Lesson</span>
+        <span>View Lesson</span>
       </button>
-      <div class="sg-lesson-demo">
-        <div class="sg-lesson-section ls-rlesson-red">
-          <div class="sg-lesson-label">🔴 Your Quest Checklist</div>
-          <label class="sg-check-item${nearpodDone?' sg-check-item-done':''}${!videoOpened?' sg-check-locked':''}">
-            <input type="checkbox" class="ls-check-new" data-ls-kind="nearpod" ${nearpodDone?'checked':''} ${!videoOpened?'disabled':''}/>
-            I completed all Nearpod activities to the best of my ability
-            <span class="sg-reward-note">${nearpodDone?'✓ Earned: +5 Gold / +10 XP':'+5 Gold / +10 XP on completion'}</span>
-          </label>
-          <label class="sg-check-item${workbookDone?' sg-check-item-done':''}${!nearpodDone?' sg-check-locked':''}">
-            <input type="checkbox" class="ls-check-new" data-ls-kind="workbook" ${workbookDone?'checked':''} ${!nearpodDone?'disabled':''}/>
-            I showed my completed workbook pages to a peer or the teacher
-            <span class="sg-reward-note">${workbookDone?'✓ Earned: +3 Gold / +5 XP':'+3 Gold / +5 XP on completion'}</span>
-          </label>
-        </div>
-        <div class="sg-lesson-section ls-rlesson-teal${!nearpodDone?' ls-section-locked':''}" id="ls-assess-section">
-          <div class="sg-lesson-label">🔵 How Am I Comprehending?</div>
-          ${[4,3,2,1].map(lvl => `
-            <label class="sg-assess-demo sg-assess-demo-${lvl}${selfAssessLevel===lvl?' ls-assess-selected':''}" data-level="${lvl}">
-              <input type="radio" name="ls-self-assess" class="ls-assess-radio" data-level="${lvl}" ${selfAssessLevel===lvl?'checked':''} ${!nearpodDone?'disabled':''}/>
-              <span class="sg-assess-demo-num">${lvl}.</span>
-              <span>${ASSESS_TEXTS[lvl]}${lvl===1?' <span class="sg-assess-alert">— alerts your teacher</span>':''}</span>
-            </label>
-          `).join('')}
-        </div>
+      <div class="ls-flow-checks">
+        <label class="ls-flow-check-item${waygroundDone ? ' ls-flow-check-done' : ''}">
+          <input type="checkbox" class="ls-check-new" data-ls-kind="wayground" ${waygroundDone ? 'checked' : ''} ${showDone ? 'disabled' : ''}/>
+          <span>Wayground</span>
+          ${waygroundDone ? '<span class="ls-flow-check-badge">✓</span>' : ''}
+        </label>
+        <label class="ls-flow-check-item${workbookDone ? ' ls-flow-check-done' : ''}">
+          <input type="checkbox" class="ls-check-new" data-ls-kind="workbook" ${workbookDone ? 'checked' : ''} ${showDone ? 'disabled' : ''}/>
+          <span>Showed Workbook</span>
+          ${workbookDone ? '<span class="ls-flow-check-badge">✓</span>' : ''}
+        </label>
       </div>
-      <div class="sg-modal-footer" style="margin-top:14px">
-        <button class="ls-submit-btn" id="ls-submit" ${(!isActionable || !nearpodDone) ? "disabled" : ""} data-completed="${!isActionable}" style="width:100%">
-          ${!isActionable ? "Quest Complete ✓" : nearpodDone ? "✅ I'm Ready!" : "Complete Lesson"}
+      ${!showDone ? `<button class="ls-pear-btn${bothChecked ? '' : ' ls-pear-locked'}" id="ls-pear-btn"
+          data-url="${pearUrl}" ${(!bothChecked || !isActionable || !pearUrl) ? 'disabled' : ''}>
+          ${pearBtnLabel}
         </button>
-      </div>
+        ${!bothChecked ? '<p class="ls-pear-hint">Check both boxes above to unlock.</p>' : ''}
+        ${bothChecked && !pearUrl ? '<p class="ls-pear-hint">Exit ticket link coming soon.</p>' : ''}` : ''}
+      ${showOutcome ? `<p class="ls-outcome-prompt">How did it go?</p>
+      <div class="ls-outcome-btns">
+        <button class="ls-outcome-btn ls-outcome-pass" id="ls-outcome-pass">${passLabel}</button>
+        <button class="ls-outcome-btn ls-outcome-fail" id="ls-outcome-fail">${failLabel}</button>
+      </div>` : ''}
+      ${showDone ? `<div class="ls-done-state">
+        ${outcomeWasFail
+          ? (isBossSession
+              ? `<div class="ls-retry-card">⚔️ That one didn't go your way — but you're still moving forward! Your teacher will set up another shot at this challenge soon.</div>`
+              : `<div class="ls-done-msg">📚 That one needs more practice — your teacher has been notified and will help you get there.</div>`)
+          : `<div class="ls-done-msg">✅ Quest complete! Well done, warrior.</div>`}
+      </div>` : ''}
       ${wbRef ? `<div class="ls-workbook">${wbRef}</div>` : ""}
+    </div>
+    ${_overlays}
+  </div>`;
+  }
+
+  if (tile.type === 'camp') {
+    const campTaskDone = !!(progress.campTask || [])[0];
+    const showCampDone = isCompleted;
+    const PIP_TILES_C = { 8:'npc_pip1.png', 14:'npc_pip2.png', 40:'npc_pip3.png' };
+    const pipImg = PIP_TILES_C[tile.id];
+    const campPortrait = pipImg
+      ? `<div style="text-align:center;padding:12px 0 4px">
+           <img src="/npcs/${pipImg}" alt="Pip"
+                style="width:clamp(120px,45%,180px);height:auto;border-radius:10px;display:inline-block"
+                onerror="this.style.display='none'"/>
+         </div>`
+      : `<div style="text-align:center;padding:12px 0 4px;font-size:48px">⛺</div>`;
+    return `
+  <div class="screen ls-screen">
+    <div class="ls-card enter">
+      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
+      <div class="ls-breadcrumb" style="padding-right:28px;margin-bottom:4px">
+        <button class="ls-bc-back ls-back-btn">← Quest Map</button>
+        <span class="ls-bc-sep" style="margin:0 4px;opacity:.35">|</span>
+        <span class="ls-bc-land">${land.name}</span>
+        <span class="ls-bc-sep">›</span>
+        <span class="ls-bc-tile">${tile.name || ""}${tile.sessionTitle ? ` — ${tile.sessionTitle}` : ""}</span>
+      </div>
+      ${campPortrait}
+      ${loreSection}
+      ${showCampDone
+        ? `<div class="ls-done-state"><div class="ls-done-msg">✅ Quest complete! Well done, warrior.</div></div>`
+        : `<label class="ls-flow-check-item${campTaskDone ? ' ls-flow-check-done' : ''}" style="margin-top:18px">
+             <input type="checkbox" id="camp-task-check" ${campTaskDone ? 'checked' : ''}/>
+             <span>I met with my teacher and completed today's task.</span>
+             ${campTaskDone ? '<span class="ls-flow-check-badge">✓</span>' : ''}
+           </label>
+           <button class="ls-submit-btn${campTaskDone ? ' enter' : ''}" id="camp-complete-btn" ${(!isActionable || !campTaskDone) ? 'disabled' : ''} style="margin-top:14px">
+             ${!isActionable ? 'Quest Complete ✓' : campTaskDone ? '✅ Quest Complete!' : '🔒 Check the box above to continue'}
+           </button>`}
+    </div>
+    ${_overlays}
+  </div>`;
+  }
+
+  if (tile.type === 'loot') {
+    const challenge = LOOT_CHALLENGES[tile.id];
+    if (!challenge) {
+      return `
+  <div class="screen ls-screen">
+    <div class="ls-card enter">
+      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
+      <div class="ls-breadcrumb" style="padding-right:28px;margin-bottom:4px">
+        <button class="ls-bc-back ls-back-btn">← Quest Map</button>
+        <span class="ls-bc-sep" style="margin:0 4px;opacity:.35">|</span>
+        <span class="ls-bc-land">${land.name}</span>
+        <span class="ls-bc-sep">›</span>
+        <span class="ls-bc-tile">${tile.name || ""}</span>
+      </div>
+      <div style="text-align:center;padding:24px 0 8px;font-size:48px">💰</div>
+      <div class="ls-done-state" style="text-align:center">
+        <div class="ls-done-msg" style="color:rgba(251,191,36,.85)">⚒️ Challenge coming soon — check back later!</div>
+      </div>
+    </div>
+    ${_overlays}
+  </div>`;
+    }
+
+    const lootProgress = progress.lootAnswers || {};
+    const submitted = !!(progress.lootSubmitted);
+    const score = submitted ? (progress.lootScore || 0) : null;
+    const total = challenge.questions.length;
+    const passed = submitted && score === total;
+
+    const questionsHTML = challenge.questions.map((q, qi) => {
+      const chosen = lootProgress[qi] != null ? lootProgress[qi] : null;
+      return `<div class="loot-question" data-qi="${qi}" style="margin-bottom:18px">
+        <div style="font-size:13px;font-weight:700;color:#EDE9FE;margin-bottom:8px">${qi+1}. ${q.q}</div>
+        ${q.choices.map((c, ci) => {
+          let style = "display:block;padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1.5px solid rgba(167,139,250,.25);cursor:pointer;font-size:12px;color:#EDE9FE;background:rgba(255,255,255,.04);transition:border-color .15s,background .15s";
+          if (submitted) {
+            if (ci === q.answer) style += ";border-color:#34D399;background:rgba(52,211,153,.12)";
+            else if (ci === chosen && ci !== q.answer) style += ";border-color:#F87171;background:rgba(248,113,113,.10)";
+          } else if (ci === chosen) {
+            style += ";border-color:#A78BFA;background:rgba(167,139,250,.12)";
+          }
+          return `<label style="${style}">
+            <input type="radio" name="loot-q${qi}" value="${ci}" ${chosen === ci ? 'checked' : ''} ${submitted ? 'disabled' : ''} style="margin-right:8px;accent-color:#A78BFA"/>
+            ${c}
+          </label>`;
+        }).join('')}
+      </div>`;
+    }).join('');
+
+    const doneState = isCompleted
+      ? `<div class="ls-done-state"><div class="ls-done-msg">✅ Loot claimed! Treasure secured.</div></div>`
+      : submitted
+        ? `<div style="text-align:center;margin:16px 0 8px">
+            <div style="font-size:20px;font-weight:900;color:${passed ? '#34D399' : '#F87171'};margin-bottom:4px">${passed ? '🎉 Perfect Score!' : `${score}/${total} correct`}</div>
+            ${passed
+              ? `<div style="font-size:12px;color:rgba(237,233,254,.6);margin-bottom:14px">You answered every question correctly — treasure awaits!</div>
+                 <button class="ls-submit-btn enter" id="loot-claim-btn" style="margin-top:0">💰 Claim Loot!</button>`
+              : `<div style="font-size:12px;color:rgba(237,233,254,.6)">Review the correct answers above, then try again when your teacher resets this tile.</div>`}
+           </div>`
+        : `<button class="ls-submit-btn" id="loot-submit-btn" style="margin-top:8px">⚔️ Submit Answers</button>`;
+
+    return `
+  <div class="screen ls-screen">
+    <div class="ls-card enter">
+      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
+      <div class="ls-breadcrumb" style="padding-right:28px;margin-bottom:4px">
+        <button class="ls-bc-back ls-back-btn">← Quest Map</button>
+        <span class="ls-bc-sep" style="margin:0 4px;opacity:.35">|</span>
+        <span class="ls-bc-land">${land.name}</span>
+        <span class="ls-bc-sep">›</span>
+        <span class="ls-bc-tile">${tile.name || ""}</span>
+      </div>
+      <div style="text-align:center;padding:12px 0 4px;font-size:48px">💰</div>
+      ${loreSection}
+      <div style="background:rgba(251,191,36,.08);border:1.5px solid rgba(251,191,36,.2);border-radius:10px;padding:14px 16px;margin:12px 0;font-size:12px;line-height:1.6;color:rgba(237,233,254,.8);font-style:italic">
+        "${challenge.flavorText}"
+      </div>
+      <div style="margin-top:16px">
+        ${isCompleted ? '' : questionsHTML}
+      </div>
+      ${doneState}
     </div>
     ${_overlays}
   </div>`;
@@ -4629,6 +5277,15 @@ function renderLessonStop() {
                    style="width:100%;height:100%;object-fit:cover;display:block"
                    onerror="this.outerHTML='${bookFallback}'"/>
             </div>
+          </div>`;
+        }
+        const PIP_TILES = { 8:'npc_pip1.png', 14:'npc_pip2.png', 40:'npc_pip3.png' };
+        const pipImg = PIP_TILES[tile.id];
+        if (pipImg) {
+          return `<div style="text-align:center;padding:12px 0 4px">
+            <img src="/npcs/${pipImg}" alt="Pip"
+                 style="width:clamp(120px,45%,180px);height:auto;border-radius:10px;display:inline-block"
+                 onerror="this.style.display='none'"/>
           </div>`;
         }
         return `<div style="text-align:center;padding:12px 0 4px" aria-hidden="true">
@@ -5186,13 +5843,13 @@ function renderQuestMap() {
     <button class="qm-help-btn${STATE.helpFlagged?' flagged':''}" id="qm-help-btn" ${STATE.helpFlagged?'disabled':''}>
       ${STATE.helpFlagged?'🙋 Help Requested':'🤚 Need Help'}
     </button>
-    ${completedInLand ? `
+    ${completedInLand && getCollabQuestsEnabled() ? `
     <button class="sq-board-banner" id="sq-board-btn">
       <span class="sq-board-banner-scroll">📜</span>
       <span class="sq-board-banner-text">Side Quest Board</span>
       <span class="sq-board-banner-sub">View available side quests for this land</span>
     </button>` : ''}
-    ${sqBoardHTML}
+    ${getCollabQuestsEnabled() ? sqBoardHTML : ''}
     ${renderPartnerPickerModal()}
     ${renderNpcModal()}
     ${renderSg0Modal()}
@@ -5525,21 +6182,90 @@ function renderTeacherLogin() {
   </div>`;
 }
 
+function renderTeacherContentLinks() {
+  const landId   = STATE.teacherLinksLandId || 1;
+  const land     = LANDS.find(l => l.id === landId) || LANDS[0];
+  const tiles    = getLandContentTiles(land);
+  const stored   = getStoredTileLinks(landId);
+  const gateSet  = land.gateBosses ? new Set(Object.values(land.gateBosses).map(gb => gb.session)) : new Set();
+  const dungeonSet = new Set((land.tiles || []).filter(t => t.type === 'dungeon').map(t => t.id));
+
+  const landOptions = LANDS.map(l =>
+    `<option value="${l.id}" ${l.id === landId ? 'selected' : ''}>${l.name}</option>`
+  ).join('');
+
+  const sessionRows = tiles.map((t, i) => {
+    const isGate  = gateSet.has(t.id);
+    const isDung  = dungeonSet.has(t.id);
+    const isBossSess = !!BOSS_SCHEDULE[String(t.id)];
+    const badge   = isGate ? ' <span class="tcl-badge tcl-badge-gate">Gate</span>' : isBossSess ? ' <span class="tcl-badge tcl-badge-boss">Boss Day</span>' : isDung ? ' <span class="tcl-badge tcl-badge-dung">Final Boss</span>' : '';
+    const wgVal   = (stored[String(t.id)] || {}).wayground ?? (t.video || '');
+    const pearVal = (stored[String(t.id)] || {}).pear ?? getEffectivePear(land, t);
+    const label   = t.sessionTitle ? `${t.name} — ${t.sessionTitle}` : t.name;
+    return `<div class="tcl-row" data-row-idx="${i}">
+      <div class="tcl-row-label"><span class="tcl-row-num">${i + 1}</span>${label}${badge}</div>
+      <div class="tcl-row-fields">
+        <div class="tcl-field-wrap">
+          <span class="tcl-field-lbl">🌿 Wayground</span>
+          <div class="tcl-field-row">
+            <input class="tcl-url tcl-wg-url" type="url" data-tile-id="${t.id}" data-field="wayground"
+              value="${wgVal}" placeholder="https://wayground.com/join?gc=…"/>
+            <button class="tcl-save-one-btn" data-tile-id="${t.id}" data-field="wayground">Save</button>
+          </div>
+        </div>
+        <div class="tcl-field-wrap">
+          <span class="tcl-field-lbl">🍐 Pear Exit Ticket</span>
+          <div class="tcl-field-row">
+            <input class="tcl-url tcl-pear-url" type="url" data-tile-id="${t.id}" data-field="pear"
+              value="${pearVal}" placeholder="https://app.peardeck.com/…"/>
+            <button class="tcl-save-one-btn" data-tile-id="${t.id}" data-field="pear">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="screen tcl-screen">
+    <div class="tcl-wrap">
+      <div class="tcl-hdr">
+        <button class="btn btn-outline-sm" id="tcl-back">← Dashboard</button>
+        <span class="tcl-title">📚 Content Links</span>
+        <select id="tcl-land-sel" class="tcl-land-sel">${landOptions}</select>
+      </div>
+
+      <div class="tcl-bulk-card">
+        <div class="tcl-bulk-title">Bulk Import</div>
+        <div class="tcl-bulk-hint">${tiles.length} sessions in this Land. Paste one URL per line, matching session order below.</div>
+        <div class="tcl-bulk-cols">
+          <div class="tcl-bulk-col">
+            <label class="tcl-bulk-lbl" for="tcl-wg-paste">🌿 Wayground Links</label>
+            <textarea id="tcl-wg-paste" class="tcl-paste-area" rows="8" placeholder="https://wayground.com/join?gc=...&#10;https://wayground.com/join?gc=...&#10;…"></textarea>
+            <div class="tcl-paste-status" id="tcl-wg-status"></div>
+            <button class="btn tcl-bulk-save-btn" id="tcl-save-wg-bulk" disabled>💾 Save Wayground Links</button>
+          </div>
+          <div class="tcl-bulk-col">
+            <label class="tcl-bulk-lbl" for="tcl-pear-paste">🍐 Pear Exit Ticket Links</label>
+            <textarea id="tcl-pear-paste" class="tcl-paste-area" rows="8" placeholder="https://app.peardeck.com/...&#10;https://app.peardeck.com/...&#10;…"></textarea>
+            <div class="tcl-paste-status" id="tcl-pear-status"></div>
+            <button class="btn tcl-bulk-save-btn" id="tcl-save-pear-bulk" disabled>💾 Save Pear Links</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tcl-sessions-card">
+        <div class="tcl-sessions-title">Session-by-Session</div>
+        <div class="tcl-session-list">${sessionRows}</div>
+      </div>
+    </div>
+  </div>`;
+}
 function renderTeacherDashboard() {
   const periods = CLASS_DATA.periods;
   const period  = periods[STATE.teacherPeriodIdx];
   const flags   = getHelpFlags();
   const flagCount = Object.keys(flags).length;
-  const pacing = getPacingSettings();
-  const pacingExpected = (() => {
-    if (!pacing || !pacing.startDate || !pacing.targetDate || !pacing.targetCount) return null;
-    const start = new Date(pacing.startDate).getTime();
-    const target = new Date(pacing.targetDate).getTime();
-    const totalMs = target - start;
-    if (totalMs <= 0) return null;
-    const fraction = Math.max(0, Math.min(1, (Date.now() - start) / totalMs));
-    return Math.round(fraction * Number(pacing.targetCount));
-  })();
+  const expectedTile = getExpectedTile();
   const craftReqs = getCraftRequests();
   const pendingPotions = Object.entries(craftReqs)
     .map(([sid, req]) => {
@@ -5564,9 +6290,7 @@ function renderTeacherDashboard() {
 
     const cc  = unclaimed ? "#9CA3AF" : CLS_COLOR[clsKey(s, m)];
     const av  = m.avatar || "avatar_blankchibi.png";
-    const hpP = Math.round((m.hp/10)*100);
-    const mpP = Math.round((m.mp/10)*100);
-    const spP = Math.round((getEffectiveSP(s)/10)*100);
+    const hpP = Math.round((calcHP(s)/10)*100);
     const pos = getLandPos(s);
     const sLand = getLandData(pos.land);
     const curTileObj = sLand.tiles.find(t => t.id === pos.tile);
@@ -5577,10 +6301,11 @@ function renderTeacherDashboard() {
       ? curTileObj.mustDo.filter((_, i) => (tileProgress.mustDo || [])[i]).length
       : 0;
     const mustAllDone = mustTotal > 0 && mustDoneCount === mustTotal;
-    const flagBadges = sFlags.map(f =>
-      `<span class="t-flag-badge" style="background:${f.color}" data-flag-key="${f.key}" data-flag-sid="${s.id}">
-        ${f.icon}<span class="t-flag-tip">${f.tip}</span>
-      </span>`
+    const flagTabs = sFlags.map(f =>
+      `<div class="t-flag-tab" style="background:${f.color}" data-flag-key="${f.key}" data-flag-sid="${s.id}" role="img" aria-label="${f.label}: ${f.tip}">
+        <span class="t-flag-tab-icon">${f.icon}</span>
+        <div class="t-flag-tab-tip"><strong>${f.label}</strong><br>${f.tip}</div>
+      </div>`
     ).join('');
     const menuOpen = STATE.cardMenuSid === s.id;
     return `
@@ -5591,7 +6316,7 @@ function renderTeacherDashboard() {
         <button class="t-card-menu-item" data-award-companion="${s.id}">🐾 Award Companion</button>
         <button class="t-card-menu-item" data-reroll-name="${s.id}">🎲 Reroll Name</button>
       </div>` : ''}
-      ${hasFlags ? `<div class="t-flag-badges">${flagBadges}</div>` : ''}
+      ${hasFlags ? `<div class="t-flag-tabs">${flagTabs}</div>` : ''}
       <div class="t-s-top">
         <div class="t-s-avatar" style="border-color:${cc};padding:0"><img src="/avatars/${av}" alt="${getCharName(s)}" width="44" height="44" loading="lazy"/></div>
         <div class="t-s-info">
@@ -5602,8 +6327,6 @@ function renderTeacherDashboard() {
       </div>
       <div class="t-mini-bars">
         <div class="t-mini-row"><span class="t-mini-lbl">HP</span><div class="t-mini-track" style="background:#FEE2E2"><div class="t-mini-fill" style="width:${hpP}%;background:#EF4444"></div></div></div>
-        <div class="t-mini-row"><span class="t-mini-lbl">MP</span><div class="t-mini-track" style="background:#E0F2FE"><div class="t-mini-fill" style="width:${mpP}%;background:#0EA5E9"></div></div></div>
-        <div class="t-mini-row"><span class="t-mini-lbl">SP</span><div class="t-mini-track" style="background:#D1FAE5"><div class="t-mini-fill" style="width:${spP}%;background:#10B981"></div></div></div>
       </div>
       <div class="t-task-status">
         <span class="t-tile-badge">📍 ${tileName}</span>
@@ -5622,12 +6345,12 @@ function renderTeacherDashboard() {
           <button class="btn btn-outline-sm" id="t-boss-roster-btn">⚔️ Battle Records</button>
           <button class="btn btn-outline-sm" id="t-judgment-hall-btn">⚖️ Judgment Hall</button>
           <button class="btn btn-outline-sm" id="t-flag-log-btn">🚨 Flag Log</button>
-
+          <button class="btn btn-outline-sm" id="t-jump-tool-btn">🚀 Jump Tool</button>
+          <button class="btn btn-outline-sm" id="t-content-links-btn">📚 Content Links</button>
           <button class="btn btn-outline-sm" id="t-class-settings-btn">⚙️ Class Settings</button>
           <button class="btn btn-outline-sm t-gold-shop-btn" id="t-gold-shop-btn">
             🪙 Gold Shop${(() => { const n = Object.keys(getShopPending()).length; return n ? `<span class="t-gold-badge">${n}</span>` : ''; })()}
           </button>
-          <button class="btn btn-outline-sm" id="t-mp-bulk-btn">💙 MP Bulk Edit</button>
           <button class="btn btn-outline-sm" id="t-dash-logout">Exit</button>
         </div>
       </div>
@@ -5639,19 +6362,48 @@ function renderTeacherDashboard() {
             <button class="cs-close" id="cs-close">✕</button>
           </div>
           <div class="cs-section">
-            <div class="cs-section-title">📈 SP Pacing ${pacing ? `<span class="pacing-on-badge">ON — expect ${pacingExpected ?? '?'} sessions by today</span>` : '<span class="pacing-off-badge">OFF</span>'}</div>
+            <div class="cs-section-title">📍 Expected Tile ${expectedTile ? `<span class="pacing-on-badge">Set</span>` : '<span class="pacing-off-badge">Not set — class at full HP</span>'}</div>
             <div class="pacing-form" style="border-top:none;padding:0">
-              <label class="pacing-lbl">Class Start Date
-                <input type="date" id="pacing-start" value="${pacing ? pacing.startDate : ''}" class="pacing-input"/>
+              <label class="pacing-lbl">Which tile should the class be on right now?
+                <select id="expected-tile-sel" class="pacing-input" style="height:36px;font-size:13px">
+                  <option value="">— No expected tile (all students at HP 10) —</option>
+                  ${(() => {
+                    const activeLandTiles = (() => {
+                      const landCounts = {};
+                      for (const p of periods) for (const s of p.students) {
+                        const lid = getLandPos(s).land;
+                        if (lid > 0) landCounts[String(lid)] = (landCounts[String(lid)] || 0) + 1;
+                      }
+                      let activeLandId = 1;
+                      let best = 0;
+                      for (const [lid, cnt] of Object.entries(landCounts)) {
+                        if (cnt > best) { best = cnt; activeLandId = Number(lid); }
+                      }
+                      return LANDS.find(l => l.id === activeLandId) || LANDS[0];
+                    })();
+                    const pathOrder = activeLandTiles.pathOrder || [];
+                    const tileMap = {};
+                    for (const t of activeLandTiles.tiles) tileMap[t.id] = t;
+                    const gateSessions = {};
+                    if (activeLandTiles.gateBosses) {
+                      for (const [bk, gb] of Object.entries(activeLandTiles.gateBosses)) {
+                        gateSessions[gb.session] = bk.charAt(0).toUpperCase() + bk.slice(1);
+                      }
+                    }
+                    const TYPE_LABEL = { forge:'Forge', studyHall:'Study Hall', camp:'Camp', event:'Event', arrival:'Arrival', dungeon:'Dungeon' };
+                    return pathOrder.map(tid => {
+                      const t = tileMap[tid];
+                      if (!t) return '';
+                      let label = t.name;
+                      if (gateSessions[tid]) label += ` — ${gateSessions[tid]} (Gate Boss)`;
+                      else if (TYPE_LABEL[t.type]) label += ` (${TYPE_LABEL[t.type]})`;
+                      const sel = Number(expectedTile) === tid ? 'selected' : '';
+                      return `<option value="${tid}" ${sel}>${label}</option>`;
+                    }).join('');
+                  })()}
+                </select>
               </label>
-              <label class="pacing-lbl">Target Date
-                <input type="date" id="pacing-target-date" value="${pacing ? (pacing.targetDate || '') : ''}" class="pacing-input"/>
-              </label>
-              <label class="pacing-lbl">Sessions by Target Date
-                <input type="number" id="pacing-target-count" min="1" max="200" value="${pacing ? (pacing.targetCount || '') : ''}" class="pacing-input pacing-input-sm" placeholder="e.g. 24"/>
-              </label>
-              <button class="btn-pacing-save" id="pacing-save">Save</button>
-              ${pacing ? `<button class="btn-pacing-off" id="pacing-off">Turn Off</button>` : ''}
+              <button class="btn-pacing-save" id="expected-tile-save">Save</button>
             </div>
           </div>
           ${(() => {
@@ -5667,30 +6419,6 @@ function renderTeacherDashboard() {
               if (cnt > best) { best = cnt; activeLandId = Number(lid); }
             }
             return `
-          <div class="cs-section">
-            <div class="cs-section-title">📋 Session Settings — Exit Ticket Toggles</div>
-            <div class="cs-accordions">
-              ${LANDS.map(land => {
-                const lessonTiles = land.tiles.filter(t => t.type === 'lesson');
-                if (!lessonTiles.length) return '';
-                return `<details class="cs-land-details" ${land.id === activeLandId ? 'open' : ''}>
-                  <summary class="cs-land-summary">${land.name.toUpperCase()}</summary>
-                  <div class="cs-land-body">
-                    ${lessonTiles.map(t => {
-                      const on = getExitTicketEnabled(t.id);
-                      const label = t.sessionTitle ? `${t.name} — ${t.sessionTitle}` : t.name;
-                      return `<div class="ss-row">
-                        <span class="ss-tile-name">${label}</span>
-                        <button class="ss-toggle ${on ? 'ss-on' : 'ss-off'}" data-et-tile="${t.id}" data-et-val="${on ? '1' : '0'}">
-                          ${on ? '✅ Exit Ticket ON' : 'Exit Ticket OFF'}
-                        </button>
-                      </div>`;
-                    }).join('')}
-                  </div>
-                </details>`;
-              }).join('')}
-            </div>
-          </div>
           <div class="cs-section">
             <div class="cs-section-title">⚔️ Boss Fights — Locked by Default</div>
             <div class="cs-accordions">
@@ -5731,34 +6459,87 @@ function renderTeacherDashboard() {
               }).join('')}
             </div>
           </div>
-          <div class="cs-section" style="border-bottom:none">
-            <div class="cs-section-title">🔒 Progress Lock</div>
-            <div class="cs-pl-note">Cap how far students can advance per period &amp; land. Students complete normally up to the cap — the next tile stays locked until you raise it or turn it off. Default is Off.</div>
-            <div class="cs-accordions">
-              ${LANDS.map(land => {
-                if (!land.pathOrder || !land.pathOrder.length) return '';
-                const _pathTiles = land.pathOrder.map(tid => land.tiles.find(t => t.id === tid)).filter(Boolean);
-                return `<details class="cs-land-details" ${land.id === activeLandId ? 'open' : ''}>
-                  <summary class="cs-land-summary">${land.name.toUpperCase()}</summary>
-                  <div class="cs-land-body">
-                    ${CLASS_DATA.periods.map(period => {
-                      const _cap = getProgressCap(period.id, land.id);
-                      return `<div class="ss-row">
-                        <span class="ss-tile-name">${period.periodName}</span>
-                        <select class="pl-cap-select" data-pl-cohort="${period.id}" data-pl-land="${land.id}">
-                          <option value="" ${_cap === null ? 'selected' : ''}>Off (unlimited)</option>
-                          ${_pathTiles.map(t => `<option value="${t.id}" ${_cap === t.id ? 'selected' : ''}>Through ${t.name}</option>`).join('')}
-                        </select>
-                      </div>`;
-                    }).join('')}
-                  </div>
-                </details>`;
-              }).join('')}
+          <div class="cs-section">
+            <div class="cs-section-title">🤝 Collaborative Side Quests</div>
+            <div class="ss-row">
+              <span class="ss-tile-name">Collab quests in student experience</span>
+              <button class="ss-toggle ${getCollabQuestsEnabled() ? 'ss-on' : 'ss-off'}" id="collab-quests-toggle">
+                ${getCollabQuestsEnabled() ? '✅ Enabled' : 'Disabled'}
+              </button>
             </div>
+            <p style="font-size:11px;color:#9CA3AF;margin:6px 0 0">When disabled, collab quests are hidden from students. All logic and existing accepted/completed records are preserved.</p>
+          </div>
+          <div class="cs-section" style="border-bottom:none">
+            <div class="cs-section-title">📚 Weekly Homework Quest</div>
+            ${(() => {
+              const _hq = _settings && _settings.homeworkQuest;
+              const _hwOn = !!(_hq && _hq.enabled && _hq.weekOf === getMondayIso(new Date()));
+              const _hwText = (_hq && _hq.text) || '';
+              return `<div class="ss-row">
+                <span class="ss-tile-name">Homework Side Quest (this week)</span>
+                <button class="ss-toggle ${_hwOn ? 'ss-on' : 'ss-off'}" id="hw-quest-toggle">
+                  ${_hwOn ? '✅ Active This Week' : 'Inactive'}
+                </button>
+              </div>
+              ${_hwOn ? `<div style="margin-top:10px">
+                <textarea id="hw-quest-text" style="width:100%;min-height:72px;padding:8px;border-radius:6px;border:1.5px solid #D1D5DB;font-size:13px;resize:vertical;box-sizing:border-box" placeholder="Enter this week's homework prompt...">${_hwText}</textarea>
+                <button class="btn-pacing-save" id="hw-quest-save" style="margin-top:6px">💾 Save Prompt</button>
+              </div>` : `<p style="font-size:11px;color:#9CA3AF;margin:6px 0 0">When active, all students see a homework quest in their Quest Journal for the current week.</p>`}`;
+            })()}
           </div>`;
           })()}
         </div>
       </div>` : ''}
+      ${STATE.jumpToolOpen ? (() => {
+        const _jtLand = LANDS[0];
+        const _jtOrder = _jtLand.pathOrder || [];
+        const _jtTiles = _jtOrder.map(tid => _jtLand.tiles.find(t => t.id === tid)).filter(Boolean);
+        const _jtStudents = period.students;
+        return `<div class="cs-overlay" id="jt-overlay" style="z-index:1200">
+          <div class="cs-modal" style="max-width:520px">
+            <div class="cs-hdr">
+              <span class="cs-title">🚀 Jump Tool — Move Students to a Tile</span>
+              <button class="cs-close" id="jt-close">✕</button>
+            </div>
+            <div class="cs-section">
+              <div class="cs-section-title">Target Tile</div>
+              <select id="jt-target-tile" style="width:100%;padding:8px;border-radius:6px;border:1.5px solid rgba(168,139,250,.35);font-size:13px;margin-bottom:2px;background:#2d1a6e;color:#EDE9FE">
+                <option value="">— Select target tile —</option>
+                ${_jtTiles.map(t => `<option value="${t.id}">${t.name}${t.type === 'forge' ? ' (Writer\'s Craft)' : t.type === 'studyHall' ? ' (Study Hall)' : t.type === 'camp' ? ' (Camp)' : t.type === 'lesson' ? '' : ` (${t.type})`}</option>`).join('')}
+              </select>
+              <p style="font-size:11px;color:rgba(237,233,254,.45);margin:4px 0 0">Skipped tiles will have Gold forfeited and a Skipped flag added.</p>
+            </div>
+            <div class="cs-section">
+              <div class="cs-section-title" style="display:flex;justify-content:space-between;align-items:center">
+                <span>Students to Jump</span>
+                <button id="jt-select-all" style="font-size:11px;color:#A78BFA;background:none;border:none;cursor:pointer;font-weight:700">Select All</button>
+              </div>
+              <div style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:2px 0">
+                ${_jtStudents.map(s => {
+                  const m = getMergedStudent(s);
+                  const pos = getLandPos(s);
+                  const curT = _jtLand.tiles.find(t => t.id === pos.tile);
+                  return `<label style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:6px;cursor:pointer;border:1.5px solid rgba(168,139,250,.25)">
+                    <input type="checkbox" class="jt-student-check" data-jt-sid="${s.id}" style="width:16px;height:16px"/>
+                    <span style="font-size:11px;font-weight:700;color:rgba(167,139,250,.55);min-width:28px">#${s.id}</span>
+                    <span style="font-size:12px;font-weight:700;color:#EDE9FE">${getCharName(s)}</span>
+                    <span style="font-size:11px;color:rgba(237,233,254,.45);margin-left:auto">📍 ${curT?.name || pos.tile}</span>
+                  </label>`;
+                }).join('')}
+              </div>
+            </div>
+            <div class="cs-section" style="border-bottom:none">
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;font-weight:700;color:#EDE9FE;cursor:pointer">
+                <input type="checkbox" id="jt-reset-progress" style="width:15px;height:15px;accent-color:#A78BFA"/>
+                Reset destination tile progress (for retries)
+              </label>
+              <p style="font-size:11px;color:rgba(237,233,254,.45);margin:-6px 0 10px">Clears checkboxes, Pear status, and outcome so the student redoes the tile from scratch.</p>
+              <button id="jt-jump-btn" style="width:100%;padding:12px;background:#6366F1;color:#fff;font-weight:800;font-size:14px;border:none;border-radius:8px;cursor:pointer">🚀 Jump Selected Students</button>
+              <div id="jt-result" style="margin-top:8px;font-size:12px;color:#6EE7B7;min-height:18px"></div>
+            </div>
+          </div>
+        </div>`;
+      })() : ''}
       ${flagCount > 0 ? `
         <div class="help-alert">
           <div class="help-alert-count">${flagCount}</div>
@@ -5769,8 +6550,9 @@ function renderTeacherDashboard() {
           <div class="potion-alert-hdr">⚗️ Crafting Submissions (${pendingPotions.length})</div>
           ${pendingPotions.map(p => {
             const m = getMergedStudent(p.student);
-            const itemKey = p.itemRequested || 'health_potion';
-            const itemDef = ITEMS[itemKey] || { i:'🧪', n: itemKey };
+            const itemKey = p.itemRequested || '';
+            const recipe = CRAFT_RECIPES.find(r => r.id === itemKey);
+            const itemDef = recipe ? { i:'⚗️', n: recipe.name } : (ITEMS[itemKey] || { i:'⚗️', n: itemKey });
             return `<div class="potion-req-row">
               <span class="potion-req-name">${getCharName(p.student)}</span>
               <span class="potion-req-item">${itemDef.i} ${itemDef.n}</span>
@@ -6022,16 +6804,20 @@ function renderTeacherEdit() {
 
       <div class="t-section">
         <div class="t-section-title">⚡ Stats</div>
-        ${statRow("❤️","HP","hp","#EF4444","#FEE2E2")}
-        ${statRow("💙","MP","mp","#0EA5E9","#E0F2FE")}
-        ${statRow("💚","SP","sp","#10B981","#D1FAE5")}
+        <div class="t-stat-row">
+          <span class="t-stat-icon">❤️</span>
+          <span class="t-stat-lbl">HP</span>
+          <span class="stat-num">${calcHP(s)}</span>
+          <div class="t-stat-mini" style="background:#FEE2E2"><div class="t-stat-mini-fill" style="width:${Math.round(calcHP(s)/10*100)}%;background:#EF4444"></div></div>
+          <span class="t-stat-max">/ 10</span>
+        </div>
         <div class="t-stat-row" style="margin-top:10px">
           <span class="t-stat-icon">⭐</span>
           <span class="t-stat-lbl">XP</span>
           <input class="t-xp-inp" id="xp-inp" type="number" min="0" max="99999" value="${edit.xp}"/>
           <span class="t-xp-sep">/</span>
           <input class="t-xp-inp" id="xpnext-inp" type="number" min="1" max="99999" value="${edit.xpNext}" style="width:80px"/>
-          <div class="t-stat-mini" style="background:#FEF9C3"><div class="t-stat-mini-fill" style="width:${xpPct}%;background:#F59E0B"></div></div>
+          <div class="t-stat-mini" style="background:#DBEAFE"><div class="t-stat-mini-fill" style="width:${xpPct}%;background:#3B82F6"></div></div>
         </div>
         <div class="t-stat-row" style="margin-top:6px">
           <span class="t-stat-icon">🪙</span>
@@ -6569,12 +7355,14 @@ function renderFlagLog() {
   };
 
   const FLAG_TYPES = [
-    { key:'rushed',      icon:'⚡', label:'Rushed',           color:'#92400E', bg:'#FEF3C7' },
-    { key:'stuck',       icon:'🚩', label:'Stuck',            color:'#991B1B', bg:'#FEE2E2' },
-    { key:'failed_boss', icon:'❌', label:'Failed Boss',       color:'#7F1D1D', bg:'#FEE2E2' },
-    { key:'awaiting',    icon:'⏳', label:'Awaiting Judgment', color:'#4C1D95', bg:'#EDE9FE' },
-    { key:'help',        icon:'🤚', label:'Needs Help',        color:'#9A3412', bg:'#FFEDD5' },
+    { key:'mastery_trial', icon:'🏆', label:'Mastery Trial Requested', color:'#1D4ED8', bg:'#DBEAFE', hasActions:true },
+    { key:'rushed',        icon:'⚡', label:'Rushed',                  color:'#92400E', bg:'#FEF3C7', hasClear:true },
+    { key:'stuck',         icon:'🚩', label:'Stuck',                   color:'#991B1B', bg:'#FEE2E2', hasClear:true },
+    { key:'failed_boss',   icon:'❌', label:'Failed Boss',              color:'#7F1D1D', bg:'#FEE2E2', hasClear:true },
+    { key:'awaiting',      icon:'⏳', label:'Awaiting Judgment',        color:'#4C1D95', bg:'#EDE9FE' },
+    { key:'help',          icon:'🤚', label:'Needs Help',               color:'#9A3412', bg:'#FFEDD5', hasClear:true },
   ];
+  const FL_BOSS_NAMES = { duskmantle:'Duskmantle', mirrorkin:'Mirrorkin', seraphine:'Seraphine', keystone:'The Keystone' };
 
   const byType = {};
   FLAG_TYPES.forEach(ft => { byType[ft.key] = []; });
@@ -6596,25 +7384,34 @@ function renderFlagLog() {
       if (!prev?.completedAt || !curr?.completedAt) continue;
       const delta = (new Date(curr.completedAt).getTime() - new Date(prev.completedAt).getTime()) / 1000;
       if (delta >= 0 && delta < 300) {
-        byType.rushed.push({ student, guild, tileLabel:`S${completed[i-1]} → S${completed[i]}`, since: new Date(curr.completedAt).getTime() });
+        const rushedSince = new Date(curr.completedAt).getTime();
+        const dismissedRushed = ov.flagDismissals?.rushed;
+        if (dismissedRushed && dismissedRushed.context === String(rushedSince)) break;
+        byType.rushed.push({ student, guild, tileLabel:`S${completed[i-1]} → S${completed[i]}`, since: rushedSince, dismissKey: String(rushedSince) });
         break;
       }
     }
 
-    // Stuck
-    if (completed.length > 0) {
-      const lastTileId = completed[completed.length - 1];
-      const lastTs = ts[String(lastTileId)];
-      const schoolDays = _countSchoolDays(lastTs ? lastTs.completedAt : null, new Date());
-      if (schoolDays >= 3) {
-        byType.stuck.push({ student, guild, tileLabel:`S${lastTileId} (${schoolDays} school days)`, since: lastTs ? new Date(lastTs.completedAt).getTime() : 0 });
+    // Stuck — 2+ tiles behind Expected Tile
+    if (calcHP(student) <= 6) {
+      const dismissedStuck = ov.flagDismissals?.stuck;
+      const pos = getLandPos(student);
+      const dismissKey = String(pos.tile);
+      if (!dismissedStuck || dismissedStuck.context !== dismissKey) {
+        const hp = calcHP(student);
+        const tilesBehind = Math.round((10 - hp) / 2);
+        byType.stuck.push({ student, guild, tileLabel:`${tilesBehind} tile${tilesBehind !== 1 ? 's' : ''} behind Expected Tile`, since: 0, dismissKey });
       }
     }
 
     // Failed Boss
     const failedKeys = Object.entries(bossStatus).filter(([,v]) => v === 'retake').map(([k]) => k);
     if (failedKeys.length) {
-      byType.failed_boss.push({ student, guild, tileLabel: failedKeys.join(', '), since: 0 });
+      const dismissedBosses = ov.flagDismissals?.failed_boss || {};
+      const activeFailed = failedKeys.filter(k => !dismissedBosses[k]);
+      if (activeFailed.length) {
+        byType.failed_boss.push({ student, guild, tileLabel: activeFailed.join(', '), since: 0, dismissKey: activeFailed.join(',') });
+      }
     }
 
     // Awaiting Judgment
@@ -6628,6 +7425,23 @@ function renderFlagLog() {
       const flaggedAt = _helpflags[sid].flaggedAt;
       const msg = _helpflags[sid].message;
       byType.help.push({ student, guild, tileLabel: msg ? `"${msg}"` : '—', since: flaggedAt ? new Date(flaggedAt).getTime() : 0 });
+    }
+
+    // Mastery Trial Requested
+    const stdBossState = ov.standardBossState || {};
+    const land = LANDS[0];
+    if (land.standardBosses) {
+      Object.entries(land.standardBosses).forEach(([bk, boss]) => {
+        const bst = stdBossState[bk] || {};
+        if (bst.status === 'mastery_requested') {
+          byType.mastery_trial.push({
+            student, guild,
+            tileLabel: FL_BOSS_NAMES[bk] || bk,
+            since: bst.requestedAt ? new Date(bst.requestedAt).getTime() : 0,
+            bossKey: bk,
+          });
+        }
+      });
     }
   });
 
@@ -6649,32 +7463,54 @@ function renderFlagLog() {
 
   const cardsHTML = FLAG_TYPES.map(ft => {
     const rows = byType[ft.key];
+    const isMastery = ft.hasActions;
+    const isClearable = ft.hasClear;
+    const colgroup = isMastery
+      ? `<colgroup><col style="width:28%"><col style="width:18%"><col style="width:24%"><col style="width:12%"><col style="width:18%"></colgroup>`
+      : isClearable
+        ? `<colgroup><col style="width:28%"><col style="width:17%"><col style="width:32%"><col style="width:11%"><col style="width:12%"></colgroup>`
+        : `<colgroup><col style="width:30%"><col style="width:20%"><col style="width:37%"><col style="width:13%"></colgroup>`;
+    const theadCols = isMastery
+      ? `<th>Student</th><th>Guild</th><th>Boss</th><th>Since</th><th>Action</th>`
+      : isClearable
+        ? `<th>Student</th><th>Guild</th><th>Tile / Note</th><th>Active For</th><th>Action</th>`
+        : `<th>Student</th><th>Guild</th><th>Tile / Note</th><th>Active For</th>`;
+    const emptyColspan = (isMastery || isClearable) ? 5 : 4;
     const rowsHTML = rows.length === 0
-      ? `<tr><td colspan="4" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No active flags</td></tr>`
-      : rows.map(({ student, guild, tileLabel, since }) => `<tr>
-          <td style="font-size:13px;font-weight:700">${getCharName(student)} <span style="font-size:11px;font-weight:400;color:#9CA3AF">(${student.id})</span></td>
-          <td style="font-size:12px;color:#6B7280">${guild || '—'}</td>
-          <td style="font-size:12px;color:#6B7280">${tileLabel}</td>
-          <td style="font-size:12px;color:#9CA3AF;white-space:nowrap">${formatAge(since)}</td>
-        </tr>`).join('');
+      ? `<tr><td colspan="${emptyColspan}" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No active flags</td></tr>`
+      : rows.map(row => {
+          const { student, guild, tileLabel, since, bossKey, dismissKey } = row;
+          const pending = STATE.clearFlagPending;
+          const isPending = pending && pending.sid === String(student.id) && pending.flagKey === ft.key;
+          const actionCell = isMastery
+            ? `<td style="white-space:nowrap">
+                <button class="fl-mastery-pass" data-fl-sid="${student.id}" data-fl-bk="${bossKey}" style="background:#10B981;color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:4px">Pass</button>
+                <button class="fl-mastery-fail" data-fl-sid="${student.id}" data-fl-bk="${bossKey}" style="background:#EF4444;color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Fail</button>
+              </td>`
+            : isClearable
+              ? isPending
+                ? `<td style="white-space:nowrap">
+                    <button class="fl-clear-confirm" data-fl-sid="${student.id}" data-fl-fk="${ft.key}" data-fl-dk="${dismissKey||''}" style="background:#EF4444;color:#fff;border:none;border-radius:5px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;margin-right:3px">Confirm</button>
+                    <button class="fl-clear-cancel" style="background:#E5E7EB;color:#374151;border:none;border-radius:5px;padding:4px 7px;font-size:11px;font-weight:700;cursor:pointer">✕</button>
+                  </td>`
+                : `<td><button class="fl-clear-btn" data-fl-sid="${student.id}" data-fl-fk="${ft.key}" style="background:#F3F4F6;color:#6B7280;border:1px solid #D1D5DB;border-radius:5px;padding:3px 9px;font-size:11px;font-weight:700;cursor:pointer">Clear</button></td>`
+              : '';
+          return `<tr${isPending ? ' style="background:#FEF2F2"' : ''}>
+            <td style="font-size:13px;font-weight:700">${getCharName(student)} <span style="font-size:11px;font-weight:400;color:#9CA3AF">(${student.id})</span></td>
+            <td style="font-size:12px;color:#6B7280">${guild || '—'}</td>
+            <td style="font-size:12px;color:#6B7280">${tileLabel}</td>
+            <td style="font-size:12px;color:#9CA3AF;white-space:nowrap">${formatAge(since)}</td>
+            ${(isMastery || isClearable) ? actionCell : ''}
+          </tr>`;
+        }).join('');
     return `<div class="jh-group">
       <div class="jh-group-head">
         <div class="jh-group-name">${ft.icon} ${ft.label}</div>
         <span class="fl-count-badge" style="background:${ft.bg};color:${ft.color}">${rows.length}</span>
       </div>
       <table class="jh-table">
-        <colgroup>
-          <col style="width:30%">
-          <col style="width:20%">
-          <col style="width:37%">
-          <col style="width:13%">
-        </colgroup>
-        <thead><tr>
-          <th>Student</th>
-          <th>Guild</th>
-          <th>Tile / Note</th>
-          <th>Active For</th>
-        </tr></thead>
+        ${colgroup}
+        <thead><tr>${theadCols}</tr></thead>
         <tbody>${rowsHTML}</tbody>
       </table>
     </div>`;
@@ -6686,7 +7522,7 @@ function renderFlagLog() {
         <button class="btn-back" id="fl-back">← Dashboard</button>
         <div>
           <div style="font-size:20px;font-weight:900;color:#F3F4F6;letter-spacing:.5px">🚨 Flag Log</div>
-          <div style="font-size:12px;color:#9CA3AF;margin-top:2px">All active student flags — read only</div>
+          <div style="font-size:12px;color:#9CA3AF;margin-top:2px">All active student flags — Clear to dismiss</div>
         </div>
         <div class="jh-chip"><span class="jh-chip-n">${totalFlags}</span> active flags</div>
       </div>
@@ -6889,6 +7725,7 @@ function mount() {
   if (STATE.screen === "teacher-boss-roster")  root.innerHTML = renderBossRoster();
   if (STATE.screen === "teacher-judgment-hall") root.innerHTML = renderJudgmentHall();
   if (STATE.screen === "teacher-flag-log") root.innerHTML = renderFlagLog();
+  if (STATE.screen === "teacher-content-links") root.innerHTML = renderTeacherContentLinks();
 
   // No scroll needed for land map (fits on screen)
 
@@ -7038,13 +7875,21 @@ function bindEvents() {
   /* HUB */
   if (STATE.screen === "hub") {
     $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; STATE.genName = null; STATE.genEpithet = null; STATE.namingOptions = null; STATE.epithetOptions = null; STATE._namingReturnScreen = null; mount(); });
-    $("continue-quest-btn") && $("continue-quest-btn").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
-    $("grade-reminder-banner") && $("grade-reminder-banner").addEventListener("click", () => {
-      const reminders = getGradeReminders(STATE.student.id);
-      if (!Object.keys(reminders).length) return;
-      STATE.catchUpModalOpen = true;
-      mount();
+    // Trophy mastery trial request — tap an available trophy
+    document.querySelectorAll("[data-trophy-req]").forEach(cell => {
+      cell.addEventListener("click", () => {
+        const bk = cell.dataset.trophyReq;
+        if (!STATE.student || !bk) return;
+        const sid = String(STATE.student.id);
+        const cur = getStdBossState(sid, bk);
+        if (cur.status !== 'mastery_available') return;
+        setStdBossState(sid, bk, { ...cur, status:'mastery_requested', requestedAt: new Date().toISOString() });
+        const bossNames = { duskmantle:'Duskmantle', mirrorkin:'Mirrorkin', seraphine:'Seraphine', keystone:'The Keystone' };
+        logActivity(sid, '🏆', `Mastery Trial Requested — ${bossNames[bk] || bk}`);
+        mount();
+      });
     });
+    $("continue-quest-btn") && $("continue-quest-btn").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
     $("sq-invite-badge") && $("sq-invite-badge").addEventListener("click", () => {
       STATE.sqInviteNotifOpen = true; mount();
     });
@@ -7078,49 +7923,6 @@ function bindEvents() {
         }
         STATE.sqInviteNotifOpen = false; mount();
       });
-    }
-    // Catch-up modal handlers
-    if (STATE.catchUpModalOpen) {
-      $("catchup-close") && $("catchup-close").addEventListener("click", () => {
-        STATE.catchUpModalOpen = false; mount();
-      });
-      $("catchup-modal-overlay") && $("catchup-modal-overlay").addEventListener("click", e => {
-        if (e.target === $("catchup-modal-overlay")) { STATE.catchUpModalOpen = false; mount(); }
-      });
-      document.querySelectorAll(".catchup-log-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          STATE.gradeModalLessonId = Number(btn.dataset.lessonId);
-          STATE.gradeModalOpen = true;
-          STATE.gradeFromCatchUp = true;
-          mount();
-        });
-      });
-    }
-    // Grade modal handlers (catch-up flow on hub)
-    if (STATE.gradeModalOpen && STATE.gradeFromCatchUp) {
-      const gradeInput = $("grade-modal-input");
-      const gradeClose = () => {
-        STATE.gradeModalOpen = false;
-        STATE.gradeFromCatchUp = false;
-        STATE.gradeModalLessonId = null;
-        STATE.catchUpModalOpen = true;
-        mount();
-      };
-      $("grade-modal-skip") && $("grade-modal-skip").addEventListener("click", () => {
-        if (STATE.gradeModalLessonId != null) saveGradeReminder(STATE.student.id, STATE.gradeModalLessonId);
-        gradeClose();
-      });
-      $("grade-modal-submit") && $("grade-modal-submit").addEventListener("click", () => {
-        const val = parseInt(gradeInput ? gradeInput.value : "");
-        if (isNaN(val) || val < 0 || val > 100) { gradeClose(); return; }
-        const hp = gradeToHP(val);
-        const lessonId = STATE.gradeModalLessonId;
-        saveStudentOverride(STATE.student.id, { hp });
-        saveGradeLog(STATE.student.id, lessonId, val, hp);
-        if (lessonId != null) clearGradeReminder(STATE.student.id, lessonId);
-        gradeClose();
-      });
-      gradeInput && setTimeout(() => gradeInput.focus(), 50);
     }
     // Customize button — opens full customize overlay
     $("cust-btn") && $("cust-btn").addEventListener("click", () => {
@@ -7223,7 +8025,7 @@ function bindEvents() {
     // New equipment system — equip from inventory card
     // Weapon/shield/collectibles picker openers
     document.querySelector("[data-open-weapon-picker]")?.addEventListener("click", () => { STATE.weaponPickerOpen = true; mount(); });
-    document.querySelector("[data-open-shield-picker]")?.addEventListener("click", () => { STATE.shieldPickerOpen = true; mount(); });
+    document.querySelector("[data-open-crafting]")?.addEventListener("click", () => { STATE.craftingOpen = true; STATE.craftingTab = 'craft'; STATE.craftingStep = 1; STATE.craftingCategory = null; STATE.craftingSelected = null; mount(); });
     document.querySelector("[data-open-collectibles]")?.addEventListener("click", () => { STATE.collectiblesOpen = true; mount(); });
 
     // Weapon picker modal handlers
@@ -7242,22 +8044,6 @@ function bindEvents() {
       });
     }
 
-    // Shield picker modal handlers
-    if (STATE.shieldPickerOpen) {
-      const closeSP = () => { STATE.shieldPickerOpen = false; mount(); };
-      $("shield-picker-close") && $("shield-picker-close").addEventListener("click", closeSP);
-      $("shield-picker-overlay") && $("shield-picker-overlay").addEventListener("click", e => { if (e.target === $("shield-picker-overlay")) closeSP(); });
-      document.querySelectorAll("[data-pick-shield]").forEach(item => {
-        item.addEventListener("click", () => {
-          const id = item.dataset.pickShield;
-          const isEq = item.dataset.equipUnequip === 'true';
-          if (isEq) unequipSlotItem(STATE.student, 'shield');
-          else equipSlotItem(STATE.student, 'shield', id);
-          STATE.shieldPickerOpen = false; mount();
-        });
-      });
-    }
-
     // Collectibles modal handlers
     if (STATE.collectiblesOpen) {
       const closeCO = () => { STATE.collectiblesOpen = false; mount(); };
@@ -7265,33 +8051,6 @@ function bindEvents() {
       $("collectibles-overlay") && $("collectibles-overlay").addEventListener("click", e => { if (e.target === $("collectibles-overlay")) closeCO(); });
       document.querySelectorAll(".coll-tab").forEach(btn => {
         btn.addEventListener("click", () => { STATE.collectiblesTab = btn.dataset.colltab; mount(); });
-      });
-      // Cosmetics sub-tab toggles
-      document.querySelectorAll(".cosm-subtab").forEach(btn => {
-        btn.addEventListener("click", () => { STATE.cosmTab = btn.dataset.cosmtab; mount(); });
-      });
-      // Frame equip/unequip
-      document.querySelectorAll("[data-equip-frame]").forEach(slot => {
-        slot.addEventListener("click", () => {
-          const id = slot.dataset.equipFrame;
-          if (getEquippedFrame(STATE.student) === id) unequipFrame(STATE.student);
-          else equipFrame(STATE.student, id);
-          mount();
-        });
-      });
-      // Avatar equip/unequip
-      document.querySelectorAll("[data-equip-avatar]").forEach(slot => {
-        slot.addEventListener("click", () => {
-          const id = slot.dataset.equipAvatar;
-          if (getEquippedAvatarOverride(STATE.student) === id) unequipAvatarOverride(STATE.student);
-          else equipAvatarOverride(STATE.student, id);
-          mount();
-        });
-      });
-      // Revert to custom character
-      $("cosm-revert-avatar") && $("cosm-revert-avatar").addEventListener("click", () => {
-        unequipAvatarOverride(STATE.student);
-        mount();
       });
     }
 
@@ -7353,10 +8112,13 @@ function bindEvents() {
           STATE.sqPartnerPickLand = landId;
           STATE.sqPartnerPickSelected = null;
           mount();
-        } else {
-          const quest = resolveSoloQuest(tileId, idx);
-          acceptSideQuest(STATE.student.id, tileId, type, idx, landId);
-          logActivity(STATE.student.id, '📜', `Accepted quest: ${quest.title}`);
+        } else if (type === 'homework') {
+          const sid = String(STATE.student.id);
+          const _hwOv = _overrides[sid] || {};
+          const _hwSq = Object.assign({}, _hwOv.sideQuests || {});
+          _hwSq['hw_weekly'] = { type:'homework', tileId:0, landId:null, questIdx:0, acceptedAt:new Date().toISOString() };
+          saveStudentOverride(sid, { sideQuests: _hwSq });
+          logActivity(sid, '📚', 'Accepted Weekly Homework Quest');
           mount();
         }
       });
@@ -7382,11 +8144,6 @@ function bindEvents() {
       });
     }
 
-    // Crafting station button
-    $("brew-crafting-btn") && $("brew-crafting-btn").addEventListener("click", () => {
-      STATE.craftingOpen = true; STATE.craftingStep = 1; STATE.craftingSelected = null;
-      mount();
-    });
     // Crafting modal — close
     $("crafting-close") && $("crafting-close").addEventListener("click", () => {
       STATE.craftingOpen = false; mount();
@@ -7394,34 +8151,83 @@ function bindEvents() {
     $("crafting-overlay") && $("crafting-overlay").addEventListener("click", e => {
       if (e.target === $("crafting-overlay")) { STATE.craftingOpen = false; mount(); }
     });
-    // Crafting modal — back to step 1
-    $("crafting-back") && $("crafting-back").addEventListener("click", () => {
-      STATE.craftingStep = 1; STATE.craftingSelected = null; mount();
+    // Crafting modal — top tab switcher (Craft / My Items)
+    document.querySelectorAll("[data-crafting-tab]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        STATE.craftingTab = btn.dataset.craftingTab;
+        if (STATE.craftingTab === 'craft') { STATE.craftingStep = 1; STATE.craftingCategory = null; STATE.craftingSelected = null; }
+        mount();
+      });
     });
-    // Crafting modal — pick item (step 1 cards)
-    document.querySelectorAll("[data-craft-pick]").forEach(card => {
+    // My Items — cosmetics sub-tab
+    document.querySelectorAll(".cosm-subtab").forEach(btn => {
+      btn.addEventListener("click", () => { STATE.cosmTab = btn.dataset.cosmtab; mount(); });
+    });
+    // My Items — frame equip/unequip
+    document.querySelectorAll("[data-equip-frame]").forEach(slot => {
+      slot.addEventListener("click", () => {
+        const id = slot.dataset.equipFrame;
+        if (getEquippedFrame(STATE.student) === id) unequipFrame(STATE.student);
+        else equipFrame(STATE.student, id);
+        mount();
+      });
+    });
+    // My Items — avatar equip/unequip
+    document.querySelectorAll("[data-equip-avatar]").forEach(slot => {
+      slot.addEventListener("click", () => {
+        const id = slot.dataset.equipAvatar;
+        if (getEquippedAvatarOverride(STATE.student) === id) unequipAvatarOverride(STATE.student);
+        else equipAvatarOverride(STATE.student, id);
+        mount();
+      });
+    });
+    // My Items — revert to custom character
+    $("cosm-revert-avatar") && $("cosm-revert-avatar").addEventListener("click", () => {
+      unequipAvatarOverride(STATE.student); mount();
+    });
+    // Crafting modal — back
+    $("crafting-back") && $("crafting-back").addEventListener("click", () => {
+      if (STATE.craftingStep === 3) {
+        STATE.craftingStep = 2; STATE.craftingSelected = null;
+      } else {
+        STATE.craftingStep = 1; STATE.craftingCategory = null; STATE.craftingSelected = null;
+      }
+      mount();
+    });
+    // Crafting modal — pick category (step 1)
+    document.querySelectorAll("[data-craft-cat]").forEach(card => {
       card.addEventListener("click", () => {
-        STATE.craftingSelected = card.dataset.craftPick;
+        STATE.craftingCategory = card.dataset.craftCat;
         STATE.craftingStep = 2;
         mount();
       });
     });
-    // Crafting modal — checkbox enables submit (step 2)
+    // Crafting modal — pick item (step 2)
+    document.querySelectorAll("[data-craft-pick]").forEach(card => {
+      if (card.dataset.craftOwned !== undefined) return; // already owned
+      card.addEventListener("click", () => {
+        STATE.craftingSelected = card.dataset.craftPick;
+        STATE.craftingStep = 3;
+        mount();
+      });
+    });
+    // Crafting modal — checkbox enables submit (step 3)
     if ($("crafting-confirm-cb")) {
       $("crafting-confirm-cb").addEventListener("change", () => {
         const btn = $("crafting-submit");
         if (btn) btn.disabled = !$("crafting-confirm-cb").checked;
       });
     }
-    // Crafting modal — submit (step 2)
+    // Crafting modal — submit (step 3)
     $("crafting-submit") && $("crafting-submit").addEventListener("click", () => {
       if (!STATE.craftingSelected) return;
       requestCraft(STATE.student.id, STATE.craftingSelected);
       STATE.craftingOpen = false;
       mount();
-      const itemDef = ITEMS[STATE.craftingSelected] || { i:'⚗️', n: STATE.craftingSelected };
+      const recipe = CRAFT_RECIPES.find(r => r.id === STATE.craftingSelected);
+      const name = recipe ? recipe.name : STATE.craftingSelected;
       const t = document.createElement("div");
-      t.className = "toast"; t.textContent = `${itemDef.i} ${itemDef.n} request sent! Your teacher will review it soon.`;
+      t.className = "toast"; t.textContent = `⚗️ ${name} request sent! Your teacher will review it soon.`;
       document.body.appendChild(t); setTimeout(() => t.remove(), 4000);
     });
 
@@ -7491,8 +8297,14 @@ function bindEvents() {
       });
     }
     // Shop open/close
+    $("guild-hub-toggle") && $("guild-hub-toggle").addEventListener("click", () => {
+      const det = $("guild-hub-details");
+      if (!det) return;
+      const expanded = det.classList.toggle("expanded");
+      $("guild-hub-toggle").textContent = expanded ? "▲ Details" : "▼ Details";
+    });
     $("open-shop-btn") && $("open-shop-btn").addEventListener("click", () => {
-      STATE.shopOpen = true; STATE.shopConfirmItem = null; STATE.shopSuccess = false; mount();
+      STATE.shopOpen = true; STATE.shopConfirmItem = null; STATE.shopSuccess = false; STATE.shopTobbleIdx = Math.floor(Math.random() * 5); mount();
     });
     if (STATE.shopOpen) {
       const closeShop = () => { STATE.shopOpen = false; STATE.shopConfirmItem = null; STATE.shopSuccess = false; mount(); };
@@ -7582,6 +8394,10 @@ function bindEvents() {
       STATE.flagLogGuild = null;
       mount();
     });
+    $("t-content-links-btn") && $("t-content-links-btn").addEventListener("click", () => {
+      STATE.screen = "teacher-content-links";
+      mount();
+    });
 
     $("t-class-settings-btn") && $("t-class-settings-btn").addEventListener("click", () => { STATE.classSettingsOpen = true; mount(); });
     if (STATE.classSettingsOpen) {
@@ -7589,11 +8405,40 @@ function bindEvents() {
       $("cs-close") && $("cs-close").addEventListener("click", closeCS);
       $("cs-overlay") && $("cs-overlay").addEventListener("click", e => { if (e.target === $("cs-overlay")) closeCS(); });
     }
+    $("t-jump-tool-btn") && $("t-jump-tool-btn").addEventListener("click", () => { STATE.jumpToolOpen = true; mount(); });
+    if (STATE.jumpToolOpen) {
+      const closeJT = () => { STATE.jumpToolOpen = false; mount(); };
+      $("jt-close") && $("jt-close").addEventListener("click", closeJT);
+      $("jt-overlay") && $("jt-overlay").addEventListener("click", e => { if (e.target === $("jt-overlay")) closeJT(); });
+      $("jt-select-all") && $("jt-select-all").addEventListener("click", () => {
+        document.querySelectorAll(".jt-student-check").forEach(cb => { cb.checked = true; });
+      });
+      $("jt-jump-btn") && $("jt-jump-btn").addEventListener("click", () => {
+        const targetId = parseInt($("jt-target-tile").value);
+        if (!targetId) { $("jt-result").textContent = "⚠️ Select a target tile first."; return; }
+        const checked = [...document.querySelectorAll(".jt-student-check:checked")];
+        if (!checked.length) { $("jt-result").textContent = "⚠️ Select at least one student."; return; }
+        const doReset = !!($("jt-reset-progress") && $("jt-reset-progress").checked);
+        const land = LANDS[0];
+        const allStudents = CLASS_DATA.periods.flatMap(p => p.students);
+        let count = 0;
+        checked.forEach(cb => {
+          const stu = allStudents.find(s => String(s.id) === cb.dataset.jtSid);
+          if (stu) {
+            if (doReset) resetTileProgress(stu.id, targetId);
+            jumpStudentToTile(stu, targetId, land);
+            count++;
+          }
+        });
+        $("jt-result").textContent = `✅ ${doReset ? 'Reset & jumped' : 'Jumped'} ${count} student${count !== 1 ? 's' : ''} to tile ${targetId}.`;
+        setTimeout(() => mount(), 600);
+      });
+    }
     // Help flag badge — clicking 🤚 on a card clears it
-    document.querySelectorAll(".t-flag-badge[data-flag-key='help']").forEach(badge => {
-      badge.addEventListener("click", e => {
+    document.querySelectorAll(".t-flag-tab[data-flag-key='help']").forEach(tab => {
+      tab.addEventListener("click", e => {
         e.stopPropagation();
-        clearHelpFlag(badge.dataset.flagSid);
+        clearHelpFlag(tab.dataset.flagSid);
         mount();
       });
     });
@@ -7625,7 +8470,6 @@ function bindEvents() {
         const _sov = getOverrides().students[String(id)] || {};
         const _editPos = getLandPos(base);
         STATE.teacherEdit = {
-          hp: merged.hp, mp: merged.mp, sp: merged.sp,
           xp: merged.xp, xpNext: merged.xpNext,
           items: (merged.items || []).slice(),
           bosses: (merged.bosses || []).slice(),
@@ -7676,16 +8520,6 @@ function bindEvents() {
       });
     }
 
-    // Exit ticket toggles
-    document.querySelectorAll("[data-et-tile]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const tileId = btn.dataset.etTile;
-        const current = btn.dataset.etVal === '1';
-        setExitTicket(tileId, !current);
-        mount();
-      });
-    });
-
     document.querySelectorAll("[data-boss-tile]").forEach(btn => {
       btn.addEventListener("click", () => {
         const landId = Number(btn.dataset.bossLand);
@@ -7696,30 +8530,36 @@ function bindEvents() {
       });
     });
 
-    // Pacing settings
-    $("pacing-save") && $("pacing-save").addEventListener("click", () => {
-      const d = $("pacing-start");
-      const td = $("pacing-target-date");
-      const tc = $("pacing-target-count");
-      if (!d || !d.value || !td || !td.value || !tc || !tc.value) return;
-      savePacingSettings(d.value, td.value, Number(tc.value) || 1);
-      mount();
-    });
-    $("pacing-off") && $("pacing-off").addEventListener("click", () => {
-      _settings.pacing = null;
-      set(ref(db, 'settings/pacing'), null).catch(console.error);
+    // Expected Tile setting
+    $("expected-tile-save") && $("expected-tile-save").addEventListener("click", () => {
+      const sel = $("expected-tile-sel");
+      if (!sel) return;
+      saveExpectedTile(sel.value ? Number(sel.value) : null);
       mount();
     });
 
-    // Progress Lock
-    document.querySelectorAll(".pl-cap-select").forEach(sel => {
-      sel.addEventListener("change", () => {
-        const cohortId = Number(sel.dataset.plCohort);
-        const landId   = Number(sel.dataset.plLand);
-        const capTileId = sel.value ? Number(sel.value) : null;
-        setProgressCap(cohortId, landId, capTileId);
-        mount();
-      });
+    // Collab quests toggle
+    $("collab-quests-toggle") && $("collab-quests-toggle").addEventListener("click", () => {
+      saveCollabQuestsEnabled(!getCollabQuestsEnabled());
+      mount();
+    });
+
+    // Homework quest toggle + save
+    $("hw-quest-toggle") && $("hw-quest-toggle").addEventListener("click", () => {
+      const _hq = _settings && _settings.homeworkQuest;
+      const _hwOn = !!(_hq && _hq.enabled && _hq.weekOf === getMondayIso(new Date()));
+      if (_hwOn) {
+        saveHomeworkQuest(false, null);
+      } else {
+        saveHomeworkQuest(true, (_hq && _hq.text) || '');
+      }
+      mount();
+    });
+    $("hw-quest-save") && $("hw-quest-save").addEventListener("click", () => {
+      const ta = $("hw-quest-text");
+      if (!ta) return;
+      saveHomeworkQuest(true, ta.value.trim());
+      mount();
     });
 
     // Crafting approve / deny
@@ -8024,10 +8864,6 @@ function bindEvents() {
       const prevLand = _prevOv.currentLand || 0;
       const prevGuild = _prevOv.guild || null;
       saveStudentOverride(STATE.teacherStudent.id, {
-        hp: STATE.teacherEdit.hp,
-        mp: STATE.teacherEdit.mp,
-        sp: STATE.teacherEdit.sp,
-        spOverrideAt: getPacingSettings() ? new Date().toISOString() : null,
         xp: xpVal, xpNext: xpNVal,
         items: STATE.teacherEdit.items,
         bosses: STATE.teacherEdit.bosses,
@@ -8224,7 +9060,7 @@ function bindEvents() {
         STATE.screen = "writing-transport";
         mount();
         setTimeout(() => { if (STATE.screen === "writing-transport") { STATE.screen = "sanctum-map"; mount(); } }, 2600);
-      } else if (tile.type === "lesson" || (tile.type === "loot" && tile.parentTileId)) {
+      } else if (tile.type === "lesson" || tile.type === "forge" || tile.type === "studyHall" || tile.type === "camp" || (tile.type === "loot" && tile.parentTileId)) {
         STATE.lessonTile = tile;
         STATE.lessonLand = land;
         STATE.lessonOpenedAt = Date.now();
@@ -8387,6 +9223,60 @@ function bindEvents() {
       });
     });
 
+    // Mastery Trial Pass/Fail — teacher action from Flag Log
+    document.querySelectorAll(".fl-mastery-pass").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sid = btn.dataset.flSid;
+        const bk  = btn.dataset.flBk;
+        if (!sid || !bk) return;
+        const cur = getStdBossState(sid, bk);
+        setStdBossState(sid, bk, { ...cur, status:'defeated', defeatedAt: new Date().toISOString(), requestedAt: null });
+        const bossNames = { duskmantle:'Duskmantle', mirrorkin:'Mirrorkin', seraphine:'Seraphine', keystone:'The Keystone' };
+        logActivity(sid, '🏆', `Mastery Trial Passed — ${bossNames[bk] || bk} (trophy earned)`);
+        mount();
+      });
+    });
+    document.querySelectorAll(".fl-mastery-fail").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sid = btn.dataset.flSid;
+        const bk  = btn.dataset.flBk;
+        if (!sid || !bk) return;
+        const cur = getStdBossState(sid, bk);
+        setStdBossState(sid, bk, { ...cur, status:'mastery_available', requestedAt: null });
+        const bossNames = { duskmantle:'Duskmantle', mirrorkin:'Mirrorkin', seraphine:'Seraphine', keystone:'The Keystone' };
+        logActivity(sid, '🔁', `Mastery Trial — ${bossNames[bk] || bk} returned to available (can request again)`);
+        mount();
+      });
+    });
+
+    // Flag Log — Clear button (first click = pending state)
+    document.querySelectorAll(".fl-clear-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sid = btn.dataset.flSid;
+        const fk  = btn.dataset.flFk;
+        STATE.clearFlagPending = { sid, flagKey: fk };
+        mount();
+      });
+    });
+    // Flag Log — Confirm clear
+    document.querySelectorAll(".fl-clear-confirm").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sid = btn.dataset.flSid;
+        const fk  = btn.dataset.flFk;
+        const dk  = btn.dataset.flDk || null;
+        STATE.clearFlagPending = null;
+        clearStudentFlag(sid, fk, dk || null);
+        mount();
+      });
+    });
+    // Flag Log — Cancel clear
+    document.querySelectorAll(".fl-clear-cancel").forEach(btn => {
+      btn.addEventListener("click", () => {
+        STATE.clearFlagPending = null;
+        mount();
+      });
+    });
+
     // Pass / Fail toggle buttons
     document.querySelectorAll("[data-jhk][data-jhr]").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -8484,6 +9374,95 @@ function bindEvents() {
     });
   }
 
+  if (STATE.screen === "teacher-content-links") {
+    $("tcl-back") && $("tcl-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; mount(); });
+    $("tcl-land-sel") && $("tcl-land-sel").addEventListener("change", e => {
+      STATE.teacherLinksLandId = Number(e.target.value) || 1;
+      mount();
+    });
+
+    const _tclLand = LANDS.find(l => l.id === (STATE.teacherLinksLandId || 1)) || LANDS[0];
+    const _tclTiles = getLandContentTiles(_tclLand);
+    const N = _tclTiles.length;
+
+    const _parseLinks = val => val.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+
+    const _updateWgStatus = () => {
+      const wgTA = $("tcl-wg-paste");
+      const st   = $("tcl-wg-status");
+      const btn  = $("tcl-save-wg-bulk");
+      if (!wgTA || !st || !btn) return;
+      const links = _parseLinks(wgTA.value);
+      const M = links.length;
+      if (!wgTA.value.trim()) { st.textContent = ''; btn.disabled = true; return; }
+      if (M === N) {
+        st.innerHTML = `<span class="tcl-status-ok">✓ ${M} link${M!==1?'s':''} — matches ${N} sessions</span>`;
+        btn.disabled = false;
+      } else {
+        st.innerHTML = `<span class="tcl-status-err">⚠ ${M} link${M!==1?'s':''} pasted, ${N} sessions — must match before saving</span>`;
+        btn.disabled = true;
+      }
+    };
+    const _updatePearStatus = () => {
+      const pTA  = $("tcl-pear-paste");
+      const st   = $("tcl-pear-status");
+      const btn  = $("tcl-save-pear-bulk");
+      if (!pTA || !st || !btn) return;
+      const links = _parseLinks(pTA.value);
+      const M = links.length;
+      if (!pTA.value.trim()) { st.textContent = ''; btn.disabled = true; return; }
+      if (M === N) {
+        st.innerHTML = `<span class="tcl-status-ok">✓ ${M} link${M!==1?'s':''} — matches ${N} sessions</span>`;
+        btn.disabled = false;
+      } else {
+        st.innerHTML = `<span class="tcl-status-err">⚠ ${M} link${M!==1?'s':''} pasted, ${N} sessions — must match before saving</span>`;
+        btn.disabled = true;
+      }
+    };
+
+    $("tcl-wg-paste")   && $("tcl-wg-paste").addEventListener("input", _updateWgStatus);
+    $("tcl-pear-paste") && $("tcl-pear-paste").addEventListener("input", _updatePearStatus);
+
+    $("tcl-save-wg-bulk") && $("tcl-save-wg-bulk").addEventListener("click", () => {
+      const links = _parseLinks($("tcl-wg-paste").value);
+      if (links.length !== N) return;
+      saveTileLinksBulk(_tclLand.id, _tclTiles, 'wayground', links);
+      $("tcl-wg-paste").value = '';
+      $("tcl-wg-status").innerHTML = '<span class="tcl-status-ok">✓ Saved!</span>';
+      $("tcl-save-wg-bulk").disabled = true;
+      // Update individual row inputs without full remount
+      _tclTiles.forEach((t, i) => {
+        const inp = document.querySelector(`.tcl-wg-url[data-tile-id="${t.id}"]`);
+        if (inp) inp.value = links[i];
+      });
+    });
+
+    $("tcl-save-pear-bulk") && $("tcl-save-pear-bulk").addEventListener("click", () => {
+      const links = _parseLinks($("tcl-pear-paste").value);
+      if (links.length !== N) return;
+      saveTileLinksBulk(_tclLand.id, _tclTiles, 'pear', links);
+      $("tcl-pear-paste").value = '';
+      $("tcl-pear-status").innerHTML = '<span class="tcl-status-ok">✓ Saved!</span>';
+      $("tcl-save-pear-bulk").disabled = true;
+      _tclTiles.forEach((t, i) => {
+        const inp = document.querySelector(`.tcl-pear-url[data-tile-id="${t.id}"]`);
+        if (inp) inp.value = links[i];
+      });
+    });
+
+    document.querySelectorAll(".tcl-save-one-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tileId = Number(btn.dataset.tileId);
+        const field  = btn.dataset.field;
+        const inp    = document.querySelector(`.tcl-url[data-tile-id="${tileId}"][data-field="${field}"]`);
+        const url    = inp ? inp.value.trim() : '';
+        saveTileLink(_tclLand.id, tileId, field, url);
+        btn.textContent = '✓';
+        setTimeout(() => { btn.textContent = 'Save'; }, 1800);
+      });
+    });
+  }
+
   if (STATE.screen === "writing-event") {
     $("we-back") && $("we-back").addEventListener("click", () => {
       STATE.screen = STATE.writingEventReturnTo === 'sanctum-map' ? "sanctum-map" : "quest-map";
@@ -8557,12 +9536,6 @@ function bindEvents() {
           if (STATE.screen === "writing-transport") {
             STATE.writingEventReturnTo = 'quest-map';
             STATE.screen = "quest-map";
-            if (LAND1_SOLO_QUESTS[tile.id]) {
-              STATE.sideQuestModalOpen = true;
-              STATE.sideQuestTileId = tile.id;
-              STATE.sideQuestSoloIdx = 0;
-              STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
-            }
             mount();
           }
         }, 2600);
@@ -8755,16 +9728,7 @@ function bindEvents() {
       logActivity(student.id, '🪙', `Earned 20 Gold for defeating ${tile.name}!`);
       const _afterBossGold = _isFinalBoss
         ? () => triggerLandTravel(student, land)
-        : () => {
-            STATE.screen = "quest-map";
-            if (isDungeon && LAND1_SOLO_QUESTS[tile.id]) {
-              STATE.sideQuestModalOpen = true;
-              STATE.sideQuestTileId = tile.id;
-              STATE.sideQuestSoloIdx = 0;
-              STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
-            }
-            mount();
-          };
+        : () => { STATE.screen = "quest-map"; mount(); };
       let companionFile = null;
       if (isDungeon) {
         companionFile = randFrom(companionsByRarity("rare")).file;
@@ -8791,6 +9755,95 @@ function bindEvents() {
 
   if (STATE.screen === "lesson-stop") {
     document.querySelectorAll(".ls-back-btn").forEach(btn => btn.addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.screen = "quest-map"; mount(); }));
+
+    // Camp tile flow
+    $("camp-task-check") && $("camp-task-check").addEventListener("change", e => {
+      const student = STATE.student;
+      const tile    = STATE.lessonTile;
+      if (!student || !tile) return;
+      saveTaskCheck(student.id, tile.id, 'campTask', 0, e.target.checked);
+      mount();
+    });
+    $("camp-complete-btn") && $("camp-complete-btn").addEventListener("click", () => {
+      const student = STATE.student;
+      const tile    = STATE.lessonTile;
+      const land    = STATE.lessonLand || LANDS[0];
+      if (!student || !tile) return;
+      const pos = getLandPos(student);
+      if ((pos.completed || []).includes(tile.id) || pos.tile !== tile.id) return;
+      saveStudentOverride(student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
+      const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
+      saveTileCompletion(student.id, tile.id, timeOnPage);
+      updateBossStateOnTileComplete(student, tile.id, land);
+      const xp = 10, gold = 5;
+      const _lvl = awardXP(student, xp);
+      awardGold(student, gold);
+      logActivity(student.id, '⛺', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xp} XP, +${gold} 🪙)`);
+      if (_lvl.levelsGained > 0) logActivity(student.id, '⬆️', `Reached Level ${_lvl.newLevel}!`);
+      showXPCelebration(xp, _lvl.levelsGained, _lvl.newLevel, () => showGoldToast(gold, () => {
+        advanceStudentTile(student, land);
+        STATE.screen = "quest-map";
+        mount();
+      }));
+    });
+
+    // Loot tile flow
+    document.querySelectorAll('input[type="radio"][name^="loot-q"]').forEach(radio => {
+      radio.addEventListener("change", e => {
+        const student = STATE.student;
+        const tile    = STATE.lessonTile;
+        if (!student || !tile) return;
+        const qi = parseInt(e.target.name.replace("loot-q", ""), 10);
+        const val = parseInt(e.target.value, 10);
+        const ov = getOverrides();
+        const st = ov.students[String(student.id)] || {};
+        const tp = Object.assign({}, st.taskProgress || {});
+        const td = Object.assign({}, tp[String(tile.id)] || {});
+        const lootAnswers = Object.assign({}, td.lootAnswers || {});
+        lootAnswers[qi] = val;
+        td.lootAnswers = lootAnswers;
+        tp[String(tile.id)] = td;
+        saveStudentOverride(student.id, { taskProgress: tp });
+      });
+    });
+    $("loot-submit-btn") && $("loot-submit-btn").addEventListener("click", () => {
+      const student = STATE.student;
+      const tile    = STATE.lessonTile;
+      if (!student || !tile) return;
+      const challenge = LOOT_CHALLENGES[tile.id];
+      if (!challenge) return;
+      const ov2 = getOverrides();
+      const st2 = ov2.students[String(student.id)] || {};
+      const tp = Object.assign({}, st2.taskProgress || {});
+      const tileProg = Object.assign({}, tp[String(tile.id)] || {});
+      const lootAnswers = tileProg.lootAnswers || {};
+      let score = 0;
+      challenge.questions.forEach((q, qi) => { if (lootAnswers[qi] === q.answer) score++; });
+      tp[String(tile.id)] = Object.assign({}, tileProg, { lootSubmitted: true, lootScore: score });
+      saveStudentOverride(student.id, { taskProgress: tp });
+      mount();
+    });
+    $("loot-claim-btn") && $("loot-claim-btn").addEventListener("click", () => {
+      const student = STATE.student;
+      const tile    = STATE.lessonTile;
+      const land    = STATE.lessonLand || LANDS[0];
+      if (!student || !tile) return;
+      const pos = getLandPos(student);
+      if ((pos.completed || []).includes(tile.id)) return;
+      saveStudentOverride(student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
+      const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
+      saveTileCompletion(student.id, tile.id, timeOnPage);
+      updateBossStateOnTileComplete(student, tile.id, land);
+      const gold = 15;
+      awardGold(student, gold);
+      logActivity(student.id, '💰', `Claimed loot from ${tile.name} (+${gold} 🪙)`);
+      showGoldToast(gold, () => {
+        completeBranchTile(student, tile.id);
+        STATE.screen = "quest-map";
+        mount();
+      });
+    });
+
     // Training Grounds NPC tutorial
     $("tg-lumielle") && $("tg-lumielle").addEventListener("click", () => { STATE.tgDialogueOpen = true; mount(); });
     if (STATE.tgDialogueOpen) {
@@ -8824,8 +9877,14 @@ function bindEvents() {
         mount();
       });
     }
+    $("gk-begin-btn") && $("gk-begin-btn").addEventListener("click", () => {
+      const url = $("gk-begin-btn").dataset.url;
+      if (url) window.open(url, "_blank", "noopener");
+    });
     $("ls-video-btn") && $("ls-video-btn").addEventListener("click", () => {
-      const url = STATE.lessonTile?.video || "https://edpuzzle.com";
+      const _land = STATE.lessonLand || LANDS[0];
+      const _tile = STATE.lessonTile;
+      const url = (_tile && _land) ? (getEffectiveWayground(_land, _tile) || "https://wayground.com") : "https://wayground.com";
       window.open(url, "_blank", "noopener");
       if (STATE.lessonTile && STATE.student) {
         saveVideoOpened(STATE.student.id, STATE.lessonTile.id);
@@ -8839,7 +9898,7 @@ function bindEvents() {
       const tile = STATE.lessonTile;
       const land = STATE.lessonLand || LANDS[0];
       const alreadyDone  = (pos.completed || []).includes(tile.id);
-      const isBranchTile = !!tile.parentTileId;
+      const isBranchTile = tile.pathType === 'loot' || !!tile.parentTileId;
       const isActionable = !alreadyDone && (
         isBranchTile
           ? (pos.completed || []).includes(tile.parentTileId)
@@ -8883,8 +9942,6 @@ function bindEvents() {
           logActivity(STATE.student.id, '🚩', `Flagged for help via self-assessment on ${tile.sessionTitle || tile.name || 'lesson'}`);
         }
       }
-      const hasExitTicket = getExitTicketEnabled(tile.id);
-
       // Increment per-student lesson counter and decide whether to show the collab popup.
       // Counter persists across sessions via saveStudentOverride.
       // Art-deliverable tiles (LAND1_SOLO_QUESTS) always show the popup regardless.
@@ -8898,14 +9955,9 @@ function bindEvents() {
       }
 
       const openSQPopup = (tileId) => {
-        const _hasArtDeliverable = !!LAND1_SOLO_QUESTS[tileId];
-        if (!_hasArtDeliverable && !_sqGate) {
-          STATE.screen = "quest-map";
-          return;
-        }
+        if (!_sqGate) { STATE.screen = "quest-map"; return; }
         STATE.sideQuestModalOpen = true;
         STATE.sideQuestTileId = tileId;
-        STATE.sideQuestSoloIdx = 0;
         STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tileId, 2);
       };
       const doAdvance = () => {
@@ -8918,22 +9970,7 @@ function bindEvents() {
           STATE.screen = "quest-map"; mount();
         }
       };
-      const doAdvanceWithGrade = () => {
-        if (isBranchTile) completeBranchTile(STATE.student, tile.id);
-        else advanceStudentTile(STATE.student, land);
-        if (tile.type === 'lesson') {
-          STATE.pendingSQAfterGrade = {
-            tileId: tile.id,
-            soloIdx: 0,
-            collabIdx: pickQuestIdx(COLLAB_QUESTS, tile.id, 2),
-            sqGate: _sqGate
-          };
-        }
-        STATE.gradeModalOpen = true;
-        STATE.gradeModalLessonId = tile.id;
-        mount();
-      };
-      const finalCallback = hasExitTicket ? doAdvanceWithGrade : doAdvance;
+      const finalCallback = doAdvance;
 
       // XP toast fires after loot popup is dismissed (or after 2500ms), Gold toast follows XP
       const _showMainXP = (xpAmount > 0 || goldAmount > 0)
@@ -8989,51 +10026,131 @@ function bindEvents() {
       });
     });
 
-    // New lesson checklist checkboxes (regular reading tiles only)
+    // Lesson flow checkboxes: wayground + workbook
     document.querySelectorAll(".ls-check-new").forEach(cb => {
       cb.addEventListener("change", () => {
         const kind    = cb.dataset.lsKind;
         const tile    = STATE.lessonTile;
         const student = STATE.student;
         if (!student || !tile) return;
-        if (kind === 'nearpod') {
-          saveTaskCheck(student.id, tile.id, 'nearpod', 0, cb.checked);
-          if (cb.checked) saveTaskTimestamp(student.id, tile.id, 'nearpod', 0);
-          document.querySelectorAll(".ls-check-new[data-ls-kind='workbook']").forEach(w => {
-            w.disabled = !cb.checked;
-            w.closest('.sg-check-item, .ls-check-item')?.classList.toggle('sg-check-locked', !cb.checked);
-            w.closest('.sg-check-item, .ls-check-item')?.classList.toggle('ls-task-locked', !cb.checked);
-          });
-          const assessSection = document.getElementById('ls-assess-section');
-          if (assessSection) {
-            assessSection.classList.toggle('ls-section-locked', !cb.checked);
-            assessSection.querySelectorAll('.ls-assess-radio').forEach(r => { r.disabled = !cb.checked; });
-          }
-          const btn = $('ls-submit');
-          if (btn && btn.dataset.completed !== 'true') {
-            btn.disabled = !cb.checked;
-            btn.textContent = cb.checked ? "✅ I'm Ready!" : "Complete Lesson";
-          }
-          cb.closest('.ls-check-item')?.classList.toggle('ls-check-item-done', cb.checked);
-        } else if (kind === 'workbook') {
-          saveTaskCheck(student.id, tile.id, 'workbook', 0, cb.checked);
-          if (cb.checked) saveTaskTimestamp(student.id, tile.id, 'workbook', 0);
-          cb.closest('.ls-check-item')?.classList.toggle('ls-check-item-done', cb.checked);
-        }
+        saveTaskCheck(student.id, tile.id, kind, 0, cb.checked);
+        if (cb.checked) saveTaskTimestamp(student.id, tile.id, kind, 0);
+        cb.closest('.ls-flow-check-item')?.classList.toggle('ls-flow-check-done', cb.checked);
+        // Re-render to sync Pear button lock state
+        mount();
       });
     });
 
-    // Self-assessment radio buttons
-    document.querySelectorAll(".ls-assess-radio").forEach(radio => {
-      radio.addEventListener("change", () => {
-        const level   = parseInt(radio.dataset.level);
-        const student = STATE.student;
-        const tile    = STATE.lessonTile;
-        if (!student || !tile) return;
-        saveTaskCheck(student.id, tile.id, 'selfAssessLevel', 0, level);
-        document.querySelectorAll(".ls-assess-item, .sg-assess-demo").forEach(el => el.classList.remove('ls-assess-selected'));
-        (radio.closest('.ls-assess-item') || radio.closest('.sg-assess-demo'))?.classList.add('ls-assess-selected');
-      });
+    // Lesson tile flow: Pear exit-ticket button
+    $("ls-pear-btn") && $("ls-pear-btn").addEventListener("click", () => {
+      const btn = $("ls-pear-btn");
+      if (btn && btn.disabled) return;
+      const url = btn && btn.dataset.url;
+      if (url) window.open(url, "_blank", "noopener");
+      if (STATE.student && STATE.lessonTile) {
+        saveTaskCheck(STATE.student.id, STATE.lessonTile.id, 'exitTicketOpened', 0, true);
+        mount();
+      }
+    });
+
+    // Lesson tile flow: Pass outcome
+    $("ls-outcome-pass") && $("ls-outcome-pass").addEventListener("click", () => {
+      const student = STATE.student;
+      const tile    = STATE.lessonTile;
+      const land    = STATE.lessonLand || LANDS[0];
+      if (!student || !tile) return;
+      const _isBranch = tile.pathType === 'loot' || !!tile.parentTileId;
+      const _isBossSess = tile.type === 'lesson' && !_isBranch && !!BOSS_SCHEDULE[String(tile.id)];
+      const prog = getTaskProgress(student.id, tile.id);
+      const pos  = getLandPos(student);
+
+      saveTaskCheck(student.id, tile.id, 'outcomeRecorded', 0, true);
+      saveTaskCheck(student.id, tile.id, 'outcomeFail', 0, false);
+      clearLessonFail(student.id, tile.id);
+      saveStudentOverride(student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
+
+      const _wgDone = !!(prog.wayground||[])[0];
+      const _wbDone = !!(prog.workbook ||[])[0];
+      const xpAmount   = (_wgDone ? 10 : 0) + (_wbDone ? 5 : 0) + 5;
+      const goldAmount = (_wgDone ?  5 : 0) + (_wbDone ? 3 : 0) + 5;
+
+      const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
+      saveTileCompletion(student.id, tile.id, timeOnPage);
+      updateBossStateOnTileComplete(student, tile.id, land);
+      const _lvl = awardXP(student, xpAmount);
+      awardGold(student, goldAmount);
+      logActivity(student.id, '✅', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xpAmount} XP, +${goldAmount} 🪙)`);
+      if (_lvl.levelsGained > 0) logActivity(student.id, '⬆️', `Reached Level ${_lvl.newLevel}!`);
+
+      const _ov = _overrides[String(student.id)] || {};
+      const _newCount = ((_ov.lessonCompletionCount || 0) + 1);
+      saveStudentOverride(student.id, { lessonCompletionCount: _newCount });
+      const _hasActiveCollab = Object.values(getActiveSideQuests(student)).some(q => q.type === 'collab');
+      const _sqGate = (_newCount % 3 === 0) && !_hasActiveCollab;
+
+      const _doAdvance = () => {
+        if (_isBranch) completeBranchTile(student, tile.id);
+        else advanceStudentTile(student, land);
+        if (_sqGate) {
+          STATE.sideQuestModalOpen = true;
+          STATE.sideQuestTileId = tile.id;
+          STATE.sideQuestCollabIdx = pickQuestIdx(COLLAB_QUESTS, tile.id, 2);
+          mount();
+        } else {
+          STATE.screen = "quest-map"; mount();
+        }
+      };
+      const _poolLand = (land && land.name) || (LANDS[0] && LANDS[0].name);
+      const _hasPool  = _poolLand && (EQUIP_POOLS[_poolLand] || PET_POOLS[_poolLand]);
+      const _showXP   = () => showXPCelebration(xpAmount, _lvl.levelsGained, _lvl.newLevel, () => showGoldToast(goldAmount, _doAdvance));
+      const _doNormalLoot = () => {
+        if (_hasPool) {
+          if (Math.random() < 0.2) awardSeasonalBadge(student);
+          checkAndAwardSpecialBadges(student);
+          let _xpFired = false;
+          const _once = () => { if (!_xpFired) { _xpFired = true; _showXP(); } };
+          setTimeout(_once, 2500);
+          awardFromPool(student, _poolLand, 'common', _once);
+        } else { _showXP(); }
+      };
+      if (!tryMysteryDrop(student, 'lesson', _doNormalLoot)) _doNormalLoot();
+    });
+
+    // Lesson tile flow: Fail outcome
+    $("ls-outcome-fail") && $("ls-outcome-fail").addEventListener("click", () => {
+      const student = STATE.student;
+      const tile    = STATE.lessonTile;
+      const land    = STATE.lessonLand || LANDS[0];
+      if (!student || !tile) return;
+      const _isBranch = tile.pathType === 'loot' || !!tile.parentTileId;
+      const _isBossSess = tile.type === 'lesson' && !_isBranch && !!BOSS_SCHEDULE[String(tile.id)];
+      const prog = getTaskProgress(student.id, tile.id);
+      const pos  = getLandPos(student);
+
+      saveTaskCheck(student.id, tile.id, 'outcomeRecorded', 0, true);
+      saveTaskCheck(student.id, tile.id, 'outcomeFail', 0, true);
+      saveLessonFail(student.id, tile.id);
+      if (_isBossSess) saveBossReteachNeeded(student.id, tile.id);
+      saveStudentOverride(student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
+
+      const _wgDone = !!(prog.wayground||[])[0];
+      const _wbDone = !!(prog.workbook ||[])[0];
+      const xpAmount   = (_wgDone ? 10 : 0) + (_wbDone ? 5 : 0) + 2;
+      const goldAmount = (_wgDone ?  5 : 0) + (_wbDone ? 3 : 0) + 2;
+
+      const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
+      saveTileCompletion(student.id, tile.id, timeOnPage);
+      updateBossStateOnTileComplete(student, tile.id, land);
+      const _lvl = awardXP(student, xpAmount);
+      awardGold(student, goldAmount);
+      const _failNote = _isBossSess ? ' [boss not defeated]' : ' [needs more practice]';
+      logActivity(student.id, '📚', `${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''}${_failNote} (+${xpAmount} XP, +${goldAmount} 🪙)`);
+      if (_lvl.levelsGained > 0) logActivity(student.id, '⬆️', `Reached Level ${_lvl.newLevel}!`);
+
+      const _ov = _overrides[String(student.id)] || {};
+      saveStudentOverride(student.id, { lessonCompletionCount: ((_ov.lessonCompletionCount || 0) + 1) });
+      const _doAdvance = () => { advanceStudentTile(student, land); STATE.screen = "quest-map"; mount(); };
+      showXPCelebration(xpAmount, _lvl.levelsGained, _lvl.newLevel, () => showGoldToast(goldAmount, _doAdvance));
     });
 
     // Inline side quest accept buttons (in lesson modal or sq-board)
@@ -9087,56 +10204,11 @@ function bindEvents() {
             STATE.sqPartnerPickLand = landId;
             STATE.sqPartnerPickSelected = null;
             mount();
-          } else {
-            const quest = resolveSoloQuest(tid, idx);
-            acceptSideQuest(STATE.student.id, tid, type, idx, landId);
-            logActivity(STATE.student.id, '📜', `Accepted quest: ${quest.title}`);
-            mount();
           }
         });
       });
     }
 
-    // Grade modal handlers (shown after S6 completion)
-    if (STATE.gradeModalOpen) {
-      const gradeInput = $("grade-modal-input");
-      const gradeClose = () => {
-        STATE.gradeModalOpen = false;
-        STATE.gradeModalLessonId = null;
-        if (STATE.pendingSQAfterGrade) {
-          const { tileId, soloIdx, collabIdx, sqGate } = STATE.pendingSQAfterGrade;
-          STATE.pendingSQAfterGrade = null;
-          const _hasArtDeliverable = !!LAND1_SOLO_QUESTS[tileId];
-          if (_hasArtDeliverable || sqGate) {
-            STATE.sideQuestModalOpen = true;
-            STATE.sideQuestTileId = tileId;
-            STATE.sideQuestSoloIdx = soloIdx;
-            STATE.sideQuestCollabIdx = collabIdx;
-          } else {
-            STATE.screen = "quest-map";
-          }
-        } else {
-          STATE.screen = "quest-map";
-        }
-        mount();
-      };
-      $("grade-modal-skip") && $("grade-modal-skip").addEventListener("click", () => {
-        const lessonId = STATE.gradeModalLessonId;
-        if (lessonId != null) saveGradeReminder(STATE.student.id, lessonId);
-        gradeClose();
-      });
-      $("grade-modal-submit") && $("grade-modal-submit").addEventListener("click", () => {
-        const val = parseInt(gradeInput ? gradeInput.value : "");
-        if (isNaN(val) || val < 0 || val > 100) { gradeClose(); return; }
-        const hp = gradeToHP(val);
-        const lessonId = STATE.gradeModalLessonId;
-        saveStudentOverride(STATE.student.id, { hp });
-        saveGradeLog(STATE.student.id, lessonId, val, hp);
-        if (lessonId != null) clearGradeReminder(STATE.student.id, lessonId);
-        gradeClose();
-      });
-      gradeInput && setTimeout(() => gradeInput.focus(), 50);
-    }
   }
 
   /* TEACHER STUDENT MAP */
