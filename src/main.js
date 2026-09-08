@@ -3176,7 +3176,7 @@ function renderHub() {
     _equipPickerSlot(weaponEquippedId, 'Weapon', '⚔️', ownedWeapons, 'data-open-weapon-picker', '/equipment/weapon_valeblade_common.png'),
     `<div class="equip-slot equip-slot-crafting" data-open-crafting title="Crafting Table">
       <div class="equip-slot-img" style="display:flex;align-items:center;justify-content:center">
-        <img src="/equipment/craft_anvil.png" alt="Crafting Table" style="width:48px;height:48px;object-fit:contain" onerror="this.outerHTML='<span style=&quot;font-size:36px;line-height:1&quot;>⚗️</span>'"/>
+        <img src="/equipment/craft_anvil.png" alt="Crafting Table" style="width:90px;height:90px;object-fit:contain" onerror="this.outerHTML='<span style=&quot;font-size:36px;line-height:1&quot;>⚗️</span>'"/>
       </div>
       <span class="equip-slot-sub" style="margin-top:2px;font-size:10px;font-weight:700;color:var(--purple);letter-spacing:.3px">Crafting</span>
     </div>`,
@@ -9270,7 +9270,7 @@ function bindEvents() {
     });
   }
 
-  if (STATE.screen === "teacher-judgment-hall") {
+  if (STATE.screen === "teacher-judgment-hall" || STATE.screen === "teacher-flag-log") {
     $("jh-back") && $("jh-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; mount(); });
     $("fl-back") && $("fl-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; mount(); });
     document.querySelectorAll(".fl-guild-tab").forEach(btn => {
