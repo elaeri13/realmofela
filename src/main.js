@@ -1524,6 +1524,13 @@ function saveGradeLog(studentId, lessonId, rawGrade, convertedHP) {
 function getCraftRequests() { return Object.assign({}, _craftRequests); }
 function requestCraft(studentId, itemKey) {
   const sid = String(studentId);
+  const recipe = CRAFT_RECIPES.find(r => r.id === itemKey);
+  if (recipe) {
+    const cost = RARITY_COST[recipe.rarity] || { materials: 0, gold: 0 };
+    const student = { id: Number(sid) };
+    spendMaterialSlots(student, cost.materials);
+    spendGold(student, cost.gold);
+  }
   _craftRequests[sid] = { itemRequested: itemKey, checkboxConfirmed: true, requestedAt: new Date().toISOString(), status: 'pending' };
   set(ref(db, `craftRequests/${sid}`), _craftRequests[sid]).catch(console.error);
 }
@@ -2185,16 +2192,41 @@ function spendGold(student, amount) {
   saveStudentOverride(student.id, { gold: Math.max(0, current - amount) });
 }
 /* ─── MATERIALS HELPERS ─── */
+const MATERIAL_VARIANTS = ['feather', 'gem', 'leaf', 'rune'];
 function getMaterials(student) {
   return (_overrides[String(student.id)] || {}).materials || 0;
+}
+function getMaterialSlots(student) {
+  return (_overrides[String(student.id)] || {}).materialSlots || {};
 }
 function awardMaterials(student, amount) {
   const current = getMaterials(student);
   saveStudentOverride(student.id, { materials: current + amount });
 }
+function awardMaterialDrop(student, amount) {
+  const variant = MATERIAL_VARIANTS[Math.floor(Math.random() * MATERIAL_VARIANTS.length)];
+  const slots = Object.assign({}, getMaterialSlots(student));
+  slots[variant] = (slots[variant] || 0) + amount;
+  saveStudentOverride(student.id, { materials: getMaterials(student) + amount, materialSlots: slots });
+  logActivity(student.id, '🧪', `Found ${amount} Material (${variant[0].toUpperCase() + variant.slice(1)})`);
+  return variant;
+}
 function spendMaterials(student, amount) {
   const current = getMaterials(student);
   saveStudentOverride(student.id, { materials: Math.max(0, current - amount) });
+}
+function spendMaterialSlots(student, cost) {
+  let remaining = cost;
+  const slots = Object.assign({}, getMaterialSlots(student));
+  const sorted = Object.entries(slots).sort((a, b) => b[1] - a[1]);
+  for (const [variant, count] of sorted) {
+    if (remaining <= 0) break;
+    const take = Math.min(count, remaining);
+    slots[variant] = count - take;
+    remaining -= take;
+    if (slots[variant] === 0) delete slots[variant];
+  }
+  saveStudentOverride(student.id, { materials: Math.max(0, getMaterials(student) - cost), materialSlots: slots });
 }
 function showGoldToast(amount, onComplete) {
   const el = document.createElement("div");
@@ -3144,7 +3176,7 @@ function renderHub() {
     _equipPickerSlot(weaponEquippedId, 'Weapon', '⚔️', ownedWeapons, 'data-open-weapon-picker', '/equipment/weapon_valeblade_common.png'),
     `<div class="equip-slot equip-slot-crafting" data-open-crafting title="Crafting Table">
       <div class="equip-slot-img" style="display:flex;align-items:center;justify-content:center">
-        <span style="font-size:36px;line-height:1">⚗️</span>
+        <img src="/equipment/craft_anvil.png" alt="Crafting Table" style="width:48px;height:48px;object-fit:contain" onerror="this.outerHTML='<span style=&quot;font-size:36px;line-height:1&quot;>⚗️</span>'"/>
       </div>
       <span class="equip-slot-sub" style="margin-top:2px;font-size:10px;font-weight:700;color:var(--purple);letter-spacing:.3px">Crafting</span>
     </div>`,
@@ -3492,10 +3524,35 @@ function renderHub() {
               ).join('')
             + '</div>';
 
+          const matSlots = getMaterialSlots(STATE.student);
+          const MATERIAL_DISPLAY = { feather:'Feather', gem:'Gem', leaf:'Leaf', rune:'Rune' };
+          const materialsGrid = '<div class="cosm-grid">'
+            + MATERIAL_VARIANTS.map(v => {
+                const count = matSlots[v] || 0;
+                const unlocked = count > 0;
+                return '<div class="cosm-slot mat-slot' + (unlocked ? '' : ' cosm-locked') + '">'
+                  + '<div class="cosm-img-wrap" style="position:relative">'
+                  + '<img src="/materials/material_' + v + '.png" alt="' + MATERIAL_DISPLAY[v] + '" width="64" height="64" '
+                  + 'style="object-fit:contain' + (unlocked ? '' : ';filter:grayscale(100%) opacity(35%)') + '" onerror="this.style.display=\'none\'">'
+                  + (unlocked ? '<span class="mat-count-badge">×' + count + '</span>' : '')
+                  + '</div>'
+                  + '<span class="cosm-name">' + MATERIAL_DISPLAY[v] + '</span>'
+                  + (unlocked
+                      ? '<span class="cosm-action" style="color:#A78BFA">×' + count + ' in stock</span>'
+                      : '<span class="cosm-locked-lbl">None found</span>')
+                  + '</div>';
+              }).join('')
+            + '</div>';
+
           const cosmSubToggle = '<div class="cosm-subtabs">'
             + '<button class="cosm-subtab' + (cosmSubTab==='frames'?' cosm-subtab-active':'') + '" data-cosmtab="frames">🖼️ Frames</button>'
             + '<button class="cosm-subtab' + (cosmSubTab==='avatars'?' cosm-subtab-active':'') + '" data-cosmtab="avatars">🧙 Avatars</button>'
+            + '<button class="cosm-subtab' + (cosmSubTab==='materials'?' cosm-subtab-active':'') + '" data-cosmtab="materials">🧪 Materials</button>'
             + '</div>';
+
+          const activeGrid = cosmSubTab === 'frames' ? framesGrid
+                           : cosmSubTab === 'avatars' ? avatarsGrid
+                           : materialsGrid;
 
           return `<div class="crafting-overlay" id="crafting-overlay">
             <div class="crafting-modal crafting-modal-lg">
@@ -3504,7 +3561,7 @@ function renderHub() {
               ${topTabs}
               ${cosmSubToggle}
               <div class="equip-picker-list" style="margin-top:0">
-                ${cosmSubTab === 'frames' ? framesGrid : avatarsGrid}
+                ${activeGrid}
               </div>
             </div>
           </div>`;
@@ -5199,17 +5256,17 @@ function renderLessonStop() {
     const questionsHTML = challenge.questions.map((q, qi) => {
       const chosen = lootProgress[qi] != null ? lootProgress[qi] : null;
       return `<div class="loot-question" data-qi="${qi}" style="margin-bottom:18px">
-        <div style="font-size:13px;font-weight:700;color:#EDE9FE;margin-bottom:8px">${qi+1}. ${q.q}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text-dark);margin-bottom:8px">${qi+1}. ${q.q}</div>
         ${q.choices.map((c, ci) => {
-          let style = "display:block;padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1.5px solid rgba(167,139,250,.25);cursor:pointer;font-size:12px;color:#EDE9FE;background:rgba(255,255,255,.04);transition:border-color .15s,background .15s";
+          let style = "display:block;padding:8px 12px;margin-bottom:6px;border-radius:8px;border:1.5px solid rgba(124,58,237,.2);cursor:pointer;font-size:12px;color:var(--text-dark);background:rgba(124,58,237,.04);transition:border-color .15s,background .15s";
           if (submitted) {
-            if (ci === q.answer) style += ";border-color:#34D399;background:rgba(52,211,153,.12)";
-            else if (ci === chosen && ci !== q.answer) style += ";border-color:#F87171;background:rgba(248,113,113,.10)";
+            if (ci === q.answer) style += ";border-color:#059669;background:rgba(5,150,105,.08);color:#065F46;font-weight:700";
+            else if (ci === chosen && ci !== q.answer) style += ";border-color:#DC2626;background:rgba(220,38,38,.07);color:#991B1B";
           } else if (ci === chosen) {
-            style += ";border-color:#A78BFA;background:rgba(167,139,250,.12)";
+            style += ";border-color:#7C3AED;background:rgba(124,58,237,.1)";
           }
           return `<label style="${style}">
-            <input type="radio" name="loot-q${qi}" value="${ci}" ${chosen === ci ? 'checked' : ''} ${submitted ? 'disabled' : ''} style="margin-right:8px;accent-color:#A78BFA"/>
+            <input type="radio" name="loot-q${qi}" value="${ci}" ${chosen === ci ? 'checked' : ''} ${submitted ? 'disabled' : ''} style="margin-right:8px;accent-color:#7C3AED"/>
             ${c}
           </label>`;
         }).join('')}
@@ -5220,11 +5277,11 @@ function renderLessonStop() {
       ? `<div class="ls-done-state"><div class="ls-done-msg">✅ Loot claimed! Treasure secured.</div></div>`
       : submitted
         ? `<div style="text-align:center;margin:16px 0 8px">
-            <div style="font-size:20px;font-weight:900;color:${passed ? '#34D399' : '#F87171'};margin-bottom:4px">${passed ? '🎉 Perfect Score!' : `${score}/${total} correct`}</div>
+            <div style="font-size:20px;font-weight:900;color:${passed ? '#059669' : '#DC2626'};margin-bottom:4px">${passed ? '🎉 Perfect Score!' : `${score}/${total} correct`}</div>
             ${passed
-              ? `<div style="font-size:12px;color:rgba(237,233,254,.6);margin-bottom:14px">You answered every question correctly — treasure awaits!</div>
+              ? `<div style="font-size:13px;color:var(--text-mid);margin-bottom:14px">You answered every question correctly — treasure awaits!</div>
                  <button class="ls-submit-btn enter" id="loot-claim-btn" style="margin-top:0">💰 Claim Loot!</button>`
-              : `<div style="font-size:12px;color:rgba(237,233,254,.6)">Review the correct answers above, then try again when your teacher resets this tile.</div>`}
+              : `<div style="font-size:13px;color:var(--text-mid)">Review the correct answers above, then try again when your teacher resets this tile.</div>`}
            </div>`
         : `<button class="ls-submit-btn" id="loot-submit-btn" style="margin-top:8px">⚔️ Submit Answers</button>`;
 
@@ -5241,7 +5298,7 @@ function renderLessonStop() {
       </div>
       <div style="text-align:center;padding:12px 0 4px;font-size:48px">💰</div>
       ${loreSection}
-      <div style="background:rgba(251,191,36,.08);border:1.5px solid rgba(251,191,36,.2);border-radius:10px;padding:14px 16px;margin:12px 0;font-size:12px;line-height:1.6;color:rgba(237,233,254,.8);font-style:italic">
+      <div style="background:rgba(245,158,11,.07);border:1.5px solid rgba(245,158,11,.3);border-radius:10px;padding:14px 16px;margin:12px 0;font-size:13px;line-height:1.6;color:var(--text-mid);font-style:italic">
         "${challenge.flavorText}"
       </div>
       <div style="margin-top:16px">
@@ -9674,6 +9731,7 @@ function bindEvents() {
       unlockCosmeticsForBoss(student, tile.name);
       const _bossLandName = land && land.name;
       awardGold(student, 20);
+      awardMaterialDrop(student, 1);
       logActivity(student.id, '🪙', `Earned 20 Gold for defeating ${tile.name}!`);
       const _afterBossGold = _isFinalBoss
         ? () => triggerLandTravel(student, land)
@@ -9725,6 +9783,7 @@ function bindEvents() {
       // Loot drops
       const _bossLandName = land && land.name;
       awardGold(student, 20);
+      awardMaterialDrop(student, 1);
       logActivity(student.id, '🪙', `Earned 20 Gold for defeating ${tile.name}!`);
       const _afterBossGold = _isFinalBoss
         ? () => triggerLandTravel(student, land)
@@ -9836,6 +9895,7 @@ function bindEvents() {
       updateBossStateOnTileComplete(student, tile.id, land);
       const gold = 15;
       awardGold(student, gold);
+      awardMaterialDrop(student, 1);
       logActivity(student.id, '💰', `Claimed loot from ${tile.name} (+${gold} 🪙)`);
       showGoldToast(gold, () => {
         completeBranchTile(student, tile.id);
