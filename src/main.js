@@ -53,14 +53,10 @@ const EQUIP_LINE_NAMES  = {
   valeguard:"Vale Guard", valecharm:"Vale Charm",
 };
 const EQUIP_LEGENDARY_NAMES = {
-  "weapon_valeblade_legendary":    "Seraphine's Thorn",
-  "shield_valeguard_legendary":    "Seraphine's Ward",
   "accessory_valecharm_legendary": "Seraphine's Blessing",
 };
 const EQUIP_POOLS = {
   "The Verdant Vale": {
-    weapon:    { common:["weapon_valeblade_common","weapon_valefang_common"], rare:["weapon_valeblade_rare","weapon_valefang_rare"], epic:["weapon_valeblade_epic","weapon_valefang_epic"], legendary:"weapon_valeblade_legendary" },
-    shield:    { common:["shield_valeguard_common"], rare:["shield_valeguard_rare"], epic:["shield_valeguard_epic"], legendary:"shield_valeguard_legendary" },
     accessory: { common:["accessory_valecharm_common"], rare:["accessory_valecharm_rare"], epic:["accessory_valecharm_epic"], legendary:"accessory_valecharm_legendary" },
   }
 };
@@ -171,44 +167,31 @@ const COSMETIC_AVATARS = [
 
 /* ─── MYSTERY DROP POOL ─── */
 // Add entries here to extend the pool — no code change needed.
+// Contains only Companions (rare/legendary) and a Gold Pouch.
+// Avatars, Frames, and Weapons are craft-only — never appear here.
 const MYSTERY_POOL = [
-  // ── Special Avatars (actual files in /cosmetics/avatars/) ──────────────
-  { id:'mys_av_barbarian',      type:'avatar', displayName:'Barbarian',          assetPath:'/cosmetics/avatars/Barbarian_01_Idle_000.png',      flavorText:'A lone warrior walks out of the storm...' },
-  { id:'mys_av_dark_elf_1',     type:'avatar', displayName:'Dark Elf I',         assetPath:'/cosmetics/avatars/Dark_Elf_01_Idle_000.png',       flavorText:'From ancient shadows, an emissary arrives...' },
-  { id:'mys_av_dark_elf_2',     type:'avatar', displayName:'Dark Elf II',        assetPath:'/cosmetics/avatars/Dark_Elf_02_Idle_000.png',       flavorText:'A wandering spirit crosses the veil...' },
-  { id:'mys_av_dark_elf_3',     type:'avatar', displayName:'Dark Elf III',       assetPath:'/cosmetics/avatars/Dark_Elf_03_Idle_000.png',       flavorText:'The Realm stirs — a mystery arrival...' },
-  { id:'mys_av_demon_knight_1', type:'avatar', displayName:'Demon Knight I',     assetPath:'/cosmetics/avatars/Demon_Knight_01_Idle_000.png',   flavorText:'A fearsome presence materialises from the void...' },
-  { id:'mys_av_demon_knight_2', type:'avatar', displayName:'Demon Knight II',    assetPath:'/cosmetics/avatars/Demon_Knight_02_Idle_000.png',   flavorText:'Ancient armor echoes across the Realm...' },
-  { id:'mys_av_demon_knight_3', type:'avatar', displayName:'Demon Knight III',   assetPath:'/cosmetics/avatars/Demon_Knight_03_Idle_000.png',   flavorText:'The dark knight answers the call...' },
-  { id:'mys_av_druid',          type:'avatar', displayName:'Druid',              assetPath:'/cosmetics/avatars/Druid_02_Idle_000.png',          flavorText:'The forest speaks — and a guardian emerges...' },
-  { id:'mys_av_elemental_1',    type:'avatar', displayName:'Elemental I',        assetPath:'/cosmetics/avatars/Elemental_01_Idle_000.png',      flavorText:'Pure energy takes form in the Realm...' },
-  { id:'mys_av_elemental_2',    type:'avatar', displayName:'Elemental II',       assetPath:'/cosmetics/avatars/Elemental_02_Idle_000.png',      flavorText:'The elements converge on a wandering soul...' },
-  { id:'mys_av_elemental_3',    type:'avatar', displayName:'Elemental III',      assetPath:'/cosmetics/avatars/Elemental_03_Idle_000.png',      flavorText:'A mystery arrival blazes into being...' },
-  { id:'mys_av_goblin',         type:'avatar', displayName:'Goblin',             assetPath:'/cosmetics/avatars/Goblin_01_Idle_000.png',         flavorText:'A mischievous wanderer sneaks through...' },
-  { id:'mys_av_mummy_1',        type:'avatar', displayName:'Mummy I',            assetPath:'/cosmetics/avatars/Mummy_01_Idle_000.png',          flavorText:'Something stirs beneath the sands...' },
-  { id:'mys_av_mummy_2',        type:'avatar', displayName:'Mummy II',           assetPath:'/cosmetics/avatars/Mummy_02_Idle_000.png',          flavorText:'Ancient wrappings unwind in the Realm...' },
-  { id:'mys_av_mummy_3',        type:'avatar', displayName:'Mummy III',          assetPath:'/cosmetics/avatars/Mummy_03_Idle_000.png',          flavorText:'A wandering spirit crosses into the Realm...' },
-  { id:'mys_av_necromancer',    type:'avatar', displayName:'Necromancer',        assetPath:'/cosmetics/avatars/Necromancer_03_Idle_000.png',    flavorText:'The mystery arrival whispers of forgotten lore...' },
-  { id:'mys_av_ninja_1',        type:'avatar', displayName:'Ninja I',            assetPath:'/cosmetics/avatars/Ninja_01_Idle_000.png',          flavorText:'From the shadows, a silent figure emerges...' },
-  { id:'mys_av_ninja_2',        type:'avatar', displayName:'Ninja II',           assetPath:'/cosmetics/avatars/Ninja_02_Idle_000.png',          flavorText:'Quick as lightning, the wanderer appears...' },
-  { id:'mys_av_ninja_3',        type:'avatar', displayName:'Ninja III',          assetPath:'/cosmetics/avatars/Ninja_03_Idle_000.png',          flavorText:'The Realm holds its breath as they arrive...' },
-  { id:'mys_av_satyr_1',        type:'avatar', displayName:'Satyr I',            assetPath:'/cosmetics/avatars/Satyr_01_Idle_000.png',          flavorText:'Wild music drifts from an unknown wanderer...' },
-  { id:'mys_av_satyr_2',        type:'avatar', displayName:'Satyr II',           assetPath:'/cosmetics/avatars/Satyr_03_Idle_000.png',          flavorText:'The forest whispers a mystery arrival...' },
-  { id:'mys_av_skull_1',        type:'avatar', displayName:'Skull I',            assetPath:'/cosmetics/avatars/Skull_01_Idle_000.png',          flavorText:'A chilling presence drifts through the veil...' },
-  { id:'mys_av_skull_2',        type:'avatar', displayName:'Skull II',           assetPath:'/cosmetics/avatars/Skull_02_Idle_000.png',          flavorText:'The Realm shudders as the wanderer crosses...' },
-  { id:'mys_av_skull_3',        type:'avatar', displayName:'Skull III',          assetPath:'/cosmetics/avatars/Skull_03_Idle_000.png',          flavorText:'Mystery arrival: the veil thins...' },
-  { id:'mys_av_vampire_1',      type:'avatar', displayName:'Vampire I',          assetPath:'/cosmetics/avatars/Vampire_01_Idle_000.png',        flavorText:'Night falls early — a mysterious guest arrives...' },
-  { id:'mys_av_vampire_2',      type:'avatar', displayName:'Vampire II',         assetPath:'/cosmetics/avatars/Vampire_02_Idle_000.png',        flavorText:'The wandering spirit chooses you...' },
-  { id:'mys_av_vampire_3',      type:'avatar', displayName:'Vampire III',        assetPath:'/cosmetics/avatars/Vampire_03_Idle_000.png',        flavorText:'A mystery arrival stirs the Realm...' },
-  { id:'mys_av_wraith_1',       type:'avatar', displayName:'Wraith I',           assetPath:'/cosmetics/avatars/Wraith_01_Idle_000.png',         flavorText:'A spectral wanderer drifts through the mist...' },
-  { id:'mys_av_wraith_2',       type:'avatar', displayName:'Wraith II',          assetPath:'/cosmetics/avatars/Wraith_02_Idle_000.png',         flavorText:'The veil tears — and a wanderer steps through...' },
-  { id:'mys_av_wraith_3',       type:'avatar', displayName:'Wraith III',         assetPath:'/cosmetics/avatars/Wraith_03_Idle_000.png',         flavorText:'A mystery arrival echoes across the Realm...' },
-  // ── Legendary Frames ─────────────────────────────────────────────────────
-  { id:'mys_fr_ancient_relic',  type:'frame', displayName:'Ancient Relic Frame',  assetPath:'/cosmetics/frames/legendary/ancient-relic.png',  flavorText:'Forged in an age before memory...' },
-  { id:'mys_fr_dragon_scale',   type:'frame', displayName:'Dragon Scale Frame',   assetPath:'/cosmetics/frames/legendary/dragon-scale.png',   flavorText:'Shed by a wyrm that shook the Realm...' },
-  { id:'mys_fr_phoenix_flame',  type:'frame', displayName:'Phoenix Flame Frame',  assetPath:'/cosmetics/frames/legendary/phoenix-flame.png',  flavorText:'Born from ashes, reborn in glory...' },
-  { id:'mys_fr_starfall',       type:'frame', displayName:'Starfall Frame',       assetPath:'/cosmetics/frames/legendary/starfall.png',       flavorText:'A constellation descended just for you...' },
-  { id:'mys_fr_void_portal',    type:'frame', displayName:'Void Portal Frame',    assetPath:'/cosmetics/frames/legendary/void-portal.png',    flavorText:'A rift between worlds, captured in glass...' },
+  // ── Rare Companions ───────────────────────────────────────────────────────
+  { id:'mys_cp_bat',         type:'companion', file:'051-bat.png',           displayName:'Bat',         assetPath:'/companions/051-bat.png',           flavorText:'A shadow breaks free from the cave wall and chooses you...' },
+  { id:'mys_cp_chameleon',   type:'companion', file:'051-chameleon.png',     displayName:'Chameleon',   assetPath:'/companions/051-chameleon.png',     flavorText:'It was always there. You just had to look closely...' },
+  { id:'mys_cp_octopus',     type:'companion', file:'051-octopus.png',       displayName:'Octopus',     assetPath:'/companions/051-octopus.png',       flavorText:'Eight arms, one steadfast ally...' },
+  { id:'mys_cp_whale',       type:'companion', file:'051-whale.png',         displayName:'Whale',       assetPath:'/companions/051-whale.png',         flavorText:'A song from the deep answers your call...' },
+  { id:'mys_cp_shark',       type:'companion', file:'051-shark.png',         displayName:'Shark',       assetPath:'/companions/051-shark.png',         flavorText:'A fearless hunter swims to your side...' },
+  { id:'mys_cp_sloth',       type:'companion', file:'051-sloth.png',         displayName:'Sloth',       assetPath:'/companions/051-sloth.png',         flavorText:'Slow, steady, and completely unshakeable...' },
+  { id:'mys_cp_cobra',       type:'companion', file:'051-cobra.png',         displayName:'Cobra',       assetPath:'/companions/051-cobra.png',         flavorText:'Ancient wisdom coils around your journey...' },
+  { id:'mys_cp_crab',        type:'companion', file:'051-crab.png',          displayName:'Crab',        assetPath:'/companions/051-crab.png',          flavorText:'It scuttled sideways straight to you...' },
+  { id:'mys_cp_macaw',       type:'companion', file:'051-macaw.png',         displayName:'Macaw',       assetPath:'/companions/051-macaw.png',         flavorText:'Brilliant feathers catch the Realm\'s light...' },
+  { id:'mys_cp_crocodile',   type:'companion', file:'051-crocodile.png',     displayName:'Crocodile',   assetPath:'/companions/051-crocodile.png',     flavorText:'Ancient. Patient. Yours.' },
+  { id:'mys_cp_hippo',       type:'companion', file:'051-hippopotamus.png',  displayName:'Hippo',       assetPath:'/companions/051-hippopotamus.png',  flavorText:'Deceptively fast, and now on your side...' },
+  { id:'mys_cp_rhino',       type:'companion', file:'051-rhinoceros.png',    displayName:'Rhino',       assetPath:'/companions/051-rhinoceros.png',    flavorText:'Nothing stands between you and the path ahead...' },
+  { id:'mys_cp_snake',       type:'companion', file:'051-snake.png',         displayName:'Snake',       assetPath:'/companions/051-snake.png',         flavorText:'It slithered across the Realm just to find you...' },
+  // ── Legendary Companions ─────────────────────────────────────────────────
+  { id:'mys_cp_husky',       type:'companion', file:'051-siberian-husky.png',displayName:'Husky',       assetPath:'/companions/051-siberian-husky.png',flavorText:'A howl echoes across the frozen tundra...' },
+  { id:'mys_cp_tiger',       type:'companion', file:'051-tiger.png',         displayName:'Tiger',       assetPath:'/companions/051-tiger.png',         flavorText:'The great cat prowls toward you through the mist...' },
+  { id:'mys_cp_toucan',      type:'companion', file:'051-toucan.png',        displayName:'Toucan',      assetPath:'/companions/051-toucan.png',        flavorText:'A splash of color in the grey — a legendary find...' },
+  { id:'mys_cp_hummingbird', type:'companion', file:'051-humming-bird.png',  displayName:'Hummingbird', assetPath:'/companions/051-humming-bird.png',  flavorText:'Faster than thought, it appears at your shoulder...' },
+  { id:'mys_cp_clownfish',   type:'companion', file:'051-clown-fish.png',    displayName:'Clownfish',   assetPath:'/companions/051-clown-fish.png',    flavorText:'Brave little wanderer, found in the vast deep...' },
+  { id:'mys_cp_kangaroo',    type:'companion', file:'051-kangaroo.png',      displayName:'Kangaroo',    assetPath:'/companions/051-kangaroo.png',      flavorText:'It leapt from the horizon and chose you...' },
+  { id:'mys_cp_lion',        type:'companion', file:'051-lion.png',          displayName:'Lion',        assetPath:'/companions/051-lion.png',          flavorText:'The mane. The gaze. The legend. All yours...' },
   // ── Gold Pouch ───────────────────────────────────────────────────────────
   { id:'gold_pouch', type:'gold', displayName:'Gold Pouch', flavorText:'A windfall from the Realm — 25 Gold!' },
 ];
@@ -430,62 +413,28 @@ function awardFromPool(student, landName, tier, onComplete = null) {
   const done = () => { if (onComplete) onComplete(); };
   const ov = getOverrides().students[String(student.id)] || {};
   const ownedCompanions = new Set(ov.companions || []);
-  const ownedEquip      = new Set(ov.equipInventory || []);
 
   if (tier === 'legendary') {
-    const items = [];
     const petFile = pickPetItem(landName, 'legendary');
     if (petFile && !ownedCompanions.has(petFile)) {
       awardCompanion(student, petFile);
-      items.push({ type: 'pet', file: petFile });
+      showCompanionReveal(petFile, done);
+      return;
     }
-    ['weapon', 'shield'].forEach(slot => {
-      const id = pickEquipItem(landName, slot, 'legendary');
-      if (id && !ownedEquip.has(id)) {
-        awardEquipItem(student, id, false);
-        items.push({ type: 'equip', def: getEquipItemDef(id) });
-      }
-    });
-    if (!items.length) { done(); return; }
-    const showNext = (idx) => {
-      if (idx >= items.length) { done(); return; }
-      const item = items[idx];
-      if (item.type === 'pet') showCompanionReveal(item.file, () => showNext(idx + 1));
-      else showEquipReveal(item.def, () => showNext(idx + 1));
-    };
-    showNext(0);
+    done();
     return;
   }
 
-  // Build eligible pools excluding already-owned items (FIX 3)
-  const petPool    = (PET_POOLS[landName]?.[tier] || []).filter(f => !ownedCompanions.has(f));
-  const weaponPool = ((EQUIP_POOLS[landName]?.weapon?.[tier]) || []).filter(id => !ownedEquip.has(id));
-  const shieldPool = ((EQUIP_POOLS[landName]?.shield?.[tier]) || []).filter(id => !ownedEquip.has(id));
-  const hasPet   = petPool.length > 0;
-  const hasEquip = weaponPool.length > 0 || shieldPool.length > 0;
-
-  if (!hasPet && !hasEquip) {
-    // Student owns everything available — award +5 bonus XP instead
+  const petPool = (PET_POOLS[landName]?.[tier] || []).filter(f => !ownedCompanions.has(f));
+  if (!petPool.length) {
     const { levelsGained, newLevel } = awardXP(student, 5);
-    logActivity(student.id, '🎒', 'Bag full of rare finds! (+5 Bonus XP)');
-    showXPCelebration(5, levelsGained, newLevel, done, "Your bag is full of rare finds! +5 Bonus XP");
+    logActivity(student.id, '🎒', 'All companions from here found! (+5 Bonus XP)');
+    showXPCelebration(5, levelsGained, newLevel, done, "You've found every companion from here! +5 Bonus XP");
     return;
   }
-
-  const givePet = hasPet && (!hasEquip || Math.random() < 0.5);
-  if (givePet) {
-    const file = randFrom(petPool);
-    awardCompanion(student, file);
-    showCompanionReveal(file, done);
-  } else {
-    const eligibleSlots = [];
-    if (weaponPool.length > 0) eligibleSlots.push('weapon');
-    if (shieldPool.length > 0) eligibleSlots.push('shield');
-    const slot = randFrom(eligibleSlots);
-    const id   = randFrom(slot === 'weapon' ? weaponPool : shieldPool);
-    awardEquipItem(student, id, false);
-    showEquipReveal(getEquipItemDef(id), done);
-  }
+  const file = randFrom(petPool);
+  awardCompanion(student, file);
+  showCompanionReveal(file, done);
 }
 
 function awardCompanion(student, file) {
@@ -2497,13 +2446,24 @@ function formatFlagTime(iso) {
 function tryMysteryDrop(student, eventType, onComplete) {
   const rate = MYSTERY_DROP_RATES[eventType] ?? 0.02;
   if (Math.random() >= rate) return false;
-  const owned = new Set(getUnlockedCosmetics(student));
-  const eligible = MYSTERY_POOL.filter(item => !owned.has(item.id));
-  if (!eligible.length) return false; // pool exhausted — caller falls through to normal tier
+  const ownedCosmetics  = new Set(getUnlockedCosmetics(student));
+  const ov = getOverrides().students[String(student.id)] || {};
+  const ownedCompanions = new Set(ov.companions || []);
+  const eligible = MYSTERY_POOL.filter(item => {
+    if (item.type === 'companion') return !ownedCompanions.has(item.file);
+    return !ownedCosmetics.has(item.id);
+  });
+  if (!eligible.length) return false;
   const item = randFrom(eligible);
   if (item.type === 'gold') {
     awardGold(student, 25);
     logActivity(student.id, '🪙', `Mystery Drop! Found a Gold Pouch (+25 Gold)`);
+    showMysteryReveal(item, onComplete);
+    return true;
+  }
+  if (item.type === 'companion') {
+    awardCompanion(student, item.file);
+    logActivity(student.id, '🐾', `Mystery Drop! Found a companion: ${item.displayName}`);
     showMysteryReveal(item, onComplete);
     return true;
   }
@@ -2513,14 +2473,16 @@ function tryMysteryDrop(student, eventType, onComplete) {
   return true;
 }
 function showMysteryReveal(item, onComplete) {
-  const isAvatar = item.type === 'avatar';
-  const isGold   = item.type === 'gold';
+  const isCompanion = item.type === 'companion';
+  const isGold      = item.type === 'gold';
+  const eyebrow = isGold ? '🪙 Mystery Gold' : isCompanion ? '🐾 Mystery Companion' : '✨ Mystery Drop';
+  const sub     = isGold ? '+25 Gold added to your wallet' : isCompanion ? 'Find your new companion in your Character Hub!' : 'Find it in Crafting Table → My Items';
   const el = document.createElement('div');
   el.className = 'mystery-reveal-overlay';
   el.innerHTML = `
     <div class="mystery-reveal-card">
-      <div class="mystery-stars">✦ ✧ ✦ ✧ ✦</div>
-      <div class="mystery-reveal-eyebrow">${isGold ? '🪙 Mystery Gold' : isAvatar ? '✨ Mystery Arrival' : '⭐ Legendary Frame'}</div>
+      <div class="mystery-stars">❆ ❇ ❆ ❇ ❆</div>
+      <div class="mystery-reveal-eyebrow">${eyebrow}</div>
       <div class="mystery-reveal-img-wrap">
         ${isGold
           ? `<div style="font-size:72px;line-height:1">🪙</div>`
@@ -2529,7 +2491,7 @@ function showMysteryReveal(item, onComplete) {
       </div>
       <div class="mystery-reveal-name">${item.displayName}</div>
       ${item.flavorText ? `<div class="mystery-reveal-flavor">"${item.flavorText}"</div>` : ''}
-      <div class="mystery-reveal-sub">${isGold ? '+25 Gold added to your wallet' : 'Find it in Crafting Table → My Items'}</div>
+      <div class="mystery-reveal-sub">${sub}</div>
       <button class="mystery-reveal-btn">Claim It!</button>
     </div>`;
   document.body.appendChild(el);
@@ -3391,6 +3353,21 @@ function renderHub() {
       <div class="hub-panel inv-panel-wrap enter" style="animation-delay:.12s">
         <div class="panel-title">🎒 Inventory</div>
         <div class="inv-grid">${invSlots}</div>
+        ${(() => {
+          const matSlots = getMaterialSlots(STATE.student);
+          const MATERIAL_DISPLAY = { feather:'Feather', gem:'Gem', leaf:'Leaf', rune:'Rune' };
+          return '<div class="hub-materials">'
+            + '<div class="hub-materials-label">🧪 Materials</div>'
+            + '<div class="hub-materials-row">'
+            + MATERIAL_VARIANTS.map(v => {
+                const count = matSlots[v] || 0;
+                return '<div class="hub-mat-chip' + (count ? '' : ' hub-mat-empty') + '">'
+                  + '<img src="/materials/material_' + v + '.png" alt="' + MATERIAL_DISPLAY[v] + '" width="24" height="24" style="object-fit:contain' + (count ? '' : ';filter:grayscale(100%) opacity(35%)') + '" onerror="this.style.display=\'none\'">'
+                  + '<span class="hub-mat-count">' + (count ? '×' + count : '0') + '</span>'
+                  + '</div>';
+              }).join('')
+            + '</div></div>';
+        })()}
         ${hasPendingPotion ? `<div class="brew-pending" style="margin-top:8px">⏳ Crafting request sent — awaiting teacher approval</div>` : ''}
       </div>
       <div class="hub-panel boss-panel-wrap enter" style="animation-delay:.16s">
@@ -3533,9 +3510,6 @@ function renderHub() {
             + COSMETICS_MANIFEST.map(c =>
                 _cosmSlot(c.id, c.assetPath, c.displayName, isCosmeticUnlocked(STATE.student, c), equippedFrame === c.id, 'data-equip-frame')
               ).join('')
-            + MYSTERY_POOL.filter(p => p.type === 'frame').map(p =>
-                _cosmSlot(p.id, p.assetPath, p.displayName, owned.has(p.id), equippedFrame === p.id, 'data-equip-frame')
-              ).join('')
             + '</div>';
 
           const revertBtn = equippedAvatar
@@ -3544,40 +3518,14 @@ function renderHub() {
             + COSMETIC_AVATARS.map(av =>
                 _cosmSlot(av.id, av.assetPath, av.displayName, isCosmeticUnlocked(STATE.student, av), equippedAvatar === av.id, 'data-equip-avatar')
               ).join('')
-            + MYSTERY_POOL.filter(p => p.type === 'avatar').map(p =>
-                _cosmSlot(p.id, p.assetPath, p.displayName, owned.has(p.id), equippedAvatar === p.id, 'data-equip-avatar')
-              ).join('')
-            + '</div>';
-
-          const matSlots = getMaterialSlots(STATE.student);
-          const MATERIAL_DISPLAY = { feather:'Feather', gem:'Gem', leaf:'Leaf', rune:'Rune' };
-          const materialsGrid = '<div class="cosm-grid">'
-            + MATERIAL_VARIANTS.map(v => {
-                const count = matSlots[v] || 0;
-                const unlocked = count > 0;
-                return '<div class="cosm-slot mat-slot' + (unlocked ? '' : ' cosm-locked') + '">'
-                  + '<div class="cosm-img-wrap" style="position:relative">'
-                  + '<img src="/materials/material_' + v + '.png" alt="' + MATERIAL_DISPLAY[v] + '" width="64" height="64" '
-                  + 'style="object-fit:contain' + (unlocked ? '' : ';filter:grayscale(100%) opacity(35%)') + '" onerror="this.style.display=\'none\'">'
-                  + (unlocked ? '<span class="mat-count-badge">×' + count + '</span>' : '')
-                  + '</div>'
-                  + '<span class="cosm-name">' + MATERIAL_DISPLAY[v] + '</span>'
-                  + (unlocked
-                      ? '<span class="cosm-action" style="color:#A78BFA">×' + count + ' in stock</span>'
-                      : '<span class="cosm-locked-lbl">None found</span>')
-                  + '</div>';
-              }).join('')
             + '</div>';
 
           const cosmSubToggle = '<div class="cosm-subtabs">'
             + '<button class="cosm-subtab' + (cosmSubTab==='frames'?' cosm-subtab-active':'') + '" data-cosmtab="frames">🖼️ Frames</button>'
             + '<button class="cosm-subtab' + (cosmSubTab==='avatars'?' cosm-subtab-active':'') + '" data-cosmtab="avatars">🧙 Avatars</button>'
-            + '<button class="cosm-subtab' + (cosmSubTab==='materials'?' cosm-subtab-active':'') + '" data-cosmtab="materials">🧪 Materials</button>'
             + '</div>';
 
-          const activeGrid = cosmSubTab === 'frames' ? framesGrid
-                           : cosmSubTab === 'avatars' ? avatarsGrid
-                           : materialsGrid;
+          const activeGrid = cosmSubTab === 'frames' ? framesGrid : avatarsGrid;
 
           return `<div class="crafting-overlay" id="crafting-overlay">
             <div class="crafting-modal crafting-modal-lg">
@@ -9789,9 +9737,11 @@ function bindEvents() {
       advanceStudentTile(student, land);
       unlockCosmeticsForBoss(student, tile.name);
       const _bossLandName = land && land.name;
-      awardGold(student, 20);
+      const { levelsGained: _bossLvl, newLevel: _bossNewLvl } = awardXP(student, 15);
+      awardGold(student, 15);
       awardMaterialDrop(student, 1);
-      logActivity(student.id, '🪙', `Earned 20 Gold for defeating ${tile.name}!`);
+      logActivity(student.id, '🪙', `Earned 15 Gold + 15 XP for defeating ${tile.name}!`);
+      if (_bossLvl > 0) logActivity(student.id, '⬆️', `Reached Level ${_bossNewLvl}!`);
       const _afterBossGold = _isFinalBoss
         ? () => triggerLandTravel(student, land)
         : () => { STATE.screen = "quest-map"; mount(); };
@@ -9805,11 +9755,12 @@ function bindEvents() {
           awardSeasonalBadge(student);
           checkAndAwardSpecialBadges(student);
         }
+        const _afterXP = () => showXPCelebration(15, _bossLvl, _bossNewLvl, () => showGoldToast(15, _afterBossGold));
         if (companionFile) {
           awardCompanion(student, companionFile);
-          showCompanionReveal(companionFile, () => showGoldToast(20, _afterBossGold));
+          showCompanionReveal(companionFile, _afterXP);
         } else {
-          showGoldToast(20, _afterBossGold);
+          _afterXP();
         }
       };
       if (!tryMysteryDrop(student, 'boss', _doBossLoot)) _doBossLoot();
@@ -9825,8 +9776,10 @@ function bindEvents() {
       const bossKey = `${land.id}_${tile.id}`;
       const isDungeon = tile.type === "dungeon";
       const isFirstBoss = !hasCompletedAnyBoss(student);
-      // Mark confirmed
-      setBossStatus(student.id, bossKey, 'confirmed');
+      // Capture current status before overwriting — needed to fork rewards for defeated vs. win
+      const _prevBossStatus = getBossStatus(student, bossKey);
+      const _bossDefeated = _prevBossStatus === 'defeated';
+      if (!_bossDefeated) setBossStatus(student.id, bossKey, 'confirmed');
       // Advance the student past this tile
       const pos = getLandPos(student);
       const completed = [...(pos.completed||[])];
@@ -9841,12 +9794,21 @@ function bindEvents() {
       unlockCosmeticsForBoss(student, tile.name);
       // Loot drops
       const _bossLandName = land && land.name;
-      awardGold(student, 20);
-      awardMaterialDrop(student, 1);
-      logActivity(student.id, '🪙', `Earned 20 Gold for defeating ${tile.name}!`);
-      const _afterBossGold = _isFinalBoss
+      const _afterBossNav = _isFinalBoss
         ? () => triggerLandTravel(student, land)
         : () => { STATE.screen = "quest-map"; mount(); };
+      if (_bossDefeated) {
+        const { levelsGained: _defLvl, newLevel: _defNewLvl } = awardXP(student, 2);
+        awardGold(student, 2);
+        logActivity(student.id, '📚', `${tile.name} — Not defeated this time (+2 XP, +2 🪙)`);
+        showXPCelebration(2, _defLvl, _defNewLvl, () => showGoldToast(2, _afterBossNav));
+        return;
+      }
+      const { levelsGained: _winLvl, newLevel: _winNewLvl } = awardXP(student, 15);
+      awardGold(student, 15);
+      awardMaterialDrop(student, 1);
+      logActivity(student.id, '🪙', `Earned 15 Gold + 15 XP for defeating ${tile.name}!`);
+      if (_winLvl > 0) logActivity(student.id, '⬆️', `Reached Level ${_winNewLvl}!`);
       let companionFile = null;
       if (isDungeon) {
         companionFile = randFrom(companionsByRarity("rare")).file;
@@ -9860,11 +9822,12 @@ function bindEvents() {
           awardSeasonalBadge(student);
           checkAndAwardSpecialBadges(student);
         }
+        const _afterXP = () => showXPCelebration(15, _winLvl, _winNewLvl, () => showGoldToast(15, _afterBossNav));
         if (companionFile) {
           awardCompanion(student, companionFile);
-          showCompanionReveal(companionFile, () => showGoldToast(20, _afterBossGold));
+          showCompanionReveal(companionFile, _afterXP);
         } else {
-          showGoldToast(20, _afterBossGold);
+          _afterXP();
         }
       };
       if (!tryMysteryDrop(student, 'boss', _doBossLoot)) _doBossLoot();
@@ -9952,15 +9915,17 @@ function bindEvents() {
       const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
       saveTileCompletion(student.id, tile.id, timeOnPage);
       updateBossStateOnTileComplete(student, tile.id, land);
-      const gold = 15;
+      const xp = 10, gold = 10;
+      const { levelsGained: _lootLvl, newLevel: _lootNewLvl } = awardXP(student, xp);
       awardGold(student, gold);
       awardMaterialDrop(student, 1);
-      logActivity(student.id, '💰', `Claimed loot from ${tile.name} (+${gold} 🪙)`);
-      showGoldToast(gold, () => {
+      logActivity(student.id, '💰', `Claimed loot from ${tile.name} (+${xp} XP, +${gold} 🪙)`);
+      if (_lootLvl > 0) logActivity(student.id, '⬆️', `Reached Level ${_lootNewLvl}!`);
+      showXPCelebration(xp, _lootLvl, _lootNewLvl, () => showGoldToast(gold, () => {
         completeBranchTile(student, tile.id);
         STATE.screen = "quest-map";
         mount();
-      });
+      }));
     });
 
     // Training Grounds NPC tutorial
@@ -10035,12 +10000,8 @@ function bindEvents() {
       const _aspireDone = (tile.aspireTo||[]).length > 0 && (tile.aspireTo||[]).every((_,i) => (prog.aspireTo||[])[i]);
       const _nearpodDone = _rlSubmit && !!(prog.nearpod||[])[0];
       const _wbDone = _rlSubmit && !!(prog.workbook||[])[0];
-      const xpAmount = _rlSubmit
-        ? (_nearpodDone ? 10 : 0) + (_wbDone ? 5 : 0)
-        : tile.type === 'lesson' ? (10 + (_shouldDone?5:0) + (_aspireDone?5:0)) : tileXP(tile);
-      const goldAmount = _rlSubmit
-        ? (_nearpodDone ? 5 : 0) + (_wbDone ? 3 : 0)
-        : tile.type === 'loot' ? 10 : (5 + (_shouldDone?3:0) + (_aspireDone?3:0));
+      const xpAmount = 5;
+      const goldAmount = 5;
       const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
       saveTileCompletion(STATE.student.id, tile.id, timeOnPage);
       updateBossStateOnTileComplete(STATE.student, tile.id, land);
@@ -10049,6 +10010,7 @@ function bindEvents() {
         const _lvl = awardXP(STATE.student, xpAmount);
         levelsGained = _lvl.levelsGained; newLevel = _lvl.newLevel;
         awardGold(STATE.student, goldAmount);
+        if (Math.random() < 0.15) awardMaterialDrop(STATE.student, 1);
       }
       const _amtLabel = (xpAmount > 0 || goldAmount > 0) ? ` (+${xpAmount} XP, +${goldAmount} 🪙)` : '';
       logActivity(STATE.student.id, '📖', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''}${_amtLabel}`);
@@ -10104,7 +10066,7 @@ function bindEvents() {
       const _dropTier = _isAspireTile ? 'rare'
                       : (_isShouldTile && Math.random() < 0.15) ? 'rare'
                       : 'common';
-      const _hasPool = _poolLand && (EQUIP_POOLS[_poolLand] || PET_POOLS[_poolLand]);
+      const _hasPool = _poolLand && PET_POOLS[_poolLand];
       const _doNormalLoot = () => {
         if (_hasPool) {
           if (Math.random() < 0.2) awardSeasonalBadge(STATE.student);
@@ -10188,16 +10150,15 @@ function bindEvents() {
       clearLessonFail(student.id, tile.id);
       saveStudentOverride(student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
 
-      const _wgDone = !!(prog.wayground||[])[0];
-      const _wbDone = !!(prog.workbook ||[])[0];
-      const xpAmount   = (_wgDone ? 10 : 0) + (_wbDone ? 5 : 0) + 5;
-      const goldAmount = (_wgDone ?  5 : 0) + (_wbDone ? 3 : 0) + 5;
+      const xpAmount = 5;
+      const goldAmount = 5;
 
       const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
       saveTileCompletion(student.id, tile.id, timeOnPage);
       updateBossStateOnTileComplete(student, tile.id, land);
       const _lvl = awardXP(student, xpAmount);
       awardGold(student, goldAmount);
+      if (Math.random() < 0.15) awardMaterialDrop(student, 1);
       logActivity(student.id, '✅', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xpAmount} XP, +${goldAmount} 🪙)`);
       if (_lvl.levelsGained > 0) logActivity(student.id, '⬆️', `Reached Level ${_lvl.newLevel}!`);
 
@@ -10252,10 +10213,8 @@ function bindEvents() {
       if (_isBossSess) saveBossReteachNeeded(student.id, tile.id);
       saveStudentOverride(student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
 
-      const _wgDone = !!(prog.wayground||[])[0];
-      const _wbDone = !!(prog.workbook ||[])[0];
-      const xpAmount   = (_wgDone ? 10 : 0) + (_wbDone ? 5 : 0) + 2;
-      const goldAmount = (_wgDone ?  5 : 0) + (_wbDone ? 3 : 0) + 2;
+      const xpAmount = 2;
+      const goldAmount = 2;
 
       const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
       saveTileCompletion(student.id, tile.id, timeOnPage);
