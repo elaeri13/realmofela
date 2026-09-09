@@ -6526,6 +6526,30 @@ function renderTeacherDashboard() {
             </div>
             <p style="font-size:11px;color:#9CA3AF;margin:6px 0 0">When disabled, collab quests are hidden from students. All logic and existing accepted/completed records are preserved.</p>
           </div>
+          ${(() => {
+            // Show any active progress caps so teachers can clear stale ones
+            const _caps = (_settings && _settings.progressCap) || {};
+            const _capEntries = [];
+            for (const [cid, lands] of Object.entries(_caps)) {
+              for (const [lid, tileId] of Object.entries(lands || {})) {
+                if (tileId !== null && tileId !== undefined) {
+                  const _land = LANDS.find(l => l.id === Number(lid));
+                  const _tile = _land && _land.tiles.find(t => t.id === Number(tileId));
+                  _capEntries.push({ cid, lid, tileId, landName: _land ? _land.name : `Land ${lid}`, tileName: _tile ? _tile.name : `Tile ${tileId}` });
+                }
+              }
+            }
+            if (!_capEntries.length) return '';
+            return `<div class="cs-section">
+              <div class="cs-section-title">🔒 Active Progress Caps <span style="font-size:11px;font-weight:600;color:#DC2626;margin-left:6px">Students are being blocked</span></div>
+              ${_capEntries.map(e => `
+                <div class="ss-row">
+                  <span class="ss-tile-name" style="font-size:12px">Cohort ${e.cid} · ${e.landName} — capped at <strong>${e.tileName}</strong></span>
+                  <button class="btn btn-danger-sm clear-cap-btn" data-cap-cid="${e.cid}" data-cap-lid="${e.lid}" style="font-size:11px;padding:4px 10px;background:#FEE2E2;color:#DC2626;border:1px solid #FCA5A5;border-radius:6px;cursor:pointer;font-weight:700">🗑 Clear Cap</button>
+                </div>`).join('')}
+              <p style="font-size:11px;color:#9CA3AF;margin:6px 0 0">These caps are blocking students from advancing past the listed tile. Clear them to restore normal access.</p>
+            </div>`;
+          })()}
           <div class="cs-section" style="border-bottom:none">
             <div class="cs-section-title">📚 Weekly Homework Quest</div>
             ${(() => {
@@ -8617,6 +8641,16 @@ function bindEvents() {
       if (!ta) return;
       saveHomeworkQuest(true, ta.value.trim());
       mount();
+    });
+
+    // Clear progress cap buttons
+    document.querySelectorAll(".clear-cap-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const cid = btn.dataset.capCid;
+        const lid = btn.dataset.capLid;
+        setProgressCap(Number(cid), Number(lid), null);
+        mount();
+      });
     });
 
     // Crafting approve / deny
