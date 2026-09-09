@@ -302,6 +302,31 @@ const LOOT_CHALLENGES = {
     ]
   }
 };
+LOOT_CHALLENGES[30] = {
+  flavorText: "Tucked beside the frozen edge of a pond in the Vale, you find a single ice skate, long abandoned, its blade dulled by time. Someone left a note tucked inside it — half of it faded beyond reading.",
+  questions: [
+    {
+      q: "\"A champion doesn't worry about ___. A champion is calm, ready, steady.\"",
+      choices: [
+        "what others say or all the things that might go wrong",
+        "how cold the ice feels",
+        "whether they land every jump",
+        "what their coach thinks of them"
+      ],
+      answer: 0
+    },
+    {
+      q: "If you had to choose ONE sentence to capture what the whole note is really about, which fits best?",
+      choices: [
+        "Ice skating is a dangerous sport",
+        "Success requires putting your fears aside",
+        "Champions never make mistakes",
+        "Coaches are more important than skaters"
+      ],
+      answer: 1
+    }
+  ]
+};
 
 function resolveCollabQuest(tileId, tile) {
   const idx = Math.abs(tileId * 17 + 31) % COLLAB_QUEST_TEMPLATES.length;
