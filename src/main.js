@@ -322,12 +322,12 @@ function pickQuestIdx(pool, tileId, salt) {
 }
 /* ─── SHOP ─── */
 const SHOP_ITEMS = [
-  { id:'jolly_rancher',  emoji:'🍬', label:'Jolly Rancher',         cost:25,  desc:'A sweet reward for a brave adventurer.' },
-  { id:'loot_roll',      emoji:'🎲', label:'Loot Roll',              cost:50,  desc:'Try your luck — a mystery item awaits.' },
-  { id:'sit_anywhere',   emoji:'🪑', label:'Sit Anywhere Day',       cost:75,  desc:'Choose your throne for the day.' },
-  { id:'plinko',         emoji:'🎯', label:'Plinko Drop',            cost:75,  desc:'Drop the puck, claim your fate.' },
-  { id:'free_game_time', emoji:'🎮', label:'10 Min Free Game Time',  cost:150, desc:'A moment of rest for a seasoned hero.' },
-  { id:'gimkit',         emoji:'🎉', label:'Whole Class Gimkit',     cost:200, desc:'Rally your classmates — victory for all!' },
+  { id:'jolly_rancher',  emoji:'🍬', label:'Jolly Rancher',                   cost:25,  type:'Physical',          desc:'A sweet reward for a brave adventurer.' },
+  { id:'sit_stool',      emoji:'🪑', label:'Sit on a Stool',                  cost:50,  type:'Physical',          desc:'Trade your chair for a stool for the period.' },
+  { id:'sit_anywhere',   emoji:'🗺️', label:'Sit Anywhere Day',                 cost:75,  type:'Physical',          desc:'Choose your throne for the day.' },
+  { id:'mystery_prize',  emoji:'🎁', label:'Mystery Prize Box',                cost:100, type:'Physical',          desc:'What\'s inside? Only the Realm knows.' },
+  { id:'free_game_time', emoji:'🎮', label:'10 Min Free Game Time',            cost:150, type:'Digital/in-class',  desc:'A moment of rest for a seasoned hero.' },
+  { id:'edu_game_day',   emoji:'🎉', label:'Whole Class Educational Game Day', cost:200, type:'Digital, group',    desc:'Rally your classmates — a day of learning through play!' },
 ];
 /* ─── COMPANIONS ─── */
 const COMPANIONS = [
@@ -1225,6 +1225,13 @@ function makeStudentBase(number) {
   const pin = s[0] + '0' + s.slice(1); // 101→1001, 201→2001, 125→1025
   return { id: number, number, cohort: Math.floor(number / 100), pin };
 }
+function getStudentPin(studentOrId) {
+  const sid = String(typeof studentOrId === 'object' ? studentOrId.id : studentOrId);
+  return (_overrides[sid] || {}).customPin || (typeof studentOrId === 'object' ? studentOrId.pin : makeStudentBase(Number(sid)).pin);
+}
+function isPinSet(studentId) {
+  return !!(_overrides[String(studentId)] || {}).pinSet;
+}
 function isValidStudentNumber(n) {
   const c = Math.floor(n / 100);
   const o = n % 100;
@@ -1404,6 +1411,25 @@ function saveBossReteachNeeded(studentId, tileId) {
   const sid = String(studentId);
   const existing = (_overrides[sid] || {}).needsReteach || {};
   saveStudentOverride(sid, { needsReteach: Object.assign({}, existing, { [String(tileId)]: { setAt: new Date().toISOString() } }) });
+}
+function saveReteachDirective(studentId, tileId, text, link) {
+  const sid = String(studentId);
+  const existing = (_overrides[sid] || {}).reteachDirectives || {};
+  saveStudentOverride(sid, { reteachDirectives: Object.assign({}, existing, { [String(tileId)]: { text, link: link || '', setAt: new Date().toISOString(), studentDone: false } }) });
+}
+function markReteachComplete(studentId, tileId) {
+  const sid = String(studentId);
+  const existing = (_overrides[sid] || {}).reteachDirectives || {};
+  const entry = existing[String(tileId)];
+  if (!entry) return;
+  saveStudentOverride(sid, { reteachDirectives: Object.assign({}, existing, { [String(tileId)]: Object.assign({}, entry, { studentDone: true, doneAt: new Date().toISOString() }) }) });
+}
+function clearReteachDirective(studentId, tileId) {
+  const sid = String(studentId);
+  const existing = (_overrides[sid] || {}).reteachDirectives || {};
+  const updated = Object.assign({}, existing);
+  delete updated[String(tileId)];
+  saveStudentOverride(sid, { reteachDirectives: updated });
 }
 function clearStudentFlag(id, flagKey, context) {
   const sid = String(id);
@@ -1655,7 +1681,7 @@ function setExitTicket(tileId, enabled) {
   set(ref(db, `settings/sessions/${tileId}/hasExitTicket`), enabled || null).catch(console.error);
 }
 function getLandContentTiles(land) {
-  const CONTENT_TYPES = new Set(['lesson', 'dungeon']);
+  const CONTENT_TYPES = new Set(['lesson', 'dungeon', 'forge', 'studyHall', 'camp']);
   const tileById = Object.fromEntries((land.tiles || []).map(t => [t.id, t]));
   return (land.pathOrder || []).map(id => tileById[id]).filter(t => t && CONTENT_TYPES.has(t.type));
 }
@@ -2078,11 +2104,16 @@ function jumpStudentToTile(student, targetTileId, land) {
   const targetIdx  = order.indexOf(targetTileId);
   if (currentIdx === -1 || targetIdx === -1) return;
 
-  const skippedIds = targetIdx > currentIdx
+  const isForward = targetIdx > currentIdx;
+  const skippedIds = isForward
     ? order.slice(currentIdx + 1, targetIdx)
     : [];
 
-  const completed = (pos.completed || []).slice();
+  // For backward jumps: remove the range [target..current] from completedTiles
+  // and reset task progress for each tile in that range (excluding tiles before target).
+  const backRange = isForward ? [] : order.slice(targetIdx, currentIdx + 1);
+
+  let completed = (pos.completed || []).slice();
   const flags     = {};
   const rewards   = {};
   skippedIds.forEach(tid => {
@@ -2090,6 +2121,11 @@ function jumpStudentToTile(student, targetTileId, land) {
     flags[String(tid)]   = { type:"Skipped", timestamp: new Date().toISOString() };
     rewards[String(tid)] = { goldForfeited: true };
   });
+
+  if (backRange.length) {
+    completed = completed.filter(id => !backRange.map(String).includes(String(id)));
+    backRange.forEach(tid => resetTileProgress(student.id, tid));
+  }
 
   saveStudentOverride(student.id, {
     currentTile: targetTileId,
@@ -2603,10 +2639,12 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               writingTransportDir: 'in',
               sanctumReturnOpen: false, sanctumReturnLandId: null,
               sanctumLand: null, sanctumTileOpen: null, writingEventReturnTo: 'quest-map',
-              travelDestDesc: null, classSettingsOpen: false, jumpToolOpen: false, clearFlagPending: null, cardMenuSid: null, capMessageOpen: false,
+              travelDestDesc: null, classSettingsOpen: false, jumpToolOpen: false, clearFlagPending: null, clearAllFlagPending: null, cardMenuSid: null, capMessageOpen: false,
               teacherViewStudent: null, genName: null, genEpithet: null,
               namingOptions: null, epithetOptions: null, _namingReturnScreen: null,
-              teacherLinksLandId: 1 };
+              teacherLinksLandId: 1,
+              newPinStep: 'enter', newPinEntry: '', newPinFirst: '', revealedPinSids: {},
+              reteachAssignSid: null, reteachAssignTileId: null };
 
 /* ─── CHIBI SVG ─── */
 function chibiSVG(cls, size) {
@@ -2806,6 +2844,38 @@ function renderPin() {
       <p class="pin-hint">🔐 Enter your secret number</p>
       <div class="pin-dots">${dots}</div>
       ${STATE.pinError ? `<p class="error-box">⚠️ ${STATE.pinError}</p>` : ""}
+      <div class="numpad">${pad}</div>
+    </div>
+  </div>`;
+}
+
+function renderSetPin() {
+  const s = STATE.student;
+  const step = STATE.newPinStep || 'enter';
+  const entry = STATE.newPinEntry || '';
+  const defaultPin = getStudentPin(s);
+  const dots = [0,1,2,3].map(i =>
+    `<div class="pin-dot ${entry.length > i ? "on" : ""}"></div>`).join('');
+  const keys = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
+  const pad = keys.map(k => {
+    if (!k) return `<div class="num-empty"></div>`;
+    if (k === "⌫") return `<button class="num-btn num-del" id="sp-del" ${entry.length===0?"disabled":""}>⌫</button>`;
+    return `<button class="num-btn" data-sp-digit="${k}">${k}</button>`;
+  }).join('');
+  const heading = step === 'confirm' ? '🔐 Confirm your new PIN' : '🔐 Create your secret PIN';
+  const hint = step === 'confirm' ? 'Enter your new PIN one more time to confirm.' : 'Choose a 4-digit PIN that only you know.';
+  return `
+  <div class="screen screen-center">
+    ${starsHTML()}
+    <div class="pin-card enter">
+      <div class="pin-avatar">
+        <div class="avatar-ring-lg" style="overflow:hidden;padding:0"><img src="/avatars/${getMergedStudent(s).avatar||'avatar_blankchibi.png'}" style="width:122px;height:122px;object-fit:cover;border-radius:50%;display:block" alt="${getCharName(s)}" width="122" height="122" loading="lazy"/></div>
+        <div class="pin-name">${getCharName(s)}</div>
+      </div>
+      <p class="pin-hint" style="font-weight:800">${heading}</p>
+      <p class="pin-hint" style="font-size:13px;margin-top:-6px;opacity:.75">${hint}</p>
+      <div class="pin-dots">${dots}</div>
+      ${STATE.pinError ? `<p class="error-box">⚠️ ${STATE.pinError}</p>` : ''}
       <div class="numpad">${pad}</div>
     </div>
   </div>`;
@@ -3126,10 +3196,20 @@ function renderHub() {
       ${equippable ? `<span class="item-equip-lbl">${isEquipped ? '✓ Equipped' : 'Equip'}</span>` : ''}
     </div>`;
   });
-  const totalSlots = Math.max(8, legacySlots.length);
-  const emptyCount = totalSlots - legacySlots.length;
+  const _matSlots = getMaterialSlots(STATE.student);
+  const _MATERIAL_DISPLAY = { feather:'Feather', gem:'Gem', leaf:'Leaf', rune:'Rune' };
+  const matInvSlots = MATERIAL_VARIANTS.map(v => {
+    const count = _matSlots[v] || 0;
+    return `<div class="item-slot mat-inv-slot${count ? '' : ' mat-inv-empty'}" title="${_MATERIAL_DISPLAY[v]}">
+      <img src="/materials/material_${v}.png" alt="${_MATERIAL_DISPLAY[v]}" class="mat-inv-img" style="${count ? '' : 'filter:grayscale(100%) opacity(35%)'}" onerror="this.style.display='none'"/>
+      <span class="mat-inv-count">${count ? '×'+count : '0'}</span>
+    </div>`;
+  });
+  const totalSlots = Math.max(8, legacySlots.length + matInvSlots.length);
+  const emptyCount = totalSlots - legacySlots.length - matInvSlots.length;
   const invSlots = [
     ...legacySlots,
+    ...matInvSlots,
     ...Array(emptyCount).fill(`<div class="item-slot empty"></div>`)
   ].join("");
 
@@ -3353,21 +3433,6 @@ function renderHub() {
       <div class="hub-panel inv-panel-wrap enter" style="animation-delay:.12s">
         <div class="panel-title">🎒 Inventory</div>
         <div class="inv-grid">${invSlots}</div>
-        ${(() => {
-          const matSlots = getMaterialSlots(STATE.student);
-          const MATERIAL_DISPLAY = { feather:'Feather', gem:'Gem', leaf:'Leaf', rune:'Rune' };
-          return '<div class="hub-materials">'
-            + '<div class="hub-materials-label">🧪 Materials</div>'
-            + '<div class="hub-materials-row">'
-            + MATERIAL_VARIANTS.map(v => {
-                const count = matSlots[v] || 0;
-                return '<div class="hub-mat-chip' + (count ? '' : ' hub-mat-empty') + '">'
-                  + '<img src="/materials/material_' + v + '.png" alt="' + MATERIAL_DISPLAY[v] + '" width="24" height="24" style="object-fit:contain' + (count ? '' : ';filter:grayscale(100%) opacity(35%)') + '" onerror="this.style.display=\'none\'">'
-                  + '<span class="hub-mat-count">' + (count ? '×' + count : '0') + '</span>'
-                  + '</div>';
-              }).join('')
-            + '</div></div>';
-        })()}
         ${hasPendingPotion ? `<div class="brew-pending" style="margin-top:8px">⏳ Crafting request sent — awaiting teacher approval</div>` : ''}
       </div>
       <div class="hub-panel boss-panel-wrap enter" style="animation-delay:.16s">
@@ -3402,8 +3467,23 @@ function renderHub() {
           const tabs = ['available','active','completed'].map(t =>
             `<button class="qj-tab${tab===t?' qj-tab-active':''}" data-qj-tab="${t}">${t==='available'?'Available':t==='active'?'Active':'Completed'}</button>`
           ).join('');
-          const activeContent = activeEntries.length
-            ? activeEntries.map(([key, e]) => {
+          const _reteachDirs = ((_overrides[String(STATE.student.id)] || {}).reteachDirectives) || {};
+          const reteachCards = Object.entries(_reteachDirs)
+            .filter(([, d]) => !d.studentDone)
+            .map(([tileId, d]) => {
+              const rTile = findTileById(parseInt(tileId));
+              const _rBs = BOSS_SCHEDULE[String(tileId)];
+              const tileName = (_rBs && _rBs.bossName) || (rTile && rTile.skill) || (rTile && rTile.name) || `Tile ${tileId}`;
+              return `<div class="sq-hub-card sq-reteach-card">
+                <div class="sq-hub-type">🔄 Reteach Assigned</div>
+                <div class="sq-hub-name">${tileName}</div>
+                <div class="sq-hub-desc">${d.text}${d.link ? ` — <a href="${d.link}" target="_blank" rel="noopener" style="color:#6D28D9;font-weight:700">View Resource ↗</a>` : ''}</div>
+                <div class="sq-hub-footer">
+                  <button class="btn-reteach-done" data-reteach-tile="${tileId}">✓ I completed this</button>
+                </div>
+              </div>`;
+            }).join('');
+          const _sqCards = activeEntries.map(([key, e]) => {
                 const activeTileId = parseInt(key.split('_')[0]);
                 const q = e.type === 'collab'
                   ? resolveCollabQuest(activeTileId, findTileById(activeTileId))
@@ -3422,7 +3502,9 @@ function renderHub() {
                     <button class="btn-sq-complete" data-sq-key="${key}">✓ Mark Complete</button>
                   </div>
                 </div>`;
-              }).join('')
+              }).join('');
+          const activeContent = (reteachCards || _sqCards)
+            ? reteachCards + _sqCards
             : `<div class="sq-empty">No active quests — accept some from your current lesson!</div>`;
           const availContent = availQuests.length
             ? availQuests.map(({key, q, type, tileId, landId}) => {
@@ -4093,8 +4175,10 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
     : vt==='finalGatekeeper' ? "#FCA5A5"
     : vt==='scribesCalling'  ? "#FDE68A"
     : "rgba(255,255,255,.88)";
-  const nameFS   = vt==='finalGatekeeper'?10 : vt==='scribesCalling'?9 : vt==='standaloneBoss'?8.5 : 8;
-  const nameEl   = `<text x="${x}" y="${nameY}" text-anchor="middle" font-size="${nameFS}" font-weight="bold" fill="${nameFill}" font-family="Arial">${name}</text>`;
+  const nameFS   = vt==='finalGatekeeper'?10 : vt==='scribesCalling'?9 : vt==='standaloneBoss'?8.5 : vt==='regular'?10 : 8;
+  const _sMatch  = /^S(\d+)$/.exec(name);
+  const displayName = (vt === 'regular' && _sMatch) ? `Session ${_sMatch[1]}` : name;
+  const nameEl   = `<text x="${x}" y="${nameY}" text-anchor="middle" font-size="${nameFS}" font-weight="bold" fill="${nameFill}" font-family="Arial" stroke="rgba(0,0,0,.7)" stroke-width="${vt==='regular'?1.5:0}" paint-order="stroke">${displayName}</text>`;
   const skillEl  = skill && !locked ? `<text x="${x}" y="${nameY+13}" text-anchor="middle" font-size="7.5" fill="${done||brd?"#FDE68A":"#93C5FD"}" font-family="Arial" font-weight="700">${skill}</text>` : "";
   const typeTag  = !locked ? (
     vt==='finalGatekeeper'
@@ -5066,7 +5150,7 @@ function renderLessonStop() {
   }
 
   if (isLessonTile) {
-    const pearBtnLabel  = isBossSession ? '⚔️ Defeat the Boss' : '🏹 Battle Training';
+    const pearBtnLabel  = isBossSession ? '⚔️ <span class="ls-pear-lbl-wrap"><span class="ls-pear-main">Defeat the Boss</span><span class="ls-pear-sub">Exit Ticket</span></span>' : '🏹 <span class="ls-pear-lbl-wrap"><span class="ls-pear-main">Battle Training</span><span class="ls-pear-sub">Exit Ticket</span></span>';
     const passLabel     = isBossSession ? '🏆 I Won!' : '✅ Training Complete!';
     const failLabel     = isBossSession ? '💀 I Was Defeated' : '🔄 Needs More Practice';
     const showOutcome   = exitTicketOpened && !outcomeRecorded;
@@ -5119,17 +5203,20 @@ function renderLessonStop() {
       ${loreSection}
       <button class="ls-video-btn" id="ls-video-btn">
         <span class="ls-play-icon">▶</span>
-        <span>View Lesson</span>
+        <span class="ls-video-lbl-wrap">
+          <span class="ls-video-main">View Lesson on Wayground</span>
+          ${tile.sessionTitle ? `<span class="ls-video-sub">${tile.sessionTitle}</span>` : ''}
+        </span>
       </button>
       <div class="ls-flow-checks">
         <label class="ls-flow-check-item${waygroundDone ? ' ls-flow-check-done' : ''}">
           <input type="checkbox" class="ls-check-new" data-ls-kind="wayground" ${waygroundDone ? 'checked' : ''} ${showDone ? 'disabled' : ''}/>
-          <span>Wayground</span>
+          <span>I completed the Wayground lesson.</span>
           ${waygroundDone ? '<span class="ls-flow-check-badge">✓</span>' : ''}
         </label>
         <label class="ls-flow-check-item${workbookDone ? ' ls-flow-check-done' : ''}">
           <input type="checkbox" class="ls-check-new" data-ls-kind="workbook" ${workbookDone ? 'checked' : ''} ${showDone ? 'disabled' : ''}/>
-          <span>Showed Workbook</span>
+          <span>I showed my completed workbook to a peer or teacher.</span>
           ${workbookDone ? '<span class="ls-flow-check-badge">✓</span>' : ''}
         </label>
       </div>
@@ -5974,9 +6061,11 @@ function renderTeacherTileView() {
       : "";
 
     const lessonAssessTexts = { 4:"Mastery — could teach it", 3:"Understands it", 2:"Getting there", 1:"Needs help" };
-    const _nearpodDone = !!(prog.nearpod || [])[0];
+    const _waygroundDone = !!(prog.wayground || prog.nearpod || [])[0];
+    const _nearpodDone = _waygroundDone;
     const _workbookDone = !!(prog.workbook || [])[0];
     const _selfLevel = ((prog.selfAssessLevel || [])[0] || 0);
+    const _outcomeRecorded = !!(prog.outcomeRecorded || [])[0];
     const lessonProgress = tile.type === "lesson"
       ? `<div class="tt-tier-row tt-tier-must">
           <div class="tt-tier-lbl">📋 Lesson Completion</div>
@@ -5998,6 +6087,30 @@ function renderTeacherTileView() {
         </div>`
       : "";
 
+    const _hasLessonFail = !!( (_overrides[String(s.id)] || {}).lessonFails || {} )[String(tile.id)];
+    const _reteachDir = ( (_overrides[String(s.id)] || {}).reteachDirectives || {} )[String(tile.id)];
+    const _reteachFormOpen = STATE.reteachAssignSid === s.id && STATE.reteachAssignTileId === tile.id;
+    const reteachSection = tile.type === "lesson" && _hasLessonFail ? `
+      <div class="tt-reteach-section">
+        <div class="tt-reteach-hdr">🔄 Reteach Required</div>
+        ${_reteachDir
+          ? (_reteachDir.studentDone
+            ? `<div class="tt-reteach-done-note">✅ Student self-reported completion</div>
+               <button class="tt-reteach-grant-btn" data-rt-grant-sid="${s.id}" data-rt-grant-tile="${tile.id}">🏆 Grant Credit (Pass)</button>`
+            : `<div class="tt-reteach-directive-text">${_reteachDir.text}${_reteachDir.link ? ` — <a href="${_reteachDir.link}" target="_blank" rel="noopener" class="tt-reteach-link">View Resource ↗</a>` : ''}</div>
+               <div class="tt-reteach-waiting">Waiting for student completion…</div>
+               <button class="tt-reteach-edit-btn" data-rt-assign-sid="${s.id}" data-rt-assign-tile="${tile.id}">✏️ Edit</button>`)
+          : (_reteachFormOpen
+            ? `<div class="tt-reteach-form">
+                <textarea class="tt-reteach-input" id="rt-text-${s.id}" placeholder="Describe the reteach activity…" rows="3">${''}</textarea>
+                <input class="tt-reteach-link-input" id="rt-link-${s.id}" type="url" placeholder="Optional link (https://…)"/>
+                <div style="display:flex;gap:8px;margin-top:6px">
+                  <button class="tt-reteach-save-btn" data-rt-save-sid="${s.id}" data-rt-save-tile="${tile.id}">Assign</button>
+                  <button class="tt-reteach-cancel-btn" data-rt-cancel>Cancel</button>
+                </div>
+              </div>`
+            : `<button class="tt-reteach-assign-btn" data-rt-assign-sid="${s.id}" data-rt-assign-tile="${tile.id}">+ Assign Reteach Directive</button>`)}
+      </div>` : '';
     return `<div class="tt-student-row">
       <div class="tt-student-header">
         <div class="tt-av" style="border-color:${cc}"><img src="/avatars/${av}" alt="" width="40" height="40" loading="lazy"/></div>
@@ -6005,6 +6118,7 @@ function renderTeacherTileView() {
           <div class="tt-name">${getCharName(s)}</div>
           <div class="tt-cls" style="color:${cc}">Lv.${m.level} ${CLS_LABEL[clsKey(s, m)]}</div>
         </div>
+        ${tile.type === "lesson" && !_outcomeRecorded ? `<button class="tt-dnf-btn" data-tt-dnf-sid="${s.id}" title="Award 2 XP + 2 Gold and advance student">🚫 Didn't Finish</button>` : ''}
       </div>
       <div class="tt-tiers">
         ${weData
@@ -6017,6 +6131,7 @@ function renderTeacherTileView() {
                 + taskLines(aspireTo,"aspireTo","tt-tier-aspire","🟢","Aspire To")
               : `<div style="font-size:12px;color:var(--text-light);font-style:italic">No tasks defined for this tile</div>`}
       </div>
+      ${reteachSection}
     </div>`;
   }).join("");
 
@@ -6091,6 +6206,30 @@ function renderTeacherTileView() {
           const timeOnPageStr = ts.timeOnPage !== undefined
             ? `${rushed ? "⚠️ " : ""}${ts.timeOnPage < 60 ? ts.timeOnPage+"s" : Math.floor(ts.timeOnPage/60)+"m "+ts.timeOnPage%60+"s"}`
             : null;
+          const _cHasLessonFail = !!( (_overrides[String(s.id)] || {}).lessonFails || {} )[String(tile.id)];
+          const _cReteachDir = ( (_overrides[String(s.id)] || {}).reteachDirectives || {} )[String(tile.id)];
+          const _cReteachFormOpen = STATE.reteachAssignSid === s.id && STATE.reteachAssignTileId === tile.id;
+          const cReteachSection = tile.type === "lesson" && _cHasLessonFail ? `
+            <div class="tt-reteach-section">
+              <div class="tt-reteach-hdr">🔄 Reteach Required</div>
+              ${_cReteachDir
+                ? (_cReteachDir.studentDone
+                  ? `<div class="tt-reteach-done-note">✅ Student self-reported completion</div>
+                     <button class="tt-reteach-grant-btn" data-rt-grant-sid="${s.id}" data-rt-grant-tile="${tile.id}">🏆 Grant Credit (Pass)</button>`
+                  : `<div class="tt-reteach-directive-text">${_cReteachDir.text}${_cReteachDir.link ? ` — <a href="${_cReteachDir.link}" target="_blank" rel="noopener" class="tt-reteach-link">View Resource ↗</a>` : ''}</div>
+                     <div class="tt-reteach-waiting">Waiting for student completion…</div>
+                     <button class="tt-reteach-edit-btn" data-rt-assign-sid="${s.id}" data-rt-assign-tile="${tile.id}">✏️ Edit</button>`)
+                : (_cReteachFormOpen
+                  ? `<div class="tt-reteach-form">
+                      <textarea class="tt-reteach-input" id="rt-text-${s.id}" placeholder="Describe the reteach activity…" rows="3"></textarea>
+                      <input class="tt-reteach-link-input" id="rt-link-${s.id}" type="url" placeholder="Optional link (https://…)"/>
+                      <div style="display:flex;gap:8px;margin-top:6px">
+                        <button class="tt-reteach-save-btn" data-rt-save-sid="${s.id}" data-rt-save-tile="${tile.id}">Assign</button>
+                        <button class="tt-reteach-cancel-btn" data-rt-cancel>Cancel</button>
+                      </div>
+                    </div>`
+                  : `<button class="tt-reteach-assign-btn" data-rt-assign-sid="${s.id}" data-rt-assign-tile="${tile.id}">+ Assign Reteach Directive</button>`)}
+            </div>` : '';
           return `<div class="tt-student-row" style="opacity:.85">
             <div class="tt-student-header" style="margin-bottom:0;padding-bottom:0;border-bottom:none">
               <div class="tt-av" style="border-color:${cc}"><img src="/avatars/${av}" alt="" width="40" height="40" loading="lazy"/></div>
@@ -6103,6 +6242,7 @@ function renderTeacherTileView() {
                 <div style="font-weight:700;${rushed ? "color:#DC2626" : "color:#888"}">${timeOnPageStr ? timeOnPageStr+" on page" : '<span style="color:#aaa;font-style:italic">Time not recorded</span>'}</div>
               </div>
             </div>
+            ${cReteachSection}
           </div>`;
         }).join("") : `<div class="tt-empty">No students have completed this tile yet</div>`}
       </div>
@@ -6345,6 +6485,12 @@ function renderTeacherDashboard() {
         <button class="t-card-menu-item" data-view-map="${s.id}">🗺 View Map</button>
         <button class="t-card-menu-item" data-award-companion="${s.id}">🐾 Award Companion</button>
         <button class="t-card-menu-item" data-reroll-name="${s.id}">🎲 Reroll Name</button>
+        <div class="t-card-menu-pin-row">
+          <span class="t-card-menu-pin-lbl">PIN:</span>
+          <span class="t-card-menu-pin-val">${STATE.revealedPinSids[s.id] ? getStudentPin(s) : '••••'}</span>
+          <button class="t-card-menu-item t-card-menu-pin-reveal" data-reveal-pin="${s.id}">${STATE.revealedPinSids[s.id] ? '🙈 Hide' : '👁 Show'}</button>
+        </div>
+        <button class="t-card-menu-item t-card-menu-reset-pin" data-reset-pin="${s.id}">🔑 Reset PIN</button>
       </div>` : ''}
       ${hasFlags ? `<div class="t-flag-tabs">${flagTabs}</div>` : ''}
       <div class="t-s-top">
@@ -6588,6 +6734,11 @@ function renderTeacherDashboard() {
                 Reset destination tile progress (for retries)
               </label>
               <p style="font-size:11px;color:rgba(237,233,254,.45);margin:-6px 0 10px">Clears checkboxes, Pear status, and outcome so the student redoes the tile from scratch.</p>
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;font-weight:700;color:#EDE9FE;cursor:pointer">
+                <input type="checkbox" id="jt-exit-ticket" style="width:15px;height:15px;accent-color:#6EE7B7"/>
+                Jump to exit-ticket step (lesson tiles only)
+              </label>
+              <p style="font-size:11px;color:rgba(237,233,254,.45);margin:-6px 0 10px">Pre-checks Wayground &amp; Workbook so the student lands directly on the Pear exit ticket.</p>
               <button id="jt-jump-btn" style="width:100%;padding:12px;background:#6366F1;color:#fff;font-weight:800;font-size:14px;border:none;border-radius:8px;cursor:pointer">🚀 Jump Selected Students</button>
               <div id="jt-result" style="margin-top:8px;font-size:12px;color:#6EE7B7;min-height:18px"></div>
             </div>
@@ -6694,7 +6845,7 @@ function renderTeacherDashboard() {
           ${pendingEntries.length
             ? pendingEntries.map(([key, p]) => `
               <div class="tgs-redemption-row">
-                <span class="tgs-redemption-name">${p.studentName}</span>
+                <span class="tgs-redemption-name">#${p.studentId} ${p.studentName}</span>
                 <span class="tgs-redemption-item">${p.itemName}</span>
                 <span class="tgs-redemption-time">${new Date(p.timestamp).toLocaleDateString()}</span>
                 <button class="gold-fulfill-btn" data-fulfill-key="${key}">✓ Fulfilled</button>
@@ -7557,10 +7708,24 @@ function renderFlagLog() {
             ${(isMastery || isClearable) ? actionCell : ''}
           </tr>`;
         }).join('');
+    const clearAllPending = STATE.clearAllFlagPending && STATE.clearAllFlagPending.flagKey === ft.key;
+    const clearAllRowsJson = JSON.stringify(rows.map(r => ({ sid: String(r.student.id), dk: r.dismissKey || '' })));
+    const clearAllBtn = isClearable && rows.length > 0
+      ? (clearAllPending
+        ? `<div class="fl-clearall-confirm-row">
+             <span class="fl-clearall-confirm-lbl">Clear all ${rows.length} ${ft.label} flag${rows.length !== 1 ? 's' : ''}?</span>
+             <button class="fl-clearall-confirm-btn" data-fl-clearall-fk="${ft.key}" data-fl-clearall-rows='${clearAllRowsJson}'>Yes, clear all</button>
+             <button class="fl-clearall-cancel-btn">Cancel</button>
+           </div>`
+        : `<button class="fl-clearall-btn" data-fl-clearall="${ft.key}" data-fl-clearall-count="${rows.length}">🗑 Clear All (${rows.length})</button>`)
+      : '';
     return `<div class="jh-group">
       <div class="jh-group-head">
         <div class="jh-group-name">${ft.icon} ${ft.label}</div>
-        <span class="fl-count-badge" style="background:${ft.bg};color:${ft.color}">${rows.length}</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${clearAllBtn}
+          <span class="fl-count-badge" style="background:${ft.bg};color:${ft.color}">${rows.length}</span>
+        </div>
       </div>
       <table class="jh-table">
         ${colgroup}
@@ -7599,6 +7764,12 @@ function renderFlagLog() {
       .jh-chip { background:#FFFFFF; border:1px solid #E5E7EB; border-radius:8px; padding:8px 14px; font-size:12px; color:#6B7280; }
       .jh-chip-n { font-size:18px; font-weight:800; color:#111827; display:block; }
       .jh-groups { max-height:calc(100vh - 280px); overflow-y:auto; }
+      .fl-clearall-btn { font-size:11px; font-weight:800; color:#B91C1C; background:rgba(220,38,38,.07); border:1.5px solid rgba(220,38,38,.25); border-radius:6px; padding:4px 10px; cursor:pointer; transition:background .12s; white-space:nowrap; }
+      .fl-clearall-btn:hover { background:rgba(220,38,38,.14); border-color:rgba(220,38,38,.45); }
+      .fl-clearall-confirm-row { display:flex; align-items:center; gap:8px; background:#FEF2F2; border:1.5px solid rgba(220,38,38,.3); border-radius:7px; padding:6px 10px; }
+      .fl-clearall-confirm-lbl { font-size:12px; font-weight:700; color:#7F1D1D; white-space:nowrap; }
+      .fl-clearall-confirm-btn { font-size:11px; font-weight:800; background:#EF4444; color:#fff; border:none; border-radius:5px; padding:4px 10px; cursor:pointer; white-space:nowrap; }
+      .fl-clearall-cancel-btn { font-size:11px; font-weight:700; background:#E5E7EB; color:#374151; border:none; border-radius:5px; padding:4px 8px; cursor:pointer; }
     </style>
   </div>`;
 }
@@ -7757,6 +7928,7 @@ function mount() {
   if (STATE.screen === "code")           root.innerHTML = renderCode();
   if (STATE.screen === "grid")           root.innerHTML = renderGrid();
   if (STATE.screen === "pin")            root.innerHTML = renderPin();
+  if (STATE.screen === "set-pin")        root.innerHTML = renderSetPin();
   if (STATE.screen === "naming")         root.innerHTML = renderNaming();
   if (STATE.screen === "hub")            root.innerHTML = renderHub();
   if (STATE.screen === "teacher-login")  root.innerHTML = renderTeacherLogin();
@@ -7840,7 +8012,13 @@ function bindEvents() {
         mount();
         if (STATE.pin.length === 4) {
           setTimeout(() => {
-            if (STATE.pin === STATE.student.pin) {
+            if (STATE.pin === getStudentPin(STATE.student)) {
+              STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false;
+              STATE._sessionResetVersion = (_overrides[String(STATE.student.id)] || {})._resetVersion ?? null;
+              if (!isPinSet(STATE.student.id)) {
+                STATE.newPinStep = 'enter'; STATE.newPinEntry = ''; STATE.newPinFirst = '';
+                STATE.screen = "set-pin"; mount();
+              } else {
               const _pos = getLandPos(STATE.student);
               const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0;
               const _inSanctumLand = isInSanctum(STATE.student);
@@ -7866,12 +8044,67 @@ function bindEvents() {
               } else {
                 STATE.screen = _routeAfterPin();
               }
-              STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false;
-              STATE._sessionResetVersion = (_overrides[String(STATE.student.id)] || {})._resetVersion ?? null;
               mount();
+              }
             } else {
               STATE.pinError = "Incorrect secret number! Try again, brave adventurer.";
               STATE.pin = ""; mount();
+            }
+          }, 200);
+        }
+      });
+    });
+  }
+
+  /* SET PIN */
+  if (STATE.screen === "set-pin") {
+    $("sp-del") && $("sp-del").addEventListener("click", () => { STATE.newPinEntry = STATE.newPinEntry.slice(0,-1); mount(); });
+    document.querySelectorAll("[data-sp-digit]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (STATE.newPinEntry.length >= 4) return;
+        STATE.newPinEntry += btn.dataset.spDigit;
+        mount();
+        if (STATE.newPinEntry.length === 4) {
+          setTimeout(() => {
+            const entry = STATE.newPinEntry;
+            const defaultPin = makeStudentBase(STATE.student.id).pin;
+            if (STATE.newPinStep === 'enter') {
+              if (entry === '0000') { STATE.pinError = "Choose a different PIN."; STATE.newPinEntry = ''; mount(); return; }
+              if (entry === defaultPin) { STATE.pinError = "Don't use your default PIN — pick something new."; STATE.newPinEntry = ''; mount(); return; }
+              STATE.newPinFirst = entry;
+              STATE.newPinStep = 'confirm';
+              STATE.newPinEntry = '';
+              STATE.pinError = '';
+              mount();
+            } else {
+              if (entry !== STATE.newPinFirst) {
+                STATE.pinError = "Those didn't match — try again.";
+                STATE.newPinStep = 'enter'; STATE.newPinEntry = ''; STATE.newPinFirst = '';
+                mount(); return;
+              }
+              saveStudentOverride(STATE.student.id, { customPin: entry, pinSet: true });
+              STATE.pinError = '';
+              const _pos = getLandPos(STATE.student);
+              const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0;
+              const _inSanctumLand = isInSanctum(STATE.student);
+              const _routeAfterPin = () => {
+                const _dst = _firstTimer ? "welcome-splash" : (_pos.land === 0 ? "quest-map" : "hub");
+                if (!getMergedStudent(STATE.student).characterName) {
+                  STATE._namingReturnScreen = _dst;
+                  return "naming";
+                }
+                return _dst;
+              };
+              if (_inSanctumLand) {
+                const _sLand = LANDS.find(l => l.id === _inSanctumLand);
+                if (_sLand) {
+                  STATE.sanctumLand = _sLand; STATE.lessonLand = _sLand;
+                  STATE.lessonTile = _sLand.tiles.find(t => t.type === 'event') || null;
+                  STATE.writingEventReturnTo = 'sanctum-map';
+                  STATE.screen = "sanctum-map";
+                } else { STATE.screen = _routeAfterPin(); }
+              } else { STATE.screen = _routeAfterPin(); }
+              mount();
             }
           }, 200);
         }
@@ -8127,6 +8360,14 @@ function bindEvents() {
     // Quest journal tabs
     document.querySelectorAll(".qj-tab").forEach(tab => {
       tab.addEventListener("click", () => { STATE.questJournalTab = tab.dataset.qjTab; mount(); });
+    });
+    // Reteach self-report complete buttons
+    document.querySelectorAll(".btn-reteach-done").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tileId = parseInt(btn.dataset.reteachTile, 10);
+        markReteachComplete(STATE.student.id, tileId);
+        mount();
+      });
     });
     // Side quest complete buttons
     document.querySelectorAll(".btn-sq-complete").forEach(btn => {
@@ -8473,6 +8714,7 @@ function bindEvents() {
         const checked = [...document.querySelectorAll(".jt-student-check:checked")];
         if (!checked.length) { $("jt-result").textContent = "⚠️ Select at least one student."; return; }
         const doReset = !!($("jt-reset-progress") && $("jt-reset-progress").checked);
+        const doExitTicket = !!($("jt-exit-ticket") && $("jt-exit-ticket").checked);
         const land = LANDS[0];
         const allStudents = CLASS_DATA.periods.flatMap(p => p.students);
         let count = 0;
@@ -8481,10 +8723,15 @@ function bindEvents() {
           if (stu) {
             if (doReset) resetTileProgress(stu.id, targetId);
             jumpStudentToTile(stu, targetId, land);
+            if (doExitTicket) {
+              saveTaskCheck(stu.id, targetId, 'wayground', 0, true);
+              saveTaskCheck(stu.id, targetId, 'workbook', 0, true);
+            }
             count++;
           }
         });
-        $("jt-result").textContent = `✅ ${doReset ? 'Reset & jumped' : 'Jumped'} ${count} student${count !== 1 ? 's' : ''} to tile ${targetId}.`;
+        const modeLabel = doExitTicket ? 'Jumped to exit ticket' : (doReset ? 'Reset & jumped' : 'Jumped');
+        $("jt-result").textContent = `✅ ${modeLabel} ${count} student${count !== 1 ? 's' : ''} to tile ${targetId}.`;
         setTimeout(() => mount(), 600);
       });
     }
@@ -8650,6 +8897,26 @@ function bindEvents() {
         const newName = getUniqueName();
         saveStudentOverride(sid, { characterName: newName, claimed: true });
         STATE.cardMenuSid = null;
+        mount();
+      });
+    });
+    document.querySelectorAll("[data-reveal-pin]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const sid = parseInt(btn.dataset.revealPin, 10);
+        const revealed = Object.assign({}, STATE.revealedPinSids);
+        revealed[sid] = !revealed[sid];
+        STATE.revealedPinSids = revealed;
+        mount();
+      });
+    });
+    document.querySelectorAll("[data-reset-pin]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const sid = parseInt(btn.dataset.resetPin, 10);
+        saveStudentOverride(sid, { customPin: null, pinSet: false });
+        STATE.cardMenuSid = null;
+        logActivity(sid, '🔑', 'PIN reset by teacher');
         mount();
       });
     });
@@ -9263,7 +9530,25 @@ function bindEvents() {
       const key = STATE.bossRosterKey;
       if (!key) return;
       const entries = Object.entries(STATE.bossRosterMarks).filter(([, v]) => v !== null && v !== undefined);
-      entries.forEach(([sid, mark]) => setBossStatus(sid, key, mark));
+      entries.forEach(([sid, mark]) => {
+        setBossStatus(sid, key, mark);
+        if (mark === 'defeated') {
+          const _keyParts = key.split('_');
+          const _bossLandId = parseInt(_keyParts[0]);
+          const _bossTileId = parseInt(_keyParts[1]);
+          const _reteachDirs = ((_overrides[sid] || {}).reteachDirectives) || {};
+          if (_reteachDirs[String(_bossTileId)]) {
+            const _student = CLASS_DATA.periods.flatMap(p => p.students).find(s => String(s.id) === String(sid));
+            if (_student) {
+              awardXP(_student, 5);
+              awardGold(_student, 5);
+              clearReteachDirective(sid, _bossTileId);
+              clearLessonFail(sid, _bossTileId);
+              logActivity(sid, '🏆', `Reteach credit granted (+5 XP, +5 🪙)`);
+            }
+          }
+        }
+      });
       const count = entries.length;
       STATE.bossRosterMarks = {};
       STATE.screen = "teacher-dash";
@@ -9337,6 +9622,31 @@ function bindEvents() {
     document.querySelectorAll(".fl-clear-cancel").forEach(btn => {
       btn.addEventListener("click", () => {
         STATE.clearFlagPending = null;
+        mount();
+      });
+    });
+    // Flag Log — Clear All (opens confirmation)
+    document.querySelectorAll(".fl-clearall-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        STATE.clearAllFlagPending = { flagKey: btn.dataset.flClearall, count: parseInt(btn.dataset.flClearallCount, 10) };
+        STATE.clearFlagPending = null;
+        mount();
+      });
+    });
+    // Flag Log — Clear All confirmed
+    document.querySelectorAll(".fl-clearall-confirm-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const fk = btn.dataset.flClearallFk;
+        const rows = JSON.parse(btn.dataset.flClearallRows || '[]');
+        rows.forEach(({ sid, dk }) => clearStudentFlag(sid, fk, dk || null));
+        STATE.clearAllFlagPending = null;
+        mount();
+      });
+    });
+    // Flag Log — Clear All cancelled
+    document.querySelectorAll(".fl-clearall-cancel-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        STATE.clearAllFlagPending = null;
         mount();
       });
     });
@@ -10210,7 +10520,7 @@ function bindEvents() {
       saveTaskCheck(student.id, tile.id, 'outcomeRecorded', 0, true);
       saveTaskCheck(student.id, tile.id, 'outcomeFail', 0, true);
       saveLessonFail(student.id, tile.id);
-      if (_isBossSess) saveBossReteachNeeded(student.id, tile.id);
+      saveBossReteachNeeded(student.id, tile.id);
       saveStudentOverride(student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
 
       const xpAmount = 2;
@@ -10319,6 +10629,79 @@ function bindEvents() {
 
   if (STATE.screen === "teacher-tile") {
     $("tt-back") && $("tt-back").addEventListener("click", () => { STATE.screen = "board-view"; mount(); });
+    document.querySelectorAll(".tt-dnf-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sid = parseInt(btn.dataset.ttDnfSid, 10);
+        const student = CLASS_DATA.periods.flatMap(p => p.students).find(s => s.id === sid);
+        if (!student) return;
+        const tile = STATE.teacherTile;
+        const land = STATE.teacherTileLand || LANDS[0];
+        const pos  = getLandPos(student);
+        saveTaskCheck(student.id, tile.id, 'outcomeRecorded', 0, true);
+        saveTaskCheck(student.id, tile.id, 'outcomeFail', 0, true);
+        saveLessonFail(student.id, tile.id);
+        saveBossReteachNeeded(student.id, tile.id);
+        saveStudentOverride(student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
+        awardXP(student, 2);
+        awardGold(student, 2);
+        advanceStudentTile(student, land);
+        logActivity(student.id, '🚫', `Didn't Finish: ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+2 XP, +2 🪙)`);
+        mount();
+      });
+    });
+
+    // Reteach: open assign form
+    document.querySelectorAll("[data-rt-assign-sid]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        STATE.reteachAssignSid = parseInt(btn.dataset.rtAssignSid, 10);
+        STATE.reteachAssignTileId = parseInt(btn.dataset.rtAssignTile, 10);
+        mount();
+      });
+    });
+    // Reteach: cancel
+    document.querySelectorAll("[data-rt-cancel]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        STATE.reteachAssignSid = null; STATE.reteachAssignTileId = null;
+        mount();
+      });
+    });
+    // Reteach: save directive
+    document.querySelectorAll("[data-rt-save-sid]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const sid = parseInt(btn.dataset.rtSaveSid, 10);
+        const tileId = parseInt(btn.dataset.rtSaveTile, 10);
+        const textEl = document.getElementById(`rt-text-${sid}`);
+        const linkEl = document.getElementById(`rt-link-${sid}`);
+        const text = textEl ? textEl.value.trim() : '';
+        const link = linkEl ? linkEl.value.trim() : '';
+        if (!text) return;
+        saveReteachDirective(sid, tileId, text, link);
+        const student = CLASS_DATA.periods.flatMap(p => p.students).find(s => s.id === sid);
+        if (student) logActivity(sid, '🔄', `Reteach assigned for ${STATE.teacherTile ? STATE.teacherTile.name : 'tile'}`);
+        STATE.reteachAssignSid = null; STATE.reteachAssignTileId = null;
+        mount();
+      });
+    });
+    // Reteach: grant credit (Pass)
+    document.querySelectorAll("[data-rt-grant-sid]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const sid = parseInt(btn.dataset.rtGrantSid, 10);
+        const tileId = parseInt(btn.dataset.rtGrantTile, 10);
+        const student = CLASS_DATA.periods.flatMap(p => p.students).find(s => s.id === sid);
+        if (!student) return;
+        clearReteachDirective(sid, tileId);
+        clearLessonFail(sid, tileId);
+        awardXP(student, 5);
+        awardGold(student, 5);
+        const tile = STATE.teacherTile;
+        logActivity(sid, '🏆', `Reteach credit granted for ${tile ? tile.name : 'tile'} (+5 XP, +5 🪙)`);
+        mount();
+      });
+    });
   }
 
   /* TEACHER LOGIN link from code screen */
