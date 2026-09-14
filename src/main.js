@@ -5201,7 +5201,7 @@ function renderLessonStop() {
       </div>
       ${portraitHtml}
       ${loreSection}
-      <button class="ls-video-btn" id="ls-video-btn">
+      <button class="ls-video-btn${bothChecked ? ' ls-video-btn-done' : ''}" id="ls-video-btn">
         <span class="ls-play-icon">▶</span>
         <span class="ls-video-lbl-wrap">
           <span class="ls-video-main">View Lesson on Wayground</span>
@@ -6060,11 +6060,9 @@ function renderTeacherTileView() {
         </div>`
       : "";
 
-    const lessonAssessTexts = { 4:"Mastery — could teach it", 3:"Understands it", 2:"Getting there", 1:"Needs help" };
     const _waygroundDone = !!(prog.wayground || prog.nearpod || [])[0];
     const _nearpodDone = _waygroundDone;
     const _workbookDone = !!(prog.workbook || [])[0];
-    const _selfLevel = ((prog.selfAssessLevel || [])[0] || 0);
     const _outcomeRecorded = !!(prog.outcomeRecorded || [])[0];
     const lessonProgress = tile.type === "lesson"
       ? `<div class="tt-tier-row tt-tier-must">
@@ -6076,13 +6074,6 @@ function renderTeacherTileView() {
           <div class="tt-task-item${_workbookDone?" done":""}">
             <span class="tt-check">${_workbookDone?"✓":"○"}</span>
             <span>Showed workbook to peer/teacher</span>
-          </div>
-        </div>
-        <div class="tt-tier-row" style="margin-top:6px">
-          <div class="tt-tier-lbl">🧠 Comprehension Check</div>
-          <div class="tt-task-item${_selfLevel?" done":""}">
-            <span class="tt-check">${_selfLevel?"★":"○"}</span>
-            <span>${_selfLevel ? `Level ${_selfLevel} — ${lessonAssessTexts[_selfLevel]}` : "Not yet answered"}</span>
           </div>
         </div>`
       : "";
@@ -6695,52 +6686,66 @@ function renderTeacherDashboard() {
         const _jtOrder = _jtLand.pathOrder || [];
         const _jtTiles = _jtOrder.map(tid => _jtLand.tiles.find(t => t.id === tid)).filter(Boolean);
         const _jtStudents = period.students;
+        const _jtTileLabel = t => t.name + (t.type === 'forge' ? ' — Writer\'s Craft' : t.type === 'studyHall' ? ' — Study Hall' : t.type === 'camp' ? ' — Camp' : t.type === 'dungeon' ? ' — Final Boss' : '');
         return `<div class="cs-overlay" id="jt-overlay" style="z-index:1200">
-          <div class="cs-modal" style="max-width:520px">
-            <div class="cs-hdr">
-              <span class="cs-title">🚀 Jump Tool — Move Students to a Tile</span>
-              <button class="cs-close" id="jt-close">✕</button>
-            </div>
-            <div class="cs-section">
-              <div class="cs-section-title">Target Tile</div>
-              <select id="jt-target-tile" style="width:100%;padding:8px;border-radius:6px;border:1.5px solid rgba(168,139,250,.35);font-size:13px;margin-bottom:2px;background:#2d1a6e;color:#EDE9FE">
-                <option value="">— Select target tile —</option>
-                ${_jtTiles.map(t => `<option value="${t.id}">${t.name}${t.type === 'forge' ? ' (Writer\'s Craft)' : t.type === 'studyHall' ? ' (Study Hall)' : t.type === 'camp' ? ' (Camp)' : t.type === 'lesson' ? '' : ` (${t.type})`}</option>`).join('')}
-              </select>
-              <p style="font-size:11px;color:rgba(237,233,254,.45);margin:4px 0 0">Skipped tiles will have Gold forfeited and a Skipped flag added.</p>
-            </div>
-            <div class="cs-section">
-              <div class="cs-section-title" style="display:flex;justify-content:space-between;align-items:center">
-                <span>Students to Jump</span>
-                <button id="jt-select-all" style="font-size:11px;color:#A78BFA;background:none;border:none;cursor:pointer;font-weight:700">Select All</button>
+          <div class="jt-modal">
+            <div class="jt-hdr">
+              <div>
+                <div class="jt-title">🚀 Jump Tool</div>
+                <div class="jt-subtitle">Move students to a specific tile</div>
               </div>
-              <div style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:2px 0">
-                ${_jtStudents.map(s => {
-                  const m = getMergedStudent(s);
-                  const pos = getLandPos(s);
-                  const curT = _jtLand.tiles.find(t => t.id === pos.tile);
-                  return `<label style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:6px;cursor:pointer;border:1.5px solid rgba(168,139,250,.25)">
-                    <input type="checkbox" class="jt-student-check" data-jt-sid="${s.id}" style="width:16px;height:16px"/>
-                    <span style="font-size:11px;font-weight:700;color:rgba(167,139,250,.55);min-width:28px">#${s.id}</span>
-                    <span style="font-size:12px;font-weight:700;color:#EDE9FE">${getCharName(s)}</span>
-                    <span style="font-size:11px;color:rgba(237,233,254,.45);margin-left:auto">📍 ${curT?.name || pos.tile}</span>
-                  </label>`;
-                }).join('')}
-              </div>
+              <button class="jt-close" id="jt-close">✕</button>
             </div>
-            <div class="cs-section" style="border-bottom:none">
-              <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;font-weight:700;color:#EDE9FE;cursor:pointer">
-                <input type="checkbox" id="jt-reset-progress" style="width:15px;height:15px;accent-color:#A78BFA"/>
-                Reset destination tile progress (for retries)
-              </label>
-              <p style="font-size:11px;color:rgba(237,233,254,.45);margin:-6px 0 10px">Clears checkboxes, Pear status, and outcome so the student redoes the tile from scratch.</p>
-              <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12px;font-weight:700;color:#EDE9FE;cursor:pointer">
-                <input type="checkbox" id="jt-exit-ticket" style="width:15px;height:15px;accent-color:#6EE7B7"/>
-                Jump to exit-ticket step (lesson tiles only)
-              </label>
-              <p style="font-size:11px;color:rgba(237,233,254,.45);margin:-6px 0 10px">Pre-checks Wayground &amp; Workbook so the student lands directly on the Pear exit ticket.</p>
-              <button id="jt-jump-btn" style="width:100%;padding:12px;background:#6366F1;color:#fff;font-weight:800;font-size:14px;border:none;border-radius:8px;cursor:pointer">🚀 Jump Selected Students</button>
-              <div id="jt-result" style="margin-top:8px;font-size:12px;color:#6EE7B7;min-height:18px"></div>
+            <div class="jt-body">
+              <div class="jt-field-row">
+                <label class="jt-field-lbl" for="jt-target-tile">Target Tile</label>
+                <select id="jt-target-tile" class="jt-tile-sel">
+                  <option value="">— Select destination —</option>
+                  ${_jtTiles.map(t => `<option value="${t.id}">${_jtTileLabel(t)}</option>`).join('')}
+                </select>
+                <p class="jt-hint">Skipped tiles forfeit Gold and add a Skipped flag.</p>
+              </div>
+              <div class="jt-options-row">
+                <label class="jt-opt-lbl">
+                  <input type="checkbox" id="jt-reset-progress" class="jt-opt-cb"/>
+                  <span>Reset tile progress</span>
+                  <span class="jt-opt-note">clears checkboxes &amp; outcome for a retry</span>
+                </label>
+                <label class="jt-opt-lbl">
+                  <input type="checkbox" id="jt-exit-ticket" class="jt-opt-cb"/>
+                  <span>Jump to exit-ticket step</span>
+                  <span class="jt-opt-note">pre-checks Wayground &amp; Workbook</span>
+                </label>
+              </div>
+              <div class="jt-table-wrap">
+                <table class="jt-table">
+                  <thead>
+                    <tr>
+                      <th><button id="jt-select-all" class="jt-sel-all-btn">All</button></th>
+                      <th>Student</th>
+                      <th>Current Tile</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${_jtStudents.map(s => {
+                      const pos = getLandPos(s);
+                      const curT = _jtLand.tiles.find(t => t.id === pos.tile);
+                      const ov = _overrides[String(s.id)] || {};
+                      const isUnclaimed = !ov.claimed;
+                      if (isUnclaimed) return '';
+                      return `<tr>
+                        <td><input type="checkbox" class="jt-student-check" data-jt-sid="${s.id}"/></td>
+                        <td><span class="jt-s-name">${getCharName(s)}</span><span class="jt-s-id">#${s.id}</span></td>
+                        <td class="jt-cur-tile">${curT?.name || '—'}</td>
+                      </tr>`;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+              <div class="jt-footer">
+                <button id="jt-jump-btn" class="jt-jump-btn">🚀 Jump Selected Students</button>
+                <div id="jt-result" class="jt-result"></div>
+              </div>
             </div>
           </div>
         </div>`;
@@ -7573,11 +7578,12 @@ function renderFlagLog() {
   FLAG_TYPES.forEach(ft => { byType[ft.key] = []; });
 
   allStudents.forEach(({ student, period }) => {
-    const guild = getMergedStudent(student).guild || student.guild;
-    if (selGuild && guild !== selGuild) return;
-
     const sid = String(student.id);
     const ov = _overrides[sid] || {};
+    if (!ov.claimed) return; // Skip unclaimed/inactive accounts
+
+    const guild = getMergedStudent(student).guild || student.guild;
+    if (selGuild && guild !== selGuild) return;
     const ts = ov.taskTimestamps || {};
     const completed = (ov.completedTiles || student.completedTiles || []).map(Number);
     const bossStatus = ov.bossStatus || {};
@@ -7778,7 +7784,15 @@ function renderBossRoster() {
   const periods = CLASS_DATA.periods || [];
 
   // Build boss options from all LANDS
+  const GATE_NAMES = { abysmara:'Abysmara', feraxis:'Feraxis' };
   const bossOptions = LANDS.flatMap(land => [
+    // Gate bosses (live on lesson tiles, tracked via gateBosses config)
+    ...Object.entries(land.gateBosses || {}).map(([bk, gb]) => ({
+      key: `${land.id}_${gb.session}`,
+      label: `${land.name} — ${GATE_NAMES[bk] || bk} (Gate Boss)`,
+      landId: land.id, tileId: gb.session, bossName: GATE_NAMES[bk] || bk, isWriting: false,
+    })),
+    // Master boss (dungeon tile)
     ...land.tiles
       .filter(t => t.type === 'boss' || t.type === 'dungeon')
       .map(t => ({
@@ -7786,6 +7800,7 @@ function renderBossRoster() {
         label: `${land.name} — ${t.name}${t.skill ? ' (' + t.skill + ')' : ''}`,
         landId: land.id, tileId: t.id, bossName: t.name, isWriting: false,
       })),
+    // Writing events
     ...land.tiles
       .filter(t => t.type === 'event')
       .map(t => ({
