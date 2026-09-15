@@ -6464,13 +6464,12 @@ function renderTeacherDashboard() {
     const mustAllDone = mustTotal > 0 && mustDoneCount === mustTotal;
     const flagTabs = sFlags.map(f =>
       `<div class="t-flag-tab" style="background:${f.color}" data-flag-key="${f.key}" data-flag-sid="${s.id}" role="img" aria-label="${f.label}: ${f.tip}">
-        <span class="t-flag-tab-icon">${f.icon}</span>
         <div class="t-flag-tab-tip"><strong>${f.label}</strong><br>${f.tip}</div>
       </div>`
     ).join('');
     const menuOpen = STATE.cardMenuSid === s.id;
     return `
-    <div class="t-s-card ${hasFlags?"has-flag":""} ${unclaimed?"t-s-card-unclaimed":""}" data-sid="${s.id}" tabindex="0" role="button" aria-label="Edit ${getCharName(s)}">
+    <div class="t-s-card ${hasFlags?"has-flag":""} ${unclaimed?"t-s-card-unclaimed":""} ${menuOpen?"t-s-card-menu-open":""}" data-sid="${s.id}" tabindex="0" role="button" aria-label="Edit ${getCharName(s)}">
       <button class="t-card-menu-btn" data-card-menu="${s.id}" title="More actions">⋮</button>
       ${menuOpen ? `<div class="t-card-menu-dropdown" data-card-menu-drop="${s.id}">
         <button class="t-card-menu-item" data-view-map="${s.id}">🗺 View Map</button>
