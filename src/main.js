@@ -5023,7 +5023,7 @@ function renderLessonStop() {
   const isGatekeeper = _bsGK && _bsGK.type === 'gatekeeper';
 
   if (isGatekeeper) {
-    const assessUrl = _bsGK.assessmentUrl || '';
+    const assessUrl = getEffectivePear(land, tile) || _bsGK.assessmentUrl || '';
     const bossDisplayName = _bsGK.bossName || tile.name || 'Gatekeeper';
     const portraitSrc = _bsGK.portrait ? `/bosses/${_bsGK.portrait}` : null;
     return `
@@ -5278,6 +5278,31 @@ function renderLessonStop() {
            </label>
            <button class="ls-submit-btn${campTaskDone ? ' enter' : ''}" id="camp-complete-btn" ${(!isActionable || !campTaskDone) ? 'disabled' : ''} style="margin-top:14px">
              ${!isActionable ? 'Quest Complete ✓' : campTaskDone ? '✅ Quest Complete!' : '🔒 Check the box above to continue'}
+           </button>`}
+    </div>
+    ${_overlays}
+  </div>`;
+  }
+
+  if (tile.type === 'studyHall') {
+    const showSHDone = isCompleted;
+    return `
+  <div class="screen ls-screen">
+    <div class="ls-card enter">
+      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
+      <div class="ls-breadcrumb" style="padding-right:28px;margin-bottom:4px">
+        <button class="ls-bc-back ls-back-btn">← Quest Map</button>
+        <span class="ls-bc-sep" style="margin:0 4px;opacity:.35">|</span>
+        <span class="ls-bc-land">${land.name}</span>
+        <span class="ls-bc-sep">›</span>
+        <span class="ls-bc-tile">${tile.name || ""}${tile.sessionTitle ? ` — ${tile.sessionTitle}` : ""}</span>
+      </div>
+      <div style="text-align:center;padding:12px 0 4px;font-size:48px">⚔️</div>
+      ${loreSection}
+      ${showSHDone
+        ? `<div class="ls-done-state"><div class="ls-done-msg">✅ Quest complete! Well done, warrior.</div></div>`
+        : `<button class="ls-submit-btn enter" id="sh-complete-btn" ${!isActionable ? 'disabled' : ''}>
+             ${!isActionable ? 'Quest Complete ✓' : '⚔️ Complete Practice Battle'}
            </button>`}
     </div>
     ${_overlays}
@@ -6375,10 +6400,10 @@ function renderTeacherContentLinks() {
           </div>
         </div>
         <div class="tcl-field-wrap">
-          <span class="tcl-field-lbl">🍐 Pear Exit Ticket</span>
+          <span class="tcl-field-lbl">${isGate ? '⚔️ Assessment Link (Begin the Trial)' : '🍐 Pear Exit Ticket'}</span>
           <div class="tcl-field-row">
             <input class="tcl-url tcl-pear-url" type="url" data-tile-id="${t.id}" data-field="pear"
-              value="${pearVal}" placeholder="https://app.peardeck.com/…"/>
+              value="${pearVal}" placeholder="${isGate ? 'https://…' : 'https://app.peardeck.com/…'}"/>
             <button class="tcl-save-one-btn" data-tile-id="${t.id}" data-field="pear">Save</button>
           </div>
         </div>
@@ -10184,6 +10209,30 @@ function bindEvents() {
       const _lvl = awardXP(student, xp);
       awardGold(student, gold);
       logActivity(student.id, '⛺', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xp} XP, +${gold} 🪙)`);
+      if (_lvl.levelsGained > 0) logActivity(student.id, '⬆️', `Reached Level ${_lvl.newLevel}!`);
+      showXPCelebration(xp, _lvl.levelsGained, _lvl.newLevel, () => showGoldToast(gold, () => {
+        advanceStudentTile(student, land);
+        STATE.screen = "quest-map";
+        mount();
+      }));
+    });
+
+    // Study Hall tile flow
+    $("sh-complete-btn") && $("sh-complete-btn").addEventListener("click", () => {
+      const student = STATE.student;
+      const tile    = STATE.lessonTile;
+      const land    = STATE.lessonLand || LANDS[0];
+      if (!student || !tile) return;
+      const pos = getLandPos(student);
+      if ((pos.completed || []).includes(tile.id) || pos.tile !== tile.id) return;
+      saveStudentOverride(student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
+      const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
+      saveTileCompletion(student.id, tile.id, timeOnPage);
+      updateBossStateOnTileComplete(student, tile.id, land);
+      const xp = 10, gold = 5;
+      const _lvl = awardXP(student, xp);
+      awardGold(student, gold);
+      logActivity(student.id, '⚔️', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xp} XP, +${gold} 🪙)`);
       if (_lvl.levelsGained > 0) logActivity(student.id, '⬆️', `Reached Level ${_lvl.newLevel}!`);
       showXPCelebration(xp, _lvl.levelsGained, _lvl.newLevel, () => showGoldToast(gold, () => {
         advanceStudentTile(student, land);
