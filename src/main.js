@@ -58,7 +58,11 @@ const EQUIP_LEGENDARY_NAMES = {
 const EQUIP_POOLS = {
   "The Verdant Vale": {
     accessory: { common:["accessory_valecharm_common"], rare:["accessory_valecharm_rare"], epic:["accessory_valecharm_epic"], legendary:"accessory_valecharm_legendary" },
-  }
+  },
+  "The Stone Kingdoms": {
+    // No unique equipment art yet; includes Verdant Vale items so Land 2 students still see rewards
+    accessory: { common:["accessory_valecharm_common"], rare:["accessory_valecharm_rare"], epic:["accessory_valecharm_epic"], legendary:"accessory_valecharm_legendary" },
+  },
 };
 /* ─── SEASONAL COLLECTIBLES ─── */
 const SEASONAL_SETS = [
@@ -400,7 +404,14 @@ const PET_POOLS = {
     rare:      companionsByRarity('uncommon').map(c => c.file),
     epic:      companionsByRarity('rare').map(c => c.file),
     legendary: "051-lion.png",
-  }
+  },
+  "The Stone Kingdoms": {
+    // Shares Verdant Vale companions so students who skipped Land 1 loot still see rewards
+    common:    companionsByRarity('common').map(c => c.file),
+    rare:      companionsByRarity('uncommon').map(c => c.file),
+    epic:      companionsByRarity('rare').map(c => c.file),
+    legendary: "051-lion.png",
+  },
 };
 function pickPetItem(landName, tier) {
   const pool = PET_POOLS[landName];
@@ -572,6 +583,7 @@ const LW = { W:1050, H:560, TILE:88, BTILE:96, DTILE:132, ETILE:120, LTILE:72, N
 const LANDS = [
   {
     id:1, name:"The Verdant Vale", subtitle:"Unit 1: Overcoming Obstacles", biome:1,
+    trialName:"the Vale",
     lore:"The Vale has stood for an age uncounted, its roots drinking deep from rivers of story. Many have come to this forest broken and left it stronger. Every scar in its bark marks a reader who refused to quit.",
     W:1195, H:980,
     mainPaths:[
@@ -715,84 +727,165 @@ const LANDS = [
   // 3-lesson lands omit the 4th branch pair (it falls inside the CI section).
 
   {
-    id:2, name:"The Stone Kingdoms", subtitle:"Unit 2: Art in America", biome:2,
-    lore:"These walls were raised by those who believed beauty was worth fighting for. Carved into every stone is the memory of an artist who shaped chaos into meaning. To walk these halls is to hear a thousand unfinished songs.",
-    bgImage:"/tiles/map_background_stone_kingdoms.png",
+    id:2, name:"The Stone Kingdoms", subtitle:"Unit 2: From Earth to Mars", biome:2,
+    trialName:"the Stone Kingdoms",
+    lore:"The astronomers of these kingdoms carved every star they could not yet reach into the walls of the halls. One question is still chiseled above the great gate: What is the value in space exploration? Walk the halls, read the carvings, and decide for yourself.",
+    arrivalIntro:[
+      "You have arrived at the Stone Kingdoms, a land of great halls carved from rock, where every wall is covered in maps of the night sky and every doorway frames a star.",
+      "The Gravenborn keep these halls. They speak little and remember everything, and they judge a stranger by the questions they ask.",
+      "Above the great gate, one question is carved in letters taller than you: What is the value in space exploration? No one in the Kingdoms has ever agreed on the answer.",
+      "Something else lives here too. The Eternal Architect built these halls before anyone can remember, and it has never stopped building. The Gravenborn say it watches how readers think. They do not say more than that.",
+      "Your journey continues here. Read the carvings. Learn what the explorers learned. And when the time comes, decide whether the stars are worth the journey, and be ready to prove it."
+    ],
     W:1195, H:980,
     mainPaths:[
-      "M 65 70 L 195 70 L 325 70 L 455 70 L 585 70 L 715 70 L 845 70 L 975 70 L 1105 70",
-      "M 1105 70 C 1155 70 1155 350 1105 350",
-      "M 1105 350 L 975 350 L 845 350 L 715 350 L 585 350 L 455 350 L 325 350 L 195 350 L 65 350",
-      "M 65 350 C 15 350 15 630 65 630",
-      "M 65 630 L 195 630 L 325 630 L 455 630 L 585 630 L 715 630 L 845 630 L 975 630 L 975 840",
+      "M 65 70 L 195 70 L 325 70 L 455 70 L 585 70 L 715 70 L 845 70",
+      "M 845 70 L 845 350",
+      "M 845 350 L 715 350 L 585 350 L 455 350 L 325 350 L 195 350 L 65 350",
+      "M 65 350 L 65 630",
+      "M 65 630 L 195 630 L 325 630 L 455 630 L 585 630 L 715 630 L 845 630",
+      "M 845 630 L 845 910",
+      "M 845 910 L 715 910 L 585 910 L 455 910 L 325 910 L 195 910 L 65 910",
     ],
     branchPaths:[
-      "M 455 70 L 455 210 L 585 210 L 585 70",
-      "M 975 70 L 975 210 L 1105 210 L 1105 70",
-      "M 845 350 L 845 490 L 715 490 L 715 350",
-      "M 195 350 L 195 490 L 65 490 L 65 350",
+      // Loot branches (optional) — same grid slots as Land 1
+      "M 585 350 L 585 490",         // id:28 off S9
+      "M 455 350 L 455 210",         // id:30 off S10
+      "M 325 350 L 325 490",         // id:31 off S11
+      "M 715 630 L 715 490",         // id:32 off S18
+      "M 845 630 L 975 630",         // id:33 off S19
+      "M 455 910 L 455 750",         // id:34 off Eternal Architect
+      "M 845 910 L 975 910",         // id:35 off S20
     ],
-    decorations:[],
+    // ── UNIT 2 · FROM EARTH TO MARS · 29 sessions → 27 tiles ──
+    // Module 1 = S1-S7 · Module 2 = S8-S15 · Module 3 = S16-S23 · Module 4 = S24-S29 (Scribe's Sanctum)
+    // Gate bosses sit on the Module Assessment days (S6, S14). Unit Assessment (S22) = Eternal Architect (dungeon).
     tiles:[
-      // ── Row 0: main path L→R ──
-      {id: 1, type:"arrival", name:"Stone Kingdom Gates",          x:65,   y:70},
-      {id: 2, type:"lesson",  name:"L5-S1", sessionTitle:"The Harlem Renaissance",  x:195,  y:70},
-      {id: 3, type:"lesson",  name:"L5-S2",                        x:325,  y:70},
-      {id: 4, type:"lesson",  name:"L5-S3",                        x:455,  y:70},
-      {id: 5, type:"lesson",  name:"L5-S6",                        x:585,  y:70},
-      {id: 6, type:"boss",    name:"Thornspire",                   x:715,  y:70,  skill:"RI.5.2",
-        portrait:"boss_thornspire.png",
-        lore:"Thornspire rises from every paragraph whose main idea goes unnamed. Identify what the text is mostly about and support it with key details to bring this ancient tower down.",
-        pearUrl:""},
-      {id: 7, type:"lesson",  name:"L6-S1", sessionTitle:"The Arts of the People", x:845,  y:70},
-      {id: 8, type:"lesson",  name:"L6-S2",                        x:975,  y:70},
-      {id: 9, type:"lesson",  name:"L6-S3",                        x:1105, y:70},
-      // ── Row 2: main path R→L ──
-      {id:10, type:"lesson",  name:"L6-S6",                        x:1105, y:350},
-      {id:11, type:"boss",    name:"Thornspire Reborn",            x:975,  y:350, skill:"RI.5.2",
-        portrait:"boss_thornspire_reborn.png",
-        lore:"Thornspire has rebuilt itself from every forgotten central idea. Name the main claim and back it with evidence from the text to collapse it once more.",
-        pearUrl:""},
-      {id:12, type:"lesson",  name:"L7-S1", sessionTitle:"Dust Bowl",               x:845,  y:350},
-      {id:13, type:"lesson",  name:"L7-S2",                        x:715,  y:350},
-      {id:14, type:"lesson",  name:"L7-S3",                        x:585,  y:350},
-      {id:15, type:"lesson",  name:"L7-S6",                        x:455,  y:350},
-      {id:16, type:"boss",    name:"Cinderhull",                   x:325,  y:350, skill:"RI.5.3",
-        portrait:"boss_cinderhull.png",
-        lore:"Cinderhull scorches the connections between events, blurring every cause and effect. Explain how individuals, events, and ideas interact to extinguish its flames.",
-        pearUrl:""},
-      {id:17, type:"lesson",  name:"L8-S1", sessionTitle:"Public Works of Art",     x:195,  y:350},
-      {id:18, type:"lesson",  name:"L8-S2",                        x:65,   y:350},
-      // ── Row 4: main path L→R ──
-      {id:19, type:"lesson",  name:"L8-S3",                        x:65,   y:630},
-      {id:20, type:"lesson",  name:"L8-S6",                        x:195,  y:630},
-      {id:21, type:"boss",    name:"Runevast",                     x:325,  y:630, skill:"RI.5.4",
-        portrait:"boss_runevast.png",
-        lore:"Runevast guards its ancient inscriptions from any who cannot decode the domain-specific words carved into its walls. Determine word meanings in context to break through.",
-        pearUrl:""},
-      {id:22, type:"lesson",  name:"CI-S1", sessionTitle:"Forgotten Art",           x:455,  y:630},
-      {id:23, type:"lesson",  name:"CI-S2",                        x:585,  y:630},
-      {id:24, type:"lesson",  name:"CI-S3",                        x:715,  y:630},
-      {id:25, type:"lesson",  name:"CI-S4",                        x:845,  y:630},
-      {id:26, type:"event",   name:"The Scribe's Calling",         x:975,  y:630},
-      // ── Dungeon ──
-      {id:27, type:"dungeon", name:"The Eternal Architect",        x:975,  y:840, portrait:"boss_eternal_architect.png"},
-      // ── Branch tiles ──
-      {id:28, type:"loot", name:"L5-S4", x:455,  y:210, skill:"Should Do", nextTile:5,  parentTileId:4},
-      {id:29, type:"loot", name:"L5-S5", x:585,  y:210, skill:"Aspire To", nextTile:28, parentTileId:28},
-      {id:30, type:"loot", name:"L6-S4", x:975,  y:210, skill:"Should Do", nextTile:9,  parentTileId:8},
-      {id:31, type:"loot", name:"L6-S5", x:1105, y:210, skill:"Aspire To", nextTile:30, parentTileId:30},
-      {id:32, type:"loot", name:"L7-S4", x:845,  y:490, skill:"Should Do", nextTile:13, parentTileId:12},
-      {id:33, type:"loot", name:"L7-S5", x:715,  y:490, skill:"Aspire To", nextTile:32, parentTileId:32},
-      {id:34, type:"loot", name:"L8-S4", x:195,  y:490, skill:"Should Do", nextTile:18, parentTileId:17},
-      {id:35, type:"loot", name:"L8-S5", x:65,   y:490, skill:"Aspire To", nextTile:34, parentTileId:34},
+      // ── Row 0 (y=70, L→R): S1 S2 S3 S4 S5(Forge) S5b(StudyHall) S6(Gate: Runevast) ──
+      {id: 1, type:"arrival", pathType:"main", name:"The Kingdoms' Gate", x:65, y:70},
+      // S2 · Race to the Moon . . . and Beyond + The Path to the Moon · Write a Gist Statement (RI.5.2)
+      {id: 2, type:"lesson", pathType:"main", name:"S2", x:195, y:70,
+        sessionLore:"Two rival kingdoms once raced each other to the sky. The carvings on this wall remember every launch, every setback, and the day someone finally touched the Moon.",
+},
+      // S3 · Packing for Mars, Part 1 · Explain Main Ideas (RI.5.2) — Chronicler sighted
+      {id: 3, type:"lesson", pathType:"main", name:"S3", x:325, y:70,
+        sessionLore:"Beyond this arch lie the strange rules of space: no up, no down, nothing to hold you in place. In the shadows, a hooded figure copies down everything you read. It has not looked up yet.",
+},
+      // S4 · Reread Space Exploration Texts · Compare Text Structures (RI.5.5) — Thornspire sighted
+      {id: 4, type:"lesson", pathType:"main", name:"S4", x:455, y:70,
+        sessionLore:"The same carvings look different the second time. Something tall and thorned grows through the cracks in the far wall, twisting every sentence into knots. Notice how each text is built.",
+},
+      // S5 · Writer's Craft · Write an Opinion Paragraph
+      {id: 5, type:"forge", pathType:"main", name:"S5", x:585, y:70,
+        sessionLore:"The Forge doesn't fight for you. It sharpens what you already carry. Every opinion you shape here is a blade for the trials ahead."},
+      {id:50, type:"studyHall", pathType:"main", name:"S5b", x:715, y:70,
+        sessionLore:"Everything you've built in this module comes together here. Review, sharpen, and get ready. The first Gatekeeper is waiting."},
+      // S6 · Module 1 Assessment + Collaborative Discussion — GATE: Runevast
+      {id: 6, type:"lesson", pathType:"main", name:"S6", x:845, y:70,
+        sessionLore:"The first gate is sealed in runes no careless reader can crack. Runevast doesn't ask what you remember. It asks what you can prove. Show it what you learned about the road to the Moon.",
+},
+      // ── Row 1 (y=350, R→L): S7(Camp) S8 S9 S10 S11 S12 S13(Forge) ──
+      // S7 · Support & Extend
+      {id: 7, type:"camp", pathType:"main", name:"S7", x:845, y:350, pip:"npc_pip3.png",
+        sessionLore:"Pip made it through the gates behind you, tail glowing a little brighter than before. It sits close and watches the stars come out over the Kingdoms."},
+      // S8 · Hidden Figures, Part 1 · Summarize Text (RI.5.2) — Chronicler fight 2
+      {id: 8, type:"lesson", pathType:"main", name:"S8", x:715, y:350,
+        sessionLore:"A name history almost forgot is carved into this wall, small and half-worn. The figure with the ledger has stopped writing. It is waiting to hear what this story is mostly about.",
+},
+      // S9 · Hidden Figures, Part 2 · Determine Word Meaning (L.5.4 / RI.5.4) — no boss (RI.5.4 never fights)
+      {id: 9, type:"lesson", pathType:"main", name:"S9", x:585, y:350,
+        sessionLore:"The carving looks different with the dust brushed off. Some of the words here mean more than they first seem to. Read closely and the hall will explain itself.",
+},
+      // S10 · A Roadmap to Outer Space · Analyze Text Structure (RI.5.5) — Thornspire fight 2
+      {id:10, type:"lesson", pathType:"main", name:"S10", x:455, y:350,
+        sessionLore:"A boy once dreamed of the sky from a field far below it. The steps he took are laid out stone by stone down this hall. The thorns have grown thicker here, and they remember you.",
+},
+      // S11 · What Life in Space Is Really Like · Compare Text Structures (RI.5.5) — Thornspire fight 3
+      {id:11, type:"lesson", pathType:"main", name:"S11", x:325, y:350,
+        sessionLore:"The halls above grow quiet and strange: no weight, no walls, no sense of down. The thorns are back, tangled around everything. This is your last chance to cut through them before the gate.",
+},
+      // S12 · Packing for Mars, Part 3 · Explain Main Ideas (RI.5.2) — Chronicler fight 3
+      {id:12, type:"lesson", pathType:"main", name:"S12", x:195, y:350,
+        sessionLore:"The Chronicler's ledger lies open between you, one page still blank. It wants to know what you took from the explorers' record.",
+},
+      // S13 · Writer's Craft · Write an Opinion Paragraph
+      {id:13, type:"forge", pathType:"main", name:"S13", x:65, y:350,
+        sessionLore:"Back to the anvil. What you build here travels with you into the next gate."},
+      // ── Row 2 (y=630, L→R): S13b(StudyHall) S14(Gate: Cinderhull) S15(Camp) S16 S17 S18 S19 ──
+      {id:51, type:"studyHall", pathType:"main", name:"S13b", x:65, y:630,
+        sessionLore:"This is the review session before Cinderhull. Everything from Module 2 is fair game. Take stock of what you know."},
+      // S14 · Module 2 Assessment + Collaborative Discussion — GATE: Cinderhull
+      {id:14, type:"lesson", pathType:"main", name:"S14", x:195, y:630,
+        sessionLore:"Cinderhull's hull is scorched from a thousand reentries, and it has never let a careless reader pass. Everything from this module lies open before it. Prove you have earned the next chapter.",
+},
+      // S15 · Support & Extend
+      {id:15, type:"camp", pathType:"main", name:"S15", x:325, y:630, pip:"npc_pip3.png",
+        sessionLore:"Pip has started carrying small stones from the road and lining them up beside the fire, like a tiny map of the stars."},
+      // S16 · Martian Metropolis · Explain Reasons and Evidence (RI.5.8) — Tidelurk sighted
+      {id:16, type:"lesson", pathType:"main", name:"S16", x:455, y:630,
+        sessionLore:"Someone has drawn a whole city on the red wall: domes, tunnels, a home on another world. Whoever drew it wants you to believe in it. A ripple moves in the dark pool below, waiting to see if you can tell which reasons hold up.",
+},
+      // S17 · The Moon Colony, Part 1 · Describe Point of View and Perspective (RL.5.6) — Hollowgaze sighted
+      {id:17, type:"lesson", pathType:"main", name:"S17", x:585, y:630,
+        sessionLore:"A boy's family has been chosen to leave Earth for good. He is excited and terrified, and these carvings are written in his voice. A single hollow eye watches from the dark. It only sees one side of everything.",
+},
+      // S18 · The Moon Colony, Part 2 · Describe Perspective (RL.5.6) — Hollowgaze fight 2
+      {id:18, type:"lesson", pathType:"main", name:"S18", x:715, y:630,
+        sessionLore:"The same boy, farther from home, and something in the way he sees everything has changed. The hollow eye is closer now. Show it that you can see through more than one pair of eyes.",
+},
+      // S19 · Ice Hockey on Mars · Summarize Science Fiction (RL.5.2) — no boss yet (Seraphine returns Land 4)
+      {id:19, type:"lesson", pathType:"main", name:"S19", x:845, y:630,
+        sessionLore:"A girl on a Mars colony misses her favorite game. The crater beyond this door might be the answer. Read closely, because a story is hiding a plan.",
+},
+      // ── Row 3 (y=910, R→L): S20 S21(Forge) S21b(StudyHall) Eternal Architect(S22) S23(Camp) Scribe's Calling ──
+      // S20 · Packing for Mars, Part 4 · Explain Reasons and Evidence (RI.5.8) — Tidelurk fight 2
+      {id:20, type:"lesson", pathType:"main", name:"S20", x:845, y:910,
+        sessionLore:"The last chapter of the explorers' record. By now you have heard many reasons to go and many reasons to stay. The pool is rising. Which reasons hold up?",
+},
+      // S21 · Writer's Craft · Write Opinion Paragraphs
+      {id:21, type:"forge", pathType:"main", name:"S21", x:715, y:910,
+        sessionLore:"Last stop at the anvil before the Architect's hall. Sharpen everything. Your opinion is about to be put to the test."},
+      {id:52, type:"studyHall", pathType:"main", name:"S21b", x:585, y:910,
+        sessionLore:"The Eternal Architect is close. Use this session to gather yourself and review everything the Kingdoms have asked of you."},
+      // S22 · Unit 2 Assessment + Collaborative Discussion — MASTER BOSS: The Eternal Architect (unlocks when all 4 standard bosses are defeated)
+      {id:27, type:"dungeon", pathType:"main", name:"The Eternal Architect", x:455, y:910, portrait:"boss_eternal_architect.png",
+        lore:"It has been building since before anyone can remember, stone upon stone, every arch a question put to the stars. The Eternal Architect does not ask if you are ready. It asks what you believe, and whether you can prove it.",
+        loreDefeated:"The last arch holds, and then it opens. The Architect steps aside, and for the first time you can see the sky through the roof of the world."},
+      // S23 · Support & Extend
+      {id:40, type:"camp", pathType:"main", name:"S23", x:325, y:910, pip:"npc_pip3.png",
+        sessionLore:"Pip is asleep before you finish eating, one paw twitching, dreaming of somewhere far above the clouds."},
+      // S24-S28 · Process Writing (Analyze, Plan, Draft, Revise, Publish) → Scribe's Sanctum · Mentor: The Archivist of Worlds
+      {id:26, type:"event", pathType:"main", name:"The Scribe's Calling", x:195, y:910},
+      // S29 · Unit Research Poster (post-writing extension, normal tile)
+      {id:29, type:"lesson", pathType:"main", name:"S29", x:65, y:910,
+        sessionLore:"Every expedition leaves a record. Yours is almost finished. Gather your evidence, assemble your ideas, and create something worth keeping.",
+},
+      // ── Loot branches (pathType:"loot") — placeholder; content TBD ──
+      {id:28, type:"loot", pathType:"loot", name:"L2-Loot-1", x:585, y:490, parentTileId:9},
+      {id:30, type:"loot", pathType:"loot", name:"L2-Loot-3", x:455, y:210, parentTileId:10},
+      {id:31, type:"loot", pathType:"loot", name:"L2-Loot-4", x:325, y:490, parentTileId:11},
+      {id:32, type:"loot", pathType:"loot", name:"L2-Loot-5", x:715, y:490, parentTileId:18},
+      {id:33, type:"loot", pathType:"loot", name:"L2-Loot-6", x:975, y:630, parentTileId:19},
+      {id:34, type:"loot", pathType:"loot", name:"L2-Loot-7", x:455, y:750, parentTileId:27},
+      {id:35, type:"loot", pathType:"loot", name:"L2-Loot-8", x:975, y:910, parentTileId:20},
       // ── NPC tiles ──
-      {id:36, type:"npc", npcKey:"gravenborn_lore",          x:195,  y:210, landId:2},
-      {id:37, type:"npc", npcKey:"gravenborn_encouragement", x:715,  y:210, landId:2},
-      {id:38, type:"npc", npcKey:"gravenborn_easter",        x:975,  y:490, landId:2},
-      {id:39, type:"npc", npcKey:"gravenborn_hint",          x:325,  y:490, landId:2},
+      {id:36, type:"npc", npcKey:"gravenborn_hint",          x:975, y:350, landId:2},
+      {id:37, type:"npc", npcKey:"gravenborn_lore",          x:585, y:210, landId:2},
+      {id:38, type:"npc", npcKey:"gravenborn_encouragement", x:195, y:490, landId:2},
+      {id:39, type:"npc", npcKey:"gravenborn_easter",        x:715, y:750, landId:2},
     ],
-    pathOrder:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27],
+    pathOrder:[1,2,3,4,5,50,6,7,8,9,10,11,12,13,51,14,15,16,17,18,19,20,21,52,27,40,26,29],
+    // Standard bosses: sessions[0] = sighted (no fight), later sessions = fights. Last session = mastery available.
+    standardBosses:{
+      chronicler: { standard:"RI.5.2", portrait:"boss_chronicler.png", sessions:[3,8,12]  },
+      thornspire: { standard:"RI.5.5", portrait:"boss_thornspire.png", sessions:[4,10,11] },
+      tidelurk:   { standard:"RI.5.8", portrait:"boss_tidelurk.png",   sessions:[16,20]   },
+      hollowgaze: { standard:"RL.5.6", portrait:"boss_hollowgaze.png", sessions:[17,18]   },
+    },
+    gateBosses:{
+      runevast:   { session:6,  assessment:"module1", portrait:"boss_runevast.png"   },
+      cinderhull: { session:14, assessment:"module2", portrait:"boss_cinderhull.png" },
+    },
   },
   {
     id:3, name:"The Drowned Depths", subtitle:"Unit 3: Earth's Water", biome:3,
@@ -1170,7 +1263,7 @@ function findTileById(tileId) {
 
 const LAND_EMOJIS = ["🌿","⛏️","🌊","🌿","🕯️","⚡"];
 const LAND_TRAVEL_COPY = {
-  2: "Ancient power sleeps in these halls.",
+  2: "Every wall here asks one question: is the journey to the stars worth it?",
   3: "Something stirs beneath the waves.",
   4: "The forest does not welcome strangers.",
   5: "Not all shadows are empty.",
@@ -1267,7 +1360,7 @@ function setBossStatus(studentId, bossKey, status) {
   if (!_overrides[sid]) _overrides[sid] = {};
   if (!_overrides[sid].bossStatus) _overrides[sid].bossStatus = {};
   _overrides[sid].bossStatus[bossKey] = status;
-  set(ref(db, `overrides/${sid}/bossStatus/${bossKey}`), status).catch(console.error);
+  update(ref(db, `students/${sid}/bossStatus`), { [bossKey]: status }).catch(console.error);
 }
 function getStdBossState(studentId, bossKey) {
   return ((_overrides[String(studentId)] || {}).standardBossState || {})[bossKey]
@@ -1307,11 +1400,12 @@ function updateBossStateOnTileComplete(student, tileId, land) {
       } else {
         const isLastSession = sessionIdx === boss.sessions.length - 1;
         if (isLastSession) {
-          // All encounters done — mark mastery available; teacher confirms to earn trophy
+          // All encounters done — auto-award medal; teacher can later award Mastery Seal
           setStdBossState(sid, bk, {
             status:'mastery_available',
             encounterCount: Math.max(cur.encounterCount, sessionIdx + 1),
             lastAttemptSession:tileId, failedAt:null,
+            medalAwarded: true, medalAt: new Date().toISOString(),
           });
         } else {
           // Intermediate encounter — track without blocking student
@@ -1329,7 +1423,7 @@ function updateBossStateOnTileComplete(student, tileId, land) {
       if (boss.session !== tileId) return;
       const cur = getGateBossState(sid, bk);
       if (cur.status === 'locked') {
-        setGateBossState(sid, bk, { status:'active' });
+        setGateBossState(sid, bk, { status:'active', attemptCount: 1 });
       }
     });
   }
@@ -1718,6 +1812,160 @@ function getEffectivePear(land, tile) {
   const bs = BOSS_SCHEDULE[String(tile.id)];
   return tile.pearUrl || (bs && (bs.assessmentUrl || bs.pearUrl)) || '';
 }
+// ── Lesson Schedule ──────────────────────────────────────────────────────────
+// Firebase path: settings/lessonSchedule/{landId}/{tileId}
+// Fields: releaseDate (YYYY-MM-DD), skillVideo (url), audio (url), recapText (str)
+// Wayground + Pear URLs live in tileLinks (existing) and are not duplicated here.
+function getLessonScheduleEntry(landId, tileId) {
+  return ((_settings.lessonSchedule || {})[String(landId)] || {})[String(tileId)] || {};
+}
+function saveLessonScheduleField(landId, tileId, field, value) {
+  if (!_settings.lessonSchedule) _settings.lessonSchedule = {};
+  const lid = String(landId), tid = String(tileId);
+  if (!_settings.lessonSchedule[lid]) _settings.lessonSchedule[lid] = {};
+  _settings.lessonSchedule[lid][tid] = { ...(_settings.lessonSchedule[lid][tid] || {}), [field]: value || null };
+  set(ref(db, `settings/lessonSchedule/${lid}/${tid}/${field}`), value || null).catch(console.error);
+}
+function getModuleDates(landId) {
+  return (_settings.moduleDates || {})[String(landId)] || {};
+}
+function saveModuleDate(landId, moduleKey, gateBy) {
+  if (!_settings.moduleDates) _settings.moduleDates = {};
+  const lid = String(landId);
+  if (!_settings.moduleDates[lid]) _settings.moduleDates[lid] = {};
+  _settings.moduleDates[lid][moduleKey] = gateBy || null;
+  set(ref(db, `settings/moduleDates/${lid}/${moduleKey}`), gateBy || null).catch(console.error);
+}
+// Validate a URL is https before storing.
+function isValidHttpsUrl(s) {
+  try { const u = new URL(s); return u.protocol === 'https:'; } catch { return false; }
+}
+// Release-date gate: returns null (no gate), Date in future (locked), or Date in past/now (open).
+function getReleaseDate(landId, tileId) {
+  const entry = getLessonScheduleEntry(landId, tileId);
+  if (!entry.releaseDate) return null;
+  return new Date(entry.releaseDate);
+}
+function isTileLocked(landId, tileId) {
+  const d = getReleaseDate(landId, tileId);
+  if (!d) return false;
+  const midnight = new Date(d); midnight.setHours(0, 0, 0, 0);
+  return Date.now() < midnight.getTime();
+}
+// Absence helpers ─────────────────────────────────────────────────────────────
+// Store: students/${sid}/absences  = { "YYYY-MM-DD": true, ... }
+function getStudentAbsences(studentId) {
+  return (_overrides[String(studentId)] || {}).absences || {};
+}
+function setStudentAbsence(studentId, dateStr, present) {
+  if (!_overrides[String(studentId)]) _overrides[String(studentId)] = {};
+  if (!_overrides[String(studentId)].absences) _overrides[String(studentId)].absences = {};
+  if (present) {
+    delete _overrides[String(studentId)].absences[dateStr];
+    set(ref(db, `students/${studentId}/absences/${dateStr}`), null).catch(console.error);
+  } else {
+    _overrides[String(studentId)].absences[dateStr] = true;
+    set(ref(db, `students/${studentId}/absences/${dateStr}`), true).catch(console.error);
+  }
+}
+// Is the student absent during the release date of this tile?
+function isStudentAbsentForTile(studentId, landId, tileId) {
+  const d = getReleaseDate(landId, tileId);
+  if (!d) return false;
+  const dateStr = d.toISOString().slice(0, 10);
+  return !!getStudentAbsences(studentId)[dateStr];
+}
+// Is student 2+ sessions behind expected pace?
+function isStudentBehindPace(student) {
+  const pacing = getPacingSettings();
+  if (!pacing || !pacing.startDate || !pacing.targetDate || !pacing.targetCount) return false;
+  const start = new Date(pacing.startDate).getTime();
+  const target = new Date(pacing.targetDate).getTime();
+  const totalMs = target - start;
+  if (totalMs <= 0) return false;
+  const fraction = Math.max(0, Math.min(1, (Date.now() - start) / totalMs));
+  const expected = fraction * Number(pacing.targetCount);
+  const actual = countCompletedSessions(student);
+  return (expected - actual) >= 2;
+}
+// Should the catch-up path be offered for this tile?
+function showCatchUp(student, landId, tileId) {
+  if (isTileLocked(landId, tileId)) return false;
+  const entry = getLessonScheduleEntry(landId, tileId);
+  if (!entry.recapText && !entry.skillVideo) return false;
+  return isStudentAbsentForTile(student.id, landId, tileId) || isStudentBehindPace(student);
+}
+// Returns the tileId of the latest released session per the schedule (or null).
+function getScheduleBasedCurrentTile(land) {
+  const pathOrder = land.pathOrder || [];
+  let latest = null;
+  for (const tid of pathOrder) {
+    const entry = getLessonScheduleEntry(land.id, tid);
+    if (!entry.releaseDate) continue;
+    const d = new Date(entry.releaseDate); d.setHours(0,0,0,0);
+    if (Date.now() >= d.getTime()) latest = tid;
+  }
+  return latest;
+}
+// Returns array of tile IDs that are released but not completed and the student has moved past.
+function getMissedTiles(student, land) {
+  const pos    = getLandPos(student);
+  const order  = land.pathOrder || [];
+  const posIdx = order.indexOf(pos.tile);
+  const missed = [];
+  for (const tid of order) {
+    const tIdx = order.indexOf(tid);
+    if (tIdx >= posIdx) break; // stop at current tile
+    if ((pos.completed || []).includes(tid)) continue;
+    const entry = getLessonScheduleEntry(land.id, tid);
+    if (!entry.releaseDate) continue;
+    const d = new Date(entry.releaseDate); d.setHours(0,0,0,0);
+    if (Date.now() >= d.getTime()) missed.push(tid);
+  }
+  return missed;
+}
+function isTileMissed(student, land, tileId) {
+  return getMissedTiles(student, land).includes(tileId);
+}
+// Auto-advance student to the schedule-based current tile (silently on map open).
+// Only advances forward, never back. Writes to Firebase.
+function autoAdvanceBySchedule(student, land) {
+  const scheduleTile = getScheduleBasedCurrentTile(land);
+  if (!scheduleTile) return false;
+  const pos    = getLandPos(student);
+  const order  = land.pathOrder || [];
+  const schedIdx = order.indexOf(scheduleTile);
+  const posIdx   = order.indexOf(pos.tile);
+  if (schedIdx <= posIdx) return false; // already at or ahead of schedule
+  // Jump student to the schedule tile without marking skipped tiles completed
+  saveStudentOverride(student.id, { currentTile: scheduleTile });
+  if (!_overrides[String(student.id)]) _overrides[String(student.id)] = {};
+  _overrides[String(student.id)].currentTile = scheduleTile;
+  logActivity(student.id, '📅', `Auto-advanced to ${land.tiles.find(t=>t.id===scheduleTile)?.name || scheduleTile} by schedule`);
+  return true;
+}
+// Missed sessions count before a given gate tile (by pathOrder index)
+function missedCountBeforeGate(student, land, gateTileId) {
+  const order   = land.pathOrder || [];
+  const gateIdx = order.indexOf(gateTileId);
+  if (gateIdx < 0) return 0;
+  const pos = getLandPos(student);
+  return order.slice(0, gateIdx).filter(tid => {
+    if ((pos.completed || []).includes(tid)) return false;
+    const entry = getLessonScheduleEntry(land.id, tid);
+    if (!entry.releaseDate) return false;
+    const d = new Date(entry.releaseDate); d.setHours(0,0,0,0);
+    return Date.now() >= d.getTime();
+  }).length;
+}
+// Record how a session was completed ('full' | 'catchUp')
+function recordCompletionMode(studentId, tileId, mode) {
+  const tid = String(tileId);
+  if (!_overrides[String(studentId)]) _overrides[String(studentId)] = {};
+  if (!_overrides[String(studentId)].completionMode) _overrides[String(studentId)].completionMode = {};
+  _overrides[String(studentId)].completionMode[tid] = mode;
+  set(ref(db, `students/${studentId}/completionMode/${tid}`), mode).catch(console.error);
+}
 function savePacingSettings(startDate, targetDate, targetCount) {
   if (!_settings) _settings = {};
   _settings.pacing = { startDate, targetDate, targetCount: Number(targetCount) };
@@ -2068,6 +2316,54 @@ function advanceStudentTile(student, land) {
   if (!completed.includes(pos.tile)) completed.push(pos.tile);
   saveStudentOverride(student.id, { currentTile: nextId, completedTiles: completed });
 }
+// ── Land 2 fresh start ─────────────────────────────────────────────────────
+// Per-tile maps are keyed by tile id only, so Land 1 data would collide with Land 2.
+// Archive them under landArchive["1"] (kept for the action-research data), then clear.
+const LAND2_BUMP_FIELDS = ["taskProgress","taskTimestamps","needsReteach","lessonFails","reteachDirectives","tileRewards","jumpFlags"];
+function studentNeedsLand2Bump(student) {
+  const ov = _overrides[String(student.id)] || {};
+  if (ov.land2Entry) return false;
+  if (ov.currentLand === undefined || ov.currentLand === null) return false; // still in Land 0 / reset
+  return getLandPos(student).land === 1;
+}
+function bumpStudentToLand2(student) {
+  const sid = String(student.id);
+  const ov = _overrides[sid] || {};
+  const l2 = LANDS.find(l => l.id === 2);
+  const firstTile = (l2.pathOrder || [])[0] || 1;
+  const archive = { archivedAt: new Date().toISOString(), currentTile: ov.currentTile || null, completedTiles: ov.completedTiles || [] };
+  const changes = {};
+  LAND2_BUMP_FIELDS.forEach(f => { if (ov[f] !== undefined) { archive[f] = ov[f]; changes[f] = null; } });
+  changes.landArchive = Object.assign({}, ov.landArchive || {}, { "1": archive });
+  changes.currentLand = 2;
+  changes.currentTile = firstTile;
+  changes.completedTiles = [];
+  changes.preEventLandId = null;
+  changes.preEventTileId = null;
+  changes.land2Entry = { bumpedAt: new Date().toISOString(), seen: false };
+  saveStudentOverride(sid, changes);
+  LAND2_BUMP_FIELDS.forEach(f => { if (_overrides[sid]) delete _overrides[sid][f]; });
+  try { logActivity(sid, "🗺️", "Fresh start: moved to The Stone Kingdoms (Land 2)"); } catch (e) {}
+}
+// Returns true when the "Now entering Land 2" splash should play once.
+function ensureLand2Entry(student) {
+  if (studentNeedsLand2Bump(student)) bumpStudentToLand2(student);
+  const ov = _overrides[String(student.id)] || {};
+  if (ov.land2Entry && !ov.land2Entry.seen) {
+    saveStudentOverride(student.id, { land2Entry: Object.assign({}, ov.land2Entry, { seen: true, seenAt: new Date().toISOString() }) });
+    return true;
+  }
+  return false;
+}
+function playLand2EntrySplash(proceed) {
+  const l2 = LANDS.find(l => l.id === 2);
+  STATE.travelDestName = l2.name;
+  STATE.travelDestDesc = LAND_TRAVEL_COPY[2] || "";
+  STATE.screen = "land-travel";
+  mount();
+  setTimeout(() => { STATE.screen = proceed(); mount(); }, 4800);
+}
+
 function triggerLandTravel(student, fromLand) {
   const nextIdx = LANDS.findIndex(l => l.id === fromLand.id) + 1;
   if (nextIdx >= LANDS.length) {
@@ -2622,10 +2918,11 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               sideQuestModalOpen:false, sideQuestTileId:null, sideQuestCollabIdx:0,
               sqBoardOpen:false, sqBoardLandId:null,
               sqPartnerPickOpen:false, sqPartnerPickKey:null, sqPartnerPickIdx:0, sqPartnerPickType:null, sqPartnerPickTile:null, sqPartnerPickLand:null, sqPartnerPickSelected:null,
+              catchUpOpen:false,
               shopOpen:false, shopConfirmItem:null, shopSuccess:false, shopTobbleIdx:0,
               teacherGoldShopOpen:false,
               bossRosterPeriodIdx:0, bossRosterKey:null, bossRosterMarks:{},
-              judgmentHallMarks:{}, jhExcellenceAwarded:{},
+              judgmentHallMarks:{}, jhExcellenceAwarded:{}, jhLandId:1,
               sqInviteNotifOpen:false,
               questJournalTab:'active',
               craftingOpen:false, craftingStep:1, craftingCategory:null, craftingSelected:null,
@@ -3258,44 +3555,84 @@ function renderHub() {
   const _trophyOv = _overrides[String(s.id)] || {};
   const _stdBossState = _trophyOv.standardBossState || {};
   const _bossStatusMap = _trophyOv.bossStatus || {};
-  const HUB_TROPHY_BOSSES = [
-    { key:'duskmantle', name:'Duskmantle',   std:'RL.5.1', img:'/trophies/trophy_duskmantle.jpeg', type:'std' },
-    { key:'keystone',   name:'The Keystone', std:'RI.5.2', img:'/trophies/trophy_keystone.jpeg',   type:'std' },
-    { key:'mirrorkin',  name:'Mirrorkin',    std:'RL.5.3', img:'/trophies/trophy_mirrorkin.jpeg',  type:'std' },
-    { key:'seraphine',  name:'Seraphine',    std:'RL.5.2', img:'/trophies/trophy_seraphine.jpeg',  type:'std' },
-    { key:'1_27',       name:'The Warden',   std:'',       img:'/trophies/trophy_warden.jpeg',     type:'dungeon' },
-  ];
-  const trophyGridHTML = `<div class="trophy-grid">${
-    HUB_TROPHY_BOSSES.map(b => {
-      let phase;
-      if (b.type === 'std') {
-        const stStatus = (_stdBossState[b.key] || {}).status;
-        phase = stStatus === 'defeated' ? 'earned'
-              : stStatus === 'mastery_requested' ? 'requested'
-              : stStatus === 'mastery_available' ? 'available'
-              : 'locked';
-      } else {
-        phase = _bossStatusMap[b.key] === 'confirmed' ? 'earned' : 'locked';
-      }
-      const cellClass = phase === 'earned' ? 'trophy-earned'
-                      : phase === 'requested' ? 'trophy-requested'
-                      : phase === 'available' ? 'trophy-available'
-                      : 'trophy-locked';
-      const tapAttr = phase === 'available' ? ` data-trophy-req="${b.key}"` : '';
+  const _gateBossStateMap = _trophyOv.gateBossState || {};
+  const _studentLand = getLandPos(s).land || 1;
+
+  // Derive trophy grid from LANDS — show all lands the student has entered
+  const _trophyLands = LANDS.filter(l => l.id <= _studentLand && (l.standardBosses || l.gateBosses));
+  const trophyGridHTML = _trophyLands.map(tl => {
+    const tlStd = tl.standardBosses || {};
+    const tlGate = tl.gateBosses || {};
+
+    // Standard boss cells: show medal + optional seal
+    const stdCells = Object.entries(tlStd).map(([bk, boss]) => {
+      const st = _stdBossState[bk] || {};
+      // Medal: auto-awarded on last session; backward-compat: any status past 'sighted' counts
+      const medalEarned = !!(st.medalAwarded || ['mastery_available','mastery_requested','defeated'].includes(st.status));
+      const sealEarned  = st.status === 'defeated';
+      const sealReq     = st.status === 'mastery_requested';
+      const sealAvail   = st.status === 'mastery_available';
+      const bkTitle     = bk.charAt(0).toUpperCase() + bk.slice(1);
+      const tapAttr     = sealAvail ? ` data-trophy-req="${bk}"` : '';
+      const cellClass   = sealEarned ? 'trophy-earned' : sealReq ? 'trophy-requested' : sealAvail ? 'trophy-available' : 'trophy-locked';
+      const imgSrc      = `/trophies/trophy_${bk}.jpeg`;
       return `<div class="trophy-cell ${cellClass}"${tapAttr}>
-        <div class="trophy-img-wrap">
-          <img src="${b.img}" class="trophy-img" alt="${b.name}" onerror="this.style.display='none'"/>
-          ${phase === 'locked' ? '<div class="trophy-lock">🔒</div>' : ''}
-          ${phase === 'available' ? '<div class="trophy-lock" style="font-size:16px">✦</div>' : ''}
-          ${phase === 'requested' ? '<div class="trophy-pending-badge">Pending…</div>' : ''}
+        <div class="trophy-img-wrap" style="position:relative">
+          <img src="${imgSrc}" class="trophy-img" alt="${bkTitle}" onerror="this.style.display='none'"/>
+          ${!medalEarned ? '<div class="trophy-lock">🔒</div>' : ''}
+          ${medalEarned && !sealEarned && !sealReq && !sealAvail ? '<div class="trophy-medal-badge" title="Medal earned">🏅</div>' : ''}
+          ${sealAvail ? '<div class="trophy-lock" style="font-size:16px">✦</div>' : ''}
+          ${sealReq  ? '<div class="trophy-pending-badge">Pending…</div>' : ''}
+          ${sealEarned ? '<div class="trophy-seal-badge" title="Mastery Seal">⭐</div>' : ''}
         </div>
-        <div class="trophy-name">${b.name}</div>
-        ${phase === 'earned' && b.std ? `<div class="trophy-std-tag">${b.std}</div>` : ''}
-        ${phase === 'available' ? `<div class="trophy-std-tag" style="color:rgba(251,191,36,.9)">Tap to Request</div>` : ''}
-        ${phase === 'requested' ? `<div class="trophy-std-tag" style="color:rgba(147,197,253,.85)">Trial Requested</div>` : ''}
+        <div class="trophy-name">${bkTitle}</div>
+        ${boss.standard ? `<div class="trophy-std-tag">${boss.standard}</div>` : ''}
+        ${sealAvail ? `<div class="trophy-std-tag" style="color:rgba(251,191,36,.9)">Request Seal</div>` : ''}
+        ${sealReq   ? `<div class="trophy-std-tag" style="color:rgba(147,197,253,.85)">Seal Requested</div>` : ''}
       </div>`;
-    }).join('')
-  }</div>`;
+    }).join('');
+
+    // Gate boss trophy cells
+    const gateCells = Object.entries(tlGate).map(([bk, boss]) => {
+      const gst = _gateBossStateMap[bk] || {};
+      const trophyEarned  = !!(gst.trophyEarned);
+      const firstTry      = !!(gst.firstTryPass);
+      const noTrophy      = gst.status === 'no_trophy';
+      const bkTitle       = bk.charAt(0).toUpperCase() + bk.slice(1);
+      const imgSrc        = `/trophies/trophy_${bk}.jpeg`;
+      const cellClass     = trophyEarned ? 'trophy-earned' : noTrophy ? 'trophy-locked' : 'trophy-locked';
+      return `<div class="trophy-cell ${cellClass}">
+        <div class="trophy-img-wrap" style="position:relative">
+          <img src="${imgSrc}" class="trophy-img" alt="${bkTitle}" onerror="this.style.display='none'"/>
+          ${!trophyEarned ? '<div class="trophy-lock">' + (noTrophy ? '✗' : '🔒') + '</div>' : ''}
+          ${trophyEarned && firstTry ? '<div class="trophy-seal-badge" style="background:rgba(251,191,36,.9);color:#1f2937" title="First Try!">★</div>' : ''}
+        </div>
+        <div class="trophy-name">${bkTitle}</div>
+        <div class="trophy-std-tag">Gate Trophy</div>
+      </div>`;
+    }).join('');
+
+    // Final boss (dungeon tile in pathOrder last position)
+    const dungeonTile = tl.tiles && tl.tiles.find(t => t.type === 'dungeon');
+    const dungeonCell = dungeonTile ? (() => {
+      const dKey = `${tl.id}_${dungeonTile.id}`;
+      const dStatus = (_bossStatusMap[dKey] === 'confirmed');
+      const imgSrc  = `/trophies/trophy_final_${tl.id}.png`;
+      return `<div class="trophy-cell ${dStatus ? 'trophy-earned' : 'trophy-locked'}">
+        <div class="trophy-img-wrap" style="position:relative">
+          <img src="${imgSrc}" class="trophy-img" alt="${dungeonTile.name||'Final Boss'}" onerror="this.style.opacity='0.2'"/>
+          ${!dStatus ? '<div class="trophy-lock">🔒</div>' : ''}
+        </div>
+        <div class="trophy-name">${dungeonTile.name || 'Final Boss'}</div>
+        <div class="trophy-std-tag">Final Prize</div>
+      </div>`;
+    })() : '';
+
+    return `<div class="trophy-land-section">
+      <div class="trophy-land-label">${tl.name}</div>
+      <div class="trophy-grid">${stdCells}${gateCells}${dungeonCell}</div>
+    </div>`;
+  }).join('');
 
   const actEntries = getActivityLog(STATE.student.id);
   const actFeedHTML = actEntries.length
@@ -4005,7 +4342,7 @@ function tileArt(biome, w, h) {
     <ellipse cx="${w*.5}" cy="${h*.5}" rx="${w*.3}" ry="${h*.36}" fill="#F59E0B" opacity=".06"/>`;
 }
 
-function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gateVisual) {
+function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gateVisual, isMissed) {
   const {id, type, name, x, y, skill} = tile;
 
   /* ── NPC tiles: completely separate render path ── */
@@ -4151,7 +4488,7 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
     <text x="${x}" y="${ty-13}" text-anchor="middle" font-size="8" fill="#C4B5FD">▼</text></g>` : "";
 
   /* ── Tile art interior ── */
-  const tileArtURL = vt==='finalGatekeeper' ? `/tiles/tile_warden.jpeg`
+  const tileArtURL = vt==='finalGatekeeper' ? `/tiles/tile_finalgatekeeper.png`
     : vt==='gatekeeper' && !board && bossOverlay?.bossState?.status === 'defeated' ? `/bosses/defeated-tombstone.png`
     : vt==='gatekeeper'    ? `/tiles/tile_gatekeeper.png`
     : vt==='boss'          ? `/tiles/tile_boss.png`
@@ -4234,11 +4571,17 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
     }
   }
 
-  return `<g data-tid="${id}">${bossAheadGlow}${dungRing}${evRing}${bossRing}${stdBossFightRing}${gateRing}${pulse}
+  const missedOverlay = isMissed
+    ? `<rect x="${tx}" y="${ty}" width="${ts}" height="${ts}" rx="${r}" fill="rgba(50,50,60,.72)"/>
+       <text x="${x}" y="${y - 5}" text-anchor="middle" dominant-baseline="central" font-size="13" fill="rgba(255,255,255,.6)" font-family="Arial">⚠️</text>
+       <text x="${x}" y="${y + 11}" text-anchor="middle" font-size="7" fill="rgba(255,255,255,.55)" font-weight="bold" font-family="Arial">MISSED</text>`
+    : '';
+
+  return `<g data-tid="${id}"${isMissed ? ' data-missed="1"' : ''}>${bossAheadGlow}${dungRing}${evRing}${bossRing}${stdBossFightRing}${gateRing}${pulse}
     <clipPath id="clip-${id}"><rect x="0" y="0" width="${ts}" height="${ts}" rx="${r}"/></clipPath>
     <g clip-path="url(#clip-${id})" transform="translate(${tx},${ty})">${interior}${lockedOverlay}${doneBadge}</g>
-    <rect x="${tx}" y="${ty}" width="${ts}" height="${ts}" rx="${r}" fill="none" stroke="${bc}" stroke-width="${bw}"/>
-    ${bossOverlayBadge}${sightedBadge}${yah}${nameEl}${skillEl}${typeTag}</g>`;
+    <rect x="${tx}" y="${ty}" width="${ts}" height="${ts}" rx="${r}" fill="none" stroke="${isMissed ? '#F59E0B' : bc}" stroke-width="${isMissed ? 2.5 : bw}" stroke-dasharray="${isMissed ? '5 3' : 'none'}"/>
+    ${missedOverlay}${bossOverlayBadge}${sightedBadge}${yah}${nameEl}${skillEl}${typeTag}</g>`;
 }
 
 const DECO_IMGS = { mountains:"/tiles/mountains.png", lake:"/tiles/lake.png", castle:"/tiles/castle.png", graveyard:"/tiles/graveyard.png" };
@@ -4325,7 +4668,12 @@ function buildLandSVG(land, pos, board, extraSVG) {
     });
   }
 
-  const tiles = land.tiles.map(t => landTileSVG(t, biome, tileState(t, pos, board, land), board, bossOverlayMap[t.id], tileBossVisualMap[t.id], gateTileVisualMap[t.id])).join("");
+  // Missed-tile IDs (released but skipped — show gray)
+  const _missedIds = (!board && STATE.student && land)
+    ? getMissedTiles(STATE.student, land)
+    : [];
+
+  const tiles = land.tiles.map(t => landTileSVG(t, biome, tileState(t, pos, board, land), board, bossOverlayMap[t.id], tileBossVisualMap[t.id], gateTileVisualMap[t.id], _missedIds.includes(t.id))).join("");
   const decors = (land.decorations||[]).map(d => decorationSVG(d.name, d.x, d.y)).join("");
 
   const getHalf = t => t.type==='boss'?LW.BTILE/2:t.type==='event'?LW.ETILE/2:t.type==='loot'?LW.LTILE/2:LW.TILE/2;
@@ -5139,7 +5487,7 @@ function renderLessonStop() {
         ? `<img src="${portraitSrc}" alt="${bossDisplayName}" onerror="this.parentNode.innerHTML='<div class=\\'gk-hero-fallback\\'>⚔️</div>'"/>`
         : `<div class="gk-hero-fallback">⚔️</div>`}
     </div>
-    <div class="gk-eyebrow">Trial of the Vale</div>
+    <div class="gk-eyebrow">Trial of ${land.trialName || 'the Vale'}</div>
     <div class="gk-boss-name">${bossDisplayName}</div>
     ${loreText ? `<div class="gk-lore">"${loreText}"</div>` : ''}
     <button class="gk-cta" id="gk-begin-btn" data-url="${assessUrl}">⚔️ Begin the Trial</button>
@@ -5150,43 +5498,119 @@ function renderLessonStop() {
   }
 
   if (isLessonTile) {
-    const pearBtnLabel  = isBossSession ? '⚔️ <span class="ls-pear-lbl-wrap"><span class="ls-pear-main">Defeat the Boss</span><span class="ls-pear-sub">Exit Ticket</span></span>' : '🏹 <span class="ls-pear-lbl-wrap"><span class="ls-pear-main">Battle Training</span><span class="ls-pear-sub">Exit Ticket</span></span>';
-    const passLabel     = isBossSession ? '🏆 I Won!' : '✅ Training Complete!';
-    const failLabel     = isBossSession ? '💀 I Was Defeated' : '🔄 Needs More Practice';
-    const showOutcome   = exitTicketOpened && !outcomeRecorded;
-    const showDone      = isCompleted || outcomeRecorded;
+    const passLabel      = isBossSession ? '🏆 I Won!' : '✅ Training Complete!';
+    const failLabel      = isBossSession ? '💀 I Was Defeated' : '🔄 Needs More Practice';
+    const showOutcome    = exitTicketOpened && !outcomeRecorded;
+    const showDone       = isCompleted || outcomeRecorded;
 
-    const portraitHtml = (() => {
+    // ── Session number label (e.g. "Session 4") ───────────────────────────
+    const sessNum    = tile.name && /^S\d+$/i.test(tile.name) ? tile.name.replace(/^S/i,'') : null;
+    const sessLabel  = sessNum ? `Session ${sessNum}` : (tile.name || '');
+
+    // ── Release date ──────────────────────────────────────────────────────
+    const tileIsLocked   = isTileLocked(land.id, tile.id);
+    const releaseDate    = getReleaseDate(land.id, tile.id);
+    const releaseDateStr = releaseDate
+      ? releaseDate.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+      : null;
+
+    // ── Missed tile detection ─────────────────────────────────────────────
+    const tileMissed = student ? isTileMissed(student, land, tile.id) : false;
+
+    // ── Lesson schedule entry ─────────────────────────────────────────────
+    const schedEntry     = getLessonScheduleEntry(land.id, tile.id);
+    const waygroundUrl   = getEffectiveWayground(land, tile);
+    const readAndLearnDone   = waygroundDone;
+    const exitTicketReady    = readAndLearnDone;
+
+    // ── Gate-boss missed-session warning ──────────────────────────────────
+    const isGateTile = !!(BOSS_SCHEDULE[String(tile.id)] && BOSS_SCHEDULE[String(tile.id)].type === 'gatekeeper');
+    const missedBeforeGate = (student && isGateTile) ? missedCountBeforeGate(student, land, tile.id) : 0;
+
+    // ── Session image ─────────────────────────────────────────────────────
+    const sessionImageHtml = (() => {
+      if (schedEntry.imageUrl) {
+        return `<div style="border-radius:12px;overflow:hidden;margin:10px 0">
+          <img src="${schedEntry.imageUrl}" alt="" style="width:100%;height:auto;display:block;max-height:220px;object-fit:cover"/>
+        </div>`;
+      }
       const bs = bossScheduleEntry;
       if (bs && bs.portrait) {
         const isFGK = bs.type === 'finalGatekeeper';
         const w = isFGK ? 'clamp(220px,85%,340px)' : 'clamp(180px,75%,280px)';
-        const bookFallback = "<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' width=\\'48\\' height=\\'48\\' fill=\\'none\\' stroke=\\'rgba(30,27,75,.2)\\' stroke-width=\\'1.5\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><path d=\\'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z\\'/><path d=\\'M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z\\'/></svg>";
         return `<div style="text-align:center;padding:12px 0 4px">
-          ${isFGK ? `<div style="font-size:11px;font-weight:800;letter-spacing:1.8px;color:rgba(251,191,36,.85);text-transform:uppercase;margin-bottom:8px">Final Trial of the Vale</div>` : ''}
+          ${isFGK ? `<div style="font-size:11px;font-weight:800;letter-spacing:1.8px;color:rgba(251,191,36,.85);text-transform:uppercase;margin-bottom:8px">${bs.label || 'Final Trial'}</div>` : ''}
           <div style="width:${w};aspect-ratio:16/9;overflow:hidden;border-radius:10px;margin:0 auto;background:rgba(30,27,75,.08)">
-            <img src="/bosses/${bs.portrait}" alt="${bs.bossName || ''}"
-                 style="width:100%;height:100%;object-fit:cover;display:block"
-                 onerror="this.outerHTML='${bookFallback}'"/>
+            <img src="/bosses/${bs.portrait}" alt="${bs.bossName || ''}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none'"/>
           </div>
         </div>`;
       }
       const PIP_TILES = { 8:'npc_pip1.png', 14:'npc_pip2.png', 40:'npc_pip3.png' };
       const pipImg = PIP_TILES[tile.id];
       if (pipImg) {
-        return `<div style="text-align:center;padding:12px 0 4px">
-          <img src="/npcs/${pipImg}" alt="Pip"
-               style="width:clamp(120px,45%,180px);height:auto;border-radius:10px;display:inline-block"
-               onerror="this.style.display='none'"/>
+        return `<div style="text-align:center;padding:8px 0 4px">
+          <img src="/npcs/${pipImg}" alt="Pip" style="width:clamp(100px,40%,160px);height:auto;border-radius:10px;display:inline-block" onerror="this.style.display='none'"/>
         </div>`;
       }
-      return `<div style="text-align:center;padding:12px 0 4px" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="rgba(30,27,75,.2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-        </svg>
-      </div>`;
+      return `<div class="st-img-placeholder" aria-hidden="true">📖</div>`;
     })();
+
+    // ── Catch-up panel (shown as PRIMARY for missed tiles, optional otherwise) ──
+    const catchUpEligible  = !showDone && (tileMissed || showCatchUp(student, land.id, tile.id));
+    const catchUpForcedOpen = tileMissed; // missed = catch-up is the main content
+    const catchUpOpen      = catchUpForcedOpen || !!STATE.catchUpOpen;
+    const catchUpHtml = catchUpOpen ? (() => {
+      const recapText  = schedEntry.recapText || '';
+      const skillVideo = schedEntry.skillVideo || '';
+      const cuPearUrl  = pearUrl;
+      return `<div class="cu-panel${catchUpForcedOpen ? '' : ' enter'}" id="cu-panel">
+        <div class="cu-panel-hdr">
+          <span class="cu-panel-title">📚 Missed a day? — ${sessLabel}</span>
+          ${!catchUpForcedOpen ? `<button class="cu-panel-close" id="cu-close-btn">✕</button>` : ''}
+        </div>
+        <div class="cu-step">
+          <div class="cu-step-num">1</div>
+          <div class="cu-step-body">
+            <div class="cu-step-label">${sessLabel}: Quest Recap</div>
+            ${recapText
+              ? `<div class="cu-recap-text">${recapText.replace(/\n/g,'<br>')}</div>`
+              : `<div class="cu-recap-text cu-recap-empty">Your teacher hasn't added a recap yet — check back soon.</div>`}
+          </div>
+        </div>
+        <div class="cu-step">
+          <div class="cu-step-num">2</div>
+          <div class="cu-step-body">
+            <div class="cu-step-label">${sessLabel}: Skill Video</div>
+            ${skillVideo
+              ? `<a class="cu-link-btn" href="${skillVideo}" target="_blank" rel="noopener noreferrer">▶ ${sessLabel}: Watch the Skill Video</a>`
+              : `<span class="cu-link-empty">Video link coming soon</span>`}
+          </div>
+        </div>
+        <div class="cu-step">
+          <div class="cu-step-num">3</div>
+          <div class="cu-step-body">
+            <div class="cu-step-label">${sessLabel}: Exit Ticket</div>
+            <p class="cu-step-hint">Open the Quest Recap in another tab while you work on the Exit Ticket.</p>
+            ${cuPearUrl
+              ? `<a class="cu-link-btn" href="${cuPearUrl}" target="_blank" rel="noopener noreferrer" id="cu-pear-btn">🏹 ${sessLabel}: Take the Exit Ticket</a>
+                 <button class="cu-complete-btn" id="cu-complete-btn" style="margin-top:10px">✅ Mark as Complete (Catch-Up)</button>`
+              : `<span class="cu-link-empty">Exit ticket link coming soon</span>`}
+          </div>
+        </div>
+      </div>`;
+    })() : '';
+
+    // ── Locked / regular buttons ──────────────────────────────────────────
+    const wgDisabled  = tileIsLocked || showDone;
+    const etDisabled  = tileIsLocked || !exitTicketReady || !pearUrl || showDone;
+    const wgLabel     = tileIsLocked
+      ? `🔒 Opens ${releaseDateStr || 'soon'}`
+      : (readAndLearnDone ? `✓ ${sessLabel}: Read and Learn` : `📖 ${sessLabel}: Read and Learn`);
+    const etLabel     = tileIsLocked
+      ? `🔒 Opens ${releaseDateStr || 'soon'}`
+      : (isBossSession ? `⚔️ ${sessLabel}: Defeat the Boss` : `🏹 ${sessLabel}: Exit Ticket`);
+
+    const showRegularButtons = !showDone && !catchUpForcedOpen;
 
     return `
   <div class="screen ls-screen">
@@ -5197,35 +5621,24 @@ function renderLessonStop() {
         <span class="ls-bc-sep" style="margin:0 4px;opacity:.35">|</span>
         <span class="ls-bc-land">${land.name}</span>
         <span class="ls-bc-sep">›</span>
-        <span class="ls-bc-tile">${tile.name || ""}${tile.sessionTitle ? ` — ${tile.sessionTitle}` : ""}</span>
+        <span class="ls-bc-tile">${sessLabel}${releaseDateStr ? ` · ${releaseDateStr}` : ''}</span>
       </div>
-      ${portraitHtml}
+      ${tileMissed ? `<div class="st-missed-badge">⚠️ Missed — complete the catch-up below</div>` : ''}
+      ${missedBeforeGate > 0 ? `<div class="st-gate-warn">📋 You have ${missedBeforeGate} missed session${missedBeforeGate!==1?'s':''} before this assessment. Finish your catch-up first if you can.</div>` : ''}
+      ${sessionImageHtml}
       ${loreSection}
-      <button class="ls-video-btn${bothChecked ? ' ls-video-btn-done' : ''}" id="ls-video-btn">
-        <span class="ls-play-icon">▶</span>
-        <span class="ls-video-lbl-wrap">
-          <span class="ls-video-main">View Lesson on Wayground</span>
-          ${tile.sessionTitle ? `<span class="ls-video-sub">${tile.sessionTitle}</span>` : ''}
-        </span>
+      ${showRegularButtons ? `
+      <button class="st-rl-btn${readAndLearnDone ? ' st-rl-done' : ''}${wgDisabled ? ' st-btn-locked' : ''}"
+              id="st-rl-btn" ${wgDisabled ? 'disabled' : ''} data-url="${waygroundUrl}">
+        ${wgLabel}
       </button>
-      <div class="ls-flow-checks">
-        <label class="ls-flow-check-item${waygroundDone ? ' ls-flow-check-done' : ''}">
-          <input type="checkbox" class="ls-check-new" data-ls-kind="wayground" ${waygroundDone ? 'checked' : ''} ${showDone ? 'disabled' : ''}/>
-          <span>I completed the Wayground lesson.</span>
-          ${waygroundDone ? '<span class="ls-flow-check-badge">✓</span>' : ''}
-        </label>
-        <label class="ls-flow-check-item${workbookDone ? ' ls-flow-check-done' : ''}">
-          <input type="checkbox" class="ls-check-new" data-ls-kind="workbook" ${workbookDone ? 'checked' : ''} ${showDone ? 'disabled' : ''}/>
-          <span>I showed my completed workbook to a peer or teacher.</span>
-          ${workbookDone ? '<span class="ls-flow-check-badge">✓</span>' : ''}
-        </label>
-      </div>
-      ${!showDone ? `<button class="ls-pear-btn${bothChecked ? '' : ' ls-pear-locked'}" id="ls-pear-btn"
-          data-url="${pearUrl}" ${(!bothChecked || !isActionable || !pearUrl) ? 'disabled' : ''}>
-          ${pearBtnLabel}
-        </button>
-        ${!bothChecked ? '<p class="ls-pear-hint">Check both boxes above to unlock.</p>' : ''}
-        ${bothChecked && !pearUrl ? '<p class="ls-pear-hint">Exit ticket link coming soon.</p>' : ''}` : ''}
+      <button class="st-et-btn${etDisabled ? ' st-btn-locked' : ''}"
+              id="st-et-btn" ${etDisabled ? 'disabled' : ''} data-url="${pearUrl}">
+        ${etLabel}
+      </button>
+      ${!exitTicketReady && !tileIsLocked ? `<p class="ls-pear-hint">Click "${sessLabel}: Read and Learn" first to unlock the Exit Ticket.</p>` : ''}
+      ${exitTicketReady && !pearUrl && !tileIsLocked ? '<p class="ls-pear-hint">Exit ticket link coming soon.</p>' : ''}
+      ` : ''}
       ${showOutcome ? `<p class="ls-outcome-prompt">How did it go?</p>
       <div class="ls-outcome-btns">
         <button class="ls-outcome-btn ls-outcome-pass" id="ls-outcome-pass">${passLabel}</button>
@@ -5236,8 +5649,11 @@ function renderLessonStop() {
           ? (isBossSession
               ? `<div class="ls-retry-card">⚔️ That one didn't go your way — but you're still moving forward! Your teacher will set up another shot at this challenge soon.</div>`
               : `<div class="ls-done-msg">📚 That one needs more practice — your teacher has been notified and will help you get there.</div>`)
-          : `<div class="ls-done-msg">✅ Quest complete! Well done, warrior.</div>`}
+          : `<div class="ls-done-msg">✅ ${sessLabel} complete! Well done, warrior.</div>`}
       </div>` : ''}
+      ${catchUpEligible && !catchUpForcedOpen && !catchUpOpen ? `
+      <button class="cu-open-btn" id="cu-open-btn">📚 Missed a day? Start here</button>` : ''}
+      ${catchUpHtml}
       ${wbRef ? `<div class="ls-workbook">${wbRef}</div>` : ""}
     </div>
     ${_overlays}
@@ -5413,7 +5829,7 @@ function renderLessonStop() {
           const w = isFGK ? 'clamp(220px,85%,340px)' : 'clamp(180px,75%,280px)';
           const bookFallback = "<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' width=\\'48\\' height=\\'48\\' fill=\\'none\\' stroke=\\'rgba(30,27,75,.2)\\' stroke-width=\\'1.5\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><path d=\\'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z\\'/><path d=\\'M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z\\'/></svg>";
           return `<div style="text-align:center;padding:12px 0 4px">
-            ${isFGK ? `<div style="font-size:11px;font-weight:800;letter-spacing:1.8px;color:rgba(251,191,36,.85);text-transform:uppercase;margin-bottom:8px">Final Trial of the Vale</div>` : ''}
+            ${isFGK ? `<div style="font-size:11px;font-weight:800;letter-spacing:1.8px;color:rgba(251,191,36,.85);text-transform:uppercase;margin-bottom:8px">${bs.label || 'Final Trial'}</div>` : ''}
             <div style="width:${w};aspect-ratio:16/9;overflow:hidden;border-radius:10px;margin:0 auto;background:rgba(30,27,75,.08)">
               <img src="/bosses/${bs.portrait}" alt="${bs.bossName || ''}"
                    style="width:100%;height:100%;object-fit:cover;display:block"
@@ -5641,7 +6057,7 @@ function advanceSg0Tile(student, tileId) {
   if (tileId === 6) {
     // Prologue complete — graduate to Land 1
     saveStudentOverride(student.id, {
-      currentLand:1, currentTile:1, completedTiles:[], completedLand0:true,
+      currentLand:2, currentTile:1, completedTiles:[], completedLand0:true, land2Entry:{ bumpedAt:new Date().toISOString(), seen:true },
     });
   } else {
     const order = LAND0.pathOrder;
@@ -5909,9 +6325,21 @@ function renderCapMessageModal() {
 
 function renderQuestMap() {
   const student = getMergedStudent(STATE.student);
-  const pos     = getLandPos(STATE.student);
-  const land    = getLandData(pos.land);
+  const _prePos = getLandPos(STATE.student);  // pre-advance pos, used only for land (land doesn't change)
+  const land    = getLandData(_prePos.land);
   const ov      = getOverrides().students[String(STATE.student.id)] || {};
+
+  // Advance student to current schedule tile if behind — must run BEFORE pos is computed for rendering
+  if (STATE.student && land) autoAdvanceBySchedule(STATE.student, land);
+
+  // Compute pos AFTER advance so the SVG and click handler use the same current tile
+  const pos = getLandPos(STATE.student);
+
+  // Missed-session count for banner
+  const missedSessions = (STATE.student && land) ? getMissedTiles(STATE.student, land) : [];
+  const missedBannerHtml = missedSessions.length > 0
+    ? `<div class="qm-missed-banner" id="qm-missed-banner">📋 You have ${missedSessions.length} missed session${missedSessions.length!==1?'s':''} — tap a gray tile to catch up</div>`
+    : '';
 
   // Land 0 world-map dot
   const sg0Cls  = ov.completedLand0 ? "sg-done" : pos.land === 0 ? "sg-here" : "locked";
@@ -5976,6 +6404,7 @@ function renderQuestMap() {
       <div class="lm-lands">${landDots}</div>
       <span style="font-size:12px;font-weight:800;color:rgba(255,255,255,.55)">Lv.${student.level}</span>
     </div>
+    ${missedBannerHtml}
     <div class="lm-svg-wrap">
       <div class="lm-map-bg" ${land.bgImage ? `style="background-image:url('${land.bgImage}')"` : ""}></div>
       <svg viewBox="0 -30 ${land.W||LW.W} ${(land.H||LW.H)+30}" style="width:100%;height:auto;max-width:${land.W||LW.W}px;display:block" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
@@ -6446,6 +6875,72 @@ function renderTeacherContentLinks() {
     </div>
   </div>`;
 }
+function renderTeacherLessonSchedule() {
+  const landId = STATE.tlsLandId || 1;
+  const land   = LANDS.find(l => l.id === landId) || LANDS[0];
+  const order  = land.pathOrder || [];
+  const tileMap = {};
+  for (const t of (land.tiles || [])) tileMap[t.id] = t;
+
+  const landOpts = LANDS.map(l =>
+    `<option value="${l.id}" ${l.id === landId ? 'selected' : ''}>${l.name}</option>`
+  ).join('');
+
+  const FIELDS = [
+    { key:'releaseDate',  label:'Release Date', type:'date',  ph:'' },
+    { key:'wayground',    label:'Wayground URL', type:'url',   ph:'https://wayground.com/…' },
+    { key:'pear',         label:'Pear Deck URL', type:'url',   ph:'https://app.peardeck.com/…' },
+    { key:'skillVideo',   label:'Skill Video',   type:'url',   ph:'https://…' },
+    { key:'recapText',    label:'Recap Text',    type:'textarea', ph:'Short teacher recap for absent students…' },
+  ];
+
+  const sessionRows = order.map(tid => {
+    const tile  = tileMap[tid];
+    if (!tile || (tile.type !== 'lesson' && tile.type !== 'arrival')) return '';
+    const entry = getLessonScheduleEntry(landId, tid);
+    const fields = FIELDS.map(f => {
+      const val = entry[f.key] || '';
+      const inputId = `tls-${tid}-${f.key}`;
+      if (f.type === 'textarea') {
+        return `<td class="tls-cell"><textarea id="${inputId}" class="tls-input tls-ta" rows="2" placeholder="${f.ph}" data-tid="${tid}" data-field="${f.key}">${val}</textarea></td>`;
+      }
+      return `<td class="tls-cell"><input id="${inputId}" type="${f.type === 'date' ? 'date' : 'text'}" class="tls-input" value="${val}" placeholder="${f.ph}" data-tid="${tid}" data-field="${f.key}"/></td>`;
+    }).join('');
+    return `<tr class="tls-row" data-tid="${tid}">
+      <td class="tls-tile-name">${tile.name}</td>
+      ${fields}
+      <td class="tls-cell"><button class="tls-save-btn" data-save-tid="${tid}">Save</button></td>
+    </tr>`;
+  }).filter(Boolean).join('');
+
+  return `<div class="screen t-dash-screen">
+    <div class="t-dash-wrap">
+      <div class="t-dash-hdr">
+        <button class="btn btn-outline-sm" id="tls-back">← Back</button>
+        <span class="t-dash-title">📅 Lesson Schedule</span>
+        <select id="tls-land-sel" class="tls-land-sel">
+          ${landOpts}
+        </select>
+      </div>
+      <p class="tls-hint">Set release dates and links for each session. Students can't open a tile until its release date arrives.</p>
+      <div class="tls-table-wrap">
+        <table class="tls-table">
+          <thead><tr>
+            <th class="tls-th">Tile</th>
+            <th class="tls-th">Release Date</th>
+            <th class="tls-th">Wayground URL</th>
+            <th class="tls-th">Pear Deck URL</th>
+            <th class="tls-th">Skill Video</th>
+            <th class="tls-th">Recap Text</th>
+            <th class="tls-th"></th>
+          </tr></thead>
+          <tbody>${sessionRows}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderTeacherDashboard() {
   const periods = CLASS_DATA.periods;
   const period  = periods[STATE.teacherPeriodIdx];
@@ -6538,6 +7033,7 @@ function renderTeacherDashboard() {
           <button class="btn btn-outline-sm" id="t-flag-log-btn">🚨 Flag Log</button>
           <button class="btn btn-outline-sm" id="t-jump-tool-btn">🚀 Jump Tool</button>
           <button class="btn btn-outline-sm" id="t-content-links-btn">📚 Content Links</button>
+          <button class="btn btn-outline-sm" id="t-lesson-schedule-btn">📅 Lesson Schedule</button>
           <button class="btn btn-outline-sm" id="t-class-settings-btn">⚙️ Class Settings</button>
           <button class="btn btn-outline-sm t-gold-shop-btn" id="t-gold-shop-btn">
             🪙 Gold Shop${(() => { const n = Object.keys(getShopPending()).length; return n ? `<span class="t-gold-badge">${n}</span>` : ''; })()}
@@ -6796,6 +7292,33 @@ function renderTeacherDashboard() {
             </div>`;
           }).join("")}
         </div>` : ""}
+      ${(() => {
+        // Catch-up list: students with missed sessions, sorted by most missed
+        const allStudents = periods.flatMap(p => p.students.map(s => ({ student: s, period: p })));
+        const catchUpRows = allStudents.map(({ student, period }) => {
+          const pos = getLandPos(student);
+          const land = getLandData(pos.land);
+          const missed = (land && land.id > 0) ? getMissedTiles(student, land) : [];
+          if (missed.length === 0) return null;
+          const missedNames = missed.map(tid => land.tiles.find(t => t.id === tid)?.name || `Tile ${tid}`);
+          const rName = _roster[String(student.id)] || getCharName(student);
+          return { student, period, missed, missedNames, rName };
+        }).filter(Boolean).sort((a,b) => b.missed.length - a.missed.length);
+
+        if (catchUpRows.length === 0) return '';
+        return `<div class="t-catchup-section">
+          <div class="t-catchup-hdr">📋 Catch-Up Needed (${catchUpRows.length} student${catchUpRows.length!==1?'s':''})</div>
+          <div class="t-catchup-list">
+            ${catchUpRows.map(({ student, period, missedNames, rName }) => `
+              <div class="t-catchup-row">
+                <span class="t-catchup-name">${rName}</span>
+                <span class="t-catchup-period">${period.periodName}</span>
+                <span class="t-catchup-missed">${missedNames.join(', ')}</span>
+                <span class="t-catchup-count">${missedNames.length} missed</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+      })()}
       <div class="t-student-grid">${cards}</div>
       ${(() => {
         const guilds = CLASS_DATA && CLASS_DATA.guilds;
@@ -7307,6 +7830,28 @@ function renderTeacherEdit() {
         })()}
       </div>
 
+      ${(() => {
+        const today = new Date().toISOString().split('T')[0];
+        const absences = getStudentAbsences(s.id);
+        const recentDays = Array.from({length:14}, (_,i) => {
+          const d = new Date(); d.setDate(d.getDate() - i);
+          return d.toISOString().split('T')[0];
+        });
+        const abRows = recentDays.map(dt => {
+          const absent = !!absences[dt];
+          return `<label class="t-abs-row">
+            <input type="checkbox" class="t-abs-cb" data-abs-date="${dt}" ${absent ? 'checked' : ''}/>
+            <span class="t-abs-date">${dt}${dt === today ? ' (today)' : ''}</span>
+            ${absent ? '<span class="t-abs-flag">Absent</span>' : ''}
+          </label>`;
+        }).join('');
+        return `<div class="t-section">
+          <div class="t-section-title">📅 Attendance (last 14 days)</div>
+          <p style="font-size:12px;color:rgba(0,0,0,.5);margin:0 0 8px;font-style:italic">Check dates this student was absent. This is used to flag missed sessions.</p>
+          <div class="t-abs-list">${abRows}</div>
+        </div>`;
+      })()}
+
       <button class="btn btn-save" id="t-save-btn">💾 Save Changes</button>
 
       <div class="t-section" style="border-color:#FECACA;margin-top:8px">
@@ -7344,111 +7889,93 @@ function renderTeacherEdit() {
 /* ─── BOSS ROSTER ─── */
 function renderJudgmentHall() {
   const periods = CLASS_DATA.periods || [];
-  // Only Land 1 has boss overlay system
-  const land = LANDS[0];
+  const allStudents = periods.flatMap(p => (p.students || []).map(s => ({ student: s, period: p })));
+  const selectedLandId = STATE.jhLandId || 1;
+  const land = LANDS.find(l => l.id === selectedLandId) || LANDS[0];
   const stdBosses = land.standardBosses || {};
   const gateBosses = land.gateBosses || {};
 
-  // Collect all students across all periods
-  const allStudents = periods.flatMap(p => (p.students || []).map(s => ({ student: s, period: p })));
-
-  // Build boss groups for standard bosses
-  const stdBossOrder = ['duskmantle','mirrorkin','seraphine','keystone'];
-  const stdGroups = stdBossOrder.filter(bk => stdBosses[bk]).map(bk => {
-    const boss = stdBosses[bk];
-    const rows = allStudents
-      .map(({ student, period }) => {
-        const state = getStdBossState(String(student.id), bk);
-        // Show all students who have encountered this boss (any status except not_started)
-        if (state.status === 'not_started') return null;
-        return { student, period, state };
-      })
-      .filter(Boolean);
+  // Standard boss groups — show students with medal earned (mastery_available/requested/defeated)
+  const stdGroups = Object.entries(stdBosses).map(([bk, boss]) => {
+    const rows = allStudents.map(({ student, period }) => {
+      const state = getStdBossState(String(student.id), bk);
+      // Show students who have their medal (last session done) so teacher can award seal
+      const hasMedal = ['mastery_available','mastery_requested','defeated'].includes(state.status);
+      if (!hasMedal) return null;
+      return { student, period, state };
+    }).filter(Boolean);
     return { bossKey:bk, boss, rows, type:'standard' };
   });
 
-  // Build boss groups for gate bosses
-  const gateBossOrder = ['abysmara','feraxis'];
-  const gateGroups = gateBossOrder.filter(bk => gateBosses[bk]).map(bk => {
-    const boss = gateBosses[bk];
-    const rows = allStudents
-      .map(({ student, period }) => {
-        const state = getGateBossState(String(student.id), bk);
-        if (state.status !== 'active' && state.status !== 'awaiting_judgment') return null;
-        return { student, period, state };
-      })
-      .filter(Boolean);
+  // Gate boss groups — students with active (ready for teacher review) or awaiting_judgment
+  const gateGroups = Object.entries(gateBosses).map(([bk, boss]) => {
+    const rows = allStudents.map(({ student, period }) => {
+      const state = getGateBossState(String(student.id), bk);
+      if (state.status !== 'active' && state.status !== 'awaiting_judgment') return null;
+      return { student, period, state };
+    }).filter(Boolean);
     return { bossKey:bk, boss, rows, type:'gate' };
   });
 
   const allGroups = [...stdGroups, ...gateGroups];
 
-  // Summary chips
-  const totalMarked = Object.values(STATE.judgmentHallMarks).filter(m => m && m.result).length;
-  const totalFailed = Object.values(STATE.judgmentHallMarks).filter(m => m && m.result === 'fail').length;
-  const totalDefeated = Object.values(STATE.judgmentHallMarks).filter(m => m && m.result === 'pass').length;
-  // totalPending counts only gate boss rows (std bosses auto-resolve, no teacher action needed)
-  const totalPending = gateGroups.reduce((n, g) => n + g.rows.length, 0) - totalMarked;
+  const totalMarked  = Object.values(STATE.judgmentHallMarks).filter(m => m && m.result).length;
+  const totalFailed  = Object.values(STATE.judgmentHallMarks).filter(m => m && m.result === 'fail').length;
+  const totalPassed  = Object.values(STATE.judgmentHallMarks).filter(m => m && m.result === 'pass').length;
+  const totalPending = allGroups.reduce((n, g) => n + g.rows.length, 0) - totalMarked;
 
-  const bossDisplayNames = {
-    duskmantle:'Duskmantle', mirrorkin:'Mirrorkin', seraphine:'Seraphine', keystone:'The Keystone',
-    abysmara:'Abysmara', feraxis:'Feraxis',
-  };
-  const stdStandardLabels = {
-    duskmantle:'RL.5.1 · Make Inferences', mirrorkin:'RL.5.3 · Compare Characters',
-    seraphine:'RL.5.2 · Story Structure',  keystone:'RI.5.2 · Main Idea / Summarize',
-  };
-  const gateSessionLabels = {
-    abysmara:`S${gateBosses.abysmara?.session ?? 7} · Module 1 Assessment`,
-    feraxis:`S${gateBosses.feraxis?.session ?? 13} · Module 2 Assessment`,
-  };
+  const bkLabel = (bk) => bk.charAt(0).toUpperCase() + bk.slice(1);
 
   const renderBossGroup = (group) => {
     const { bossKey, boss, rows, type } = group;
     const isGate = type === 'gate';
-    const displayName = bossDisplayNames[bossKey] || bossKey;
-    const subLabel = isGate ? gateSessionLabels[bossKey] : stdStandardLabels[bossKey];
-    const totalSessions = !isGate ? boss.sessions.length : 1;
+    const displayName = bkLabel(bossKey);
+    const subLabel = isGate
+      ? `S${boss.session} · ${boss.assessment ? boss.assessment.replace(/_/g,' ') : 'Gate Assessment'}`
+      : (boss.standard || '');
+    const totalSessions = !isGate ? (boss.sessions || []).length : 1;
 
     if (!isGate) {
-      // Standard boss — read-only encounter record, no teacher marking required
+      // Standard boss — pass = Mastery Seal; fail = stays available (medal not removed)
       const rowsHTML = rows.length === 0
-        ? `<tr><td colspan="3" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No students have encountered this boss yet</td></tr>`
+        ? `<tr><td colspan="4" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No students with medal ready for seal</td></tr>`
         : rows.map(({ student, state }) => {
-            const encounterTag = `<span class="jh-enc-tag">${state.encounterCount} of ${totalSessions}</span>`;
-            const statusPill = (() => {
-              if (state.status === 'defeated') return '<span class="jh-pill jh-pill-pass">✓ Completed</span>';
-              if (state.status === 'awaiting_judgment') return '<span class="jh-pill jh-pill-pending">Legacy — Awaiting</span>';
-              if (state.status === 'fightable') return '<span class="jh-pill jh-pill-wound">Legacy — Wounded</span>';
-              if (state.status === 'failed') return '<span class="jh-pill jh-pill-fail">Craft Binder</span>';
-              return '<span class="jh-pill jh-pill-pending">In Progress</span>';
+            const markKey = `${bossKey}_${student.id}`;
+            const pending = STATE.judgmentHallMarks[markKey] || {};
+            const pSel = pending.result === 'pass' ? ' jh-sel-pass' : '';
+            const fSel = pending.result === 'fail' ? ' jh-sel-fail' : '';
+            const currentStatus = (() => {
+              if (state.status === 'defeated')          return '<span class="jh-pill jh-pill-pass">⭐ Seal Awarded</span>';
+              if (state.status === 'mastery_requested') return '<span class="jh-pill jh-pill-pending">🏅 Seal Requested</span>';
+              return '<span class="jh-pill jh-pill-wound">🏅 Medal Earned</span>';
             })();
             return `<tr>
               <td style="font-size:13px;font-weight:700">${getCharName(student)} <span style="font-size:11px;font-weight:400;color:#9CA3AF">(${student.id})</span></td>
-              <td>${encounterTag}</td>
-              <td>${statusPill}</td>
+              <td><span class="jh-enc-tag">${state.encounterCount || '?'} / ${totalSessions}</span></td>
+              <td>${currentStatus}</td>
+              <td>
+                <div style="display:flex;gap:6px">
+                  <button class="jh-tog jh-tog-pass${pSel}" data-jhk="${markKey}" data-jhr="pass" ${state.status === 'defeated' ? 'disabled' : ''}>Award Seal</button>
+                  <button class="jh-tog jh-tog-fail${fSel}" data-jhk="${markKey}" data-jhr="fail" ${state.status === 'defeated' ? 'disabled' : ''}>Not Yet</button>
+                </div>
+              </td>
             </tr>`;
           }).join('');
       return `<div class="jh-group">
         <div class="jh-group-head">
           <div>
             <div class="jh-group-name">${displayName}</div>
-            <div class="jh-group-sub">${subLabel}</div>
+            <div class="jh-group-sub">${subLabel} · Medal auto-awarded; pass here awards Mastery Seal</div>
           </div>
-          <span style="font-size:11px;color:#9CA3AF;font-style:italic">Record only — auto-completes on final session</span>
         </div>
         <table class="jh-table">
-          <thead><tr>
-            <th>Student</th>
-            <th>Encounter</th>
-            <th>Status</th>
-          </tr></thead>
+          <thead><tr><th>Student</th><th>Encounters</th><th>Status</th><th style="width:200px">Seal Decision</th></tr></thead>
           <tbody>${rowsHTML}</tbody>
         </table>
       </div>`;
     }
 
-    // Gate boss — full pass/fail UI (unchanged)
+    // Gate boss — pass = Trophy; fail = retry (up to 2 attempts) or no trophy
     const rowsHTML = rows.length === 0
       ? `<tr><td colspan="4" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No students awaiting judgment</td></tr>`
       : rows.map(({ student, state }) => {
@@ -7456,20 +7983,24 @@ function renderJudgmentHall() {
           const pending = STATE.judgmentHallMarks[markKey] || {};
           const pSel = pending.result === 'pass' ? ' jh-sel-pass' : '';
           const fSel = pending.result === 'fail' ? ' jh-sel-fail' : '';
+          const attemptNum  = state.attemptCount || 1;
+          const isLastChance = attemptNum >= 2;
+          const attemptTag  = `<span class="jh-enc-tag" ${isLastChance ? 'style="background:#FEE2E2;color:#991B1B"' : ''}>Attempt ${attemptNum}${isLastChance ? ' (last)' : ''}</span>`;
           const currentStatus = (() => {
-            if (pending.result === 'fail') return '<span class="jh-pill jh-pill-fail">Craft Binder</span>';
-            if (pending.result === 'pass') return '<span class="jh-pill jh-pill-pass">Defeated</span><span class="jh-mastery-badge">🏆 Mastery Achieved</span>';
+            if (pending.result === 'fail') return `<span class="jh-pill jh-pill-fail">${isLastChance ? 'No Trophy' : 'Retry'}</span>`;
+            if (pending.result === 'pass') return '<span class="jh-pill jh-pill-pass">🏆 Trophy Earned</span>';
             return '<span class="jh-pill jh-pill-pending">Awaiting mark</span>';
           })();
           const excellenceCell = `<td>${
             pending.result === 'pass'
               ? (STATE.jhExcellenceAwarded[markKey]
                   ? `<span class="jh-exc-awarded">✓ Awarded</span>`
-                  : `<button class="jh-exc-btn" data-jhk-exc="${markKey}" data-exc-sid="${student.id}">⭐ Excellence Bonus</button>`)
+                  : `<button class="jh-exc-btn" data-jhk-exc="${markKey}" data-exc-sid="${student.id}">⭐ Excellence</button>`)
               : ''
           }</td>`;
           return `<tr>
             <td style="font-size:13px;font-weight:700">${getCharName(student)} <span style="font-size:11px;font-weight:400;color:#9CA3AF">(${student.id})</span></td>
+            <td>${attemptTag}</td>
             <td>
               <div style="display:flex;gap:6px">
                 <button class="jh-tog jh-tog-pass${pSel}" data-jhk="${markKey}" data-jhr="pass">Pass</button>
@@ -7480,7 +8011,6 @@ function renderJudgmentHall() {
             ${excellenceCell}
           </tr>`;
         }).join('');
-
     return `<div class="jh-group">
       <div class="jh-group-head">
         <div>
@@ -7490,12 +8020,7 @@ function renderJudgmentHall() {
         <button class="jh-bulk-pass" data-jh-bulk="${bossKey}">Mark all pass</button>
       </div>
       <table class="jh-table">
-        <thead><tr>
-          <th>Student</th>
-          <th style="width:180px">Result</th>
-          <th>Status</th>
-          <th>Excellence</th>
-        </tr></thead>
+        <thead><tr><th>Student</th><th>Attempt</th><th style="width:180px">Result</th><th>Status</th><th>Excellence</th></tr></thead>
         <tbody>${rowsHTML}</tbody>
       </table>
     </div>`;
@@ -7503,24 +8028,33 @@ function renderJudgmentHall() {
 
   const groupsHTML = allGroups.map(renderBossGroup).join('');
 
+  // Land selector
+  const availableLands = LANDS.filter(l => l.standardBosses || l.gateBosses);
+  const landSelHTML = availableLands.length > 1
+    ? `<select id="jh-land-sel" style="border:1px solid #D1D5DB;border-radius:6px;padding:6px 10px;font-size:13px;background:#FFFFFF;color:#111827;cursor:pointer">
+        ${availableLands.map(l => `<option value="${l.id}" ${l.id === selectedLandId ? 'selected' : ''}>${l.name}</option>`).join('')}
+      </select>`
+    : `<span style="font-size:12px;color:#9CA3AF">${land.name}</span>`;
+
   return `<div class="screen boss-roster-screen">
     <div class="boss-roster-wrap">
       <div class="brs-hdr">
         <button class="brs-back-btn" id="jh-back">← Dashboard</button>
         <div>
           <div style="font-size:20px;font-weight:900;color:#F3F4F6;letter-spacing:.5px">⚖️ Judgment Hall</div>
-          <div style="font-size:12px;color:#9CA3AF;margin-top:2px">Land 1 · The Verdant Vale — Weekly Check-in</div>
+          <div style="font-size:12px;color:#9CA3AF;margin-top:2px">${land.name} — Medals, Seals &amp; Trophies</div>
         </div>
+        <div style="display:flex;gap:10px;align-items:center">${landSelHTML}</div>
         <div style="display:flex;gap:10px">
           <div class="jh-chip"><span class="jh-chip-n">${totalMarked}</span> marked</div>
-          <div class="jh-chip"><span class="jh-chip-n">${totalFailed}</span> to Craft Binder</div>
-          <div class="jh-chip"><span class="jh-chip-n">${totalDefeated}</span> defeated</div>
+          <div class="jh-chip"><span class="jh-chip-n">${totalFailed}</span> failed</div>
+          <div class="jh-chip"><span class="jh-chip-n">${totalPassed}</span> passed</div>
           <div class="jh-chip"><span class="jh-chip-n">${totalPending}</span> unreviewed</div>
         </div>
       </div>
       <div class="jh-legend">
-        <span><span class="jh-swatch" style="background:#10B981"></span> Gatekeeper Pass = Defeated; Fail = routes to Craft Binder</span>
-        <span>Standard bosses auto-complete on their final session — no teacher action needed</span>
+        <span><span class="jh-swatch" style="background:#FCD34D"></span> Medal auto-awarded on final session; Award Seal here to upgrade to Mastery Seal</span>
+        <span><span class="jh-swatch" style="background:#10B981"></span> Gate boss Pass = Trophy; Fail (2nd attempt) = no trophy awarded</span>
       </div>
       <div class="jh-groups">${groupsHTML}</div>
       <div class="jh-footer">
@@ -7991,6 +8525,7 @@ function mount() {
   if (STATE.screen === "teacher-judgment-hall") root.innerHTML = renderJudgmentHall();
   if (STATE.screen === "teacher-flag-log") root.innerHTML = renderFlagLog();
   if (STATE.screen === "teacher-content-links") root.innerHTML = renderTeacherContentLinks();
+  if (STATE.screen === "teacher-lesson-schedule") root.innerHTML = renderTeacherLessonSchedule();
 
   // No scroll needed for land map (fits on screen)
 
@@ -8058,6 +8593,7 @@ function bindEvents() {
                 STATE.newPinStep = 'enter'; STATE.newPinEntry = ''; STATE.newPinFirst = '';
                 STATE.screen = "set-pin"; mount();
               } else {
+              const _land2Splash = ensureLand2Entry(STATE.student);
               const _pos = getLandPos(STATE.student);
               const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0;
               const _inSanctumLand = isInSanctum(STATE.student);
@@ -8083,7 +8619,7 @@ function bindEvents() {
               } else {
                 STATE.screen = _routeAfterPin();
               }
-              mount();
+              if (_land2Splash) { playLand2EntrySplash(_routeAfterPin); } else { mount(); }
               }
             } else {
               STATE.pinError = "Incorrect secret number! Try again, brave adventurer.";
@@ -8123,6 +8659,7 @@ function bindEvents() {
               }
               saveStudentOverride(STATE.student.id, { customPin: entry, pinSet: true });
               STATE.pinError = '';
+              const _land2Splash = ensureLand2Entry(STATE.student);
               const _pos = getLandPos(STATE.student);
               const _firstTimer = _pos.land === 0 && (_pos.completed || []).length === 0;
               const _inSanctumLand = isInSanctum(STATE.student);
@@ -8142,7 +8679,8 @@ function bindEvents() {
                   STATE.writingEventReturnTo = 'sanctum-map';
                   STATE.screen = "sanctum-map";
                 } else { STATE.screen = _routeAfterPin(); }
-              } else { STATE.screen = _routeAfterPin(); }
+              } else if (_land2Splash) { playLand2EntrySplash(_routeAfterPin); return; }
+              else { STATE.screen = _routeAfterPin(); }
               mount();
             }
           }, 200);
@@ -8732,6 +9270,11 @@ function bindEvents() {
       STATE.screen = "teacher-content-links";
       mount();
     });
+    $("t-lesson-schedule-btn") && $("t-lesson-schedule-btn").addEventListener("click", () => {
+      STATE.screen = "teacher-lesson-schedule";
+      STATE.tlsLandId = STATE.tlsLandId || 1;
+      mount();
+    });
 
     $("t-class-settings-btn") && $("t-class-settings-btn").addEventListener("click", () => { STATE.classSettingsOpen = true; mount(); });
     if (STATE.classSettingsOpen) {
@@ -9218,6 +9761,16 @@ function bindEvents() {
       clearHelpFlag(STATE.teacherStudent.id); mount();
     });
 
+    /* Attendance checkboxes */
+    document.querySelectorAll(".t-abs-cb").forEach(cb => {
+      cb.addEventListener("change", () => {
+        const dt = cb.dataset.absDate;
+        if (!dt || !STATE.teacherStudent) return;
+        setStudentAbsence(STATE.teacherStudent.id, dt, !cb.checked);
+        mount();
+      });
+    });
+
     /* Save */
     $("t-save-btn") && $("t-save-btn").addEventListener("click", () => {
       const xpVal = parseInt(($("xp-inp")||{}).value,10) || STATE.teacherEdit.xp;
@@ -9382,6 +9935,16 @@ function bindEvents() {
       const _ts = tileState(tile, pos, false, land);
       if (_ts === "capped") { STATE.capMessageOpen = true; mount(); return; }
       if (_ts === "locked") {
+        // Allow navigation to missed lesson tiles so the catch-up panel opens as primary content
+        const LESSON_TYPES = new Set(["lesson","forge","studyHall","camp"]);
+        if (LESSON_TYPES.has(tile.type) && isTileMissed(STATE.student, land, tile.id)) {
+          STATE.lessonTile = tile;
+          STATE.lessonLand = land;
+          STATE.lessonOpenedAt = Date.now();
+          STATE.screen = "lesson-stop";
+          mount();
+          return;
+        }
         if (tile.type === "boss" || tile.type === "dungeon") { STATE.bossLockedOpen = true; mount(); }
         return;
       }
@@ -9719,8 +10282,8 @@ function bindEvents() {
     document.querySelectorAll("[data-jh-bulk]").forEach(btn => {
       btn.addEventListener("click", () => {
         const bossKey = btn.dataset.jhBulk;
-        const land = LANDS[0];
-        if (land.standardBosses?.[bossKey]) return; // std bosses auto-resolve, no bulk-mark
+        const land = LANDS.find(l => l.id === (STATE.jhLandId || 1)) || LANDS[0];
+        if (land.standardBosses?.[bossKey]) return; // std bosses use seal flow, no bulk-mark
         const periods = CLASS_DATA.periods || [];
         const allStudents = periods.flatMap(p => (p.students || []));
         allStudents.forEach(student => {
@@ -9735,25 +10298,52 @@ function bindEvents() {
       });
     });
 
+    // Land selector
+    $("jh-land-sel") && $("jh-land-sel").addEventListener("change", e => {
+      STATE.jhLandId = Number(e.target.value) || 1;
+      mount();
+    });
+
     // Save
     $("jh-save") && $("jh-save").addEventListener("click", () => {
-      const land = LANDS[0];
+      const land = LANDS.find(l => l.id === (STATE.jhLandId || 1)) || LANDS[0];
       const entries = Object.entries(STATE.judgmentHallMarks).filter(([, m]) => m && m.result);
       let count = 0;
       entries.forEach(([key, mark]) => {
         const sep = key.lastIndexOf('_');
         const bossKey = key.slice(0, sep);
         const studentId = key.slice(sep + 1);
-        const isStd = !!land.standardBosses?.[bossKey];
-        if (isStd) {
-          // Standard bosses auto-resolve — skip any stale marks
-          return;
+        if (land.standardBosses?.[bossKey]) {
+          // Standard boss — pass = Mastery Seal; fail = back to mastery_available (medal kept)
+          const cur = getStdBossState(studentId, bossKey);
+          if (mark.result === 'pass') {
+            setStdBossState(studentId, bossKey, { ...cur, status:'defeated', sealAwarded:true, sealAt:new Date().toISOString() });
+            logActivity(studentId, '⭐', `Mastery Seal awarded: ${bossKey}`);
+          } else {
+            // Fail — keep medal, reset to mastery_available so they can re-request
+            if (cur.status === 'mastery_requested') {
+              setStdBossState(studentId, bossKey, { ...cur, status:'mastery_available' });
+            }
+          }
+          count++;
         } else if (land.gateBosses?.[bossKey]) {
+          // Gate boss — pass = Trophy; fail = retry or no_trophy after 2 attempts
           const cur = getGateBossState(studentId, bossKey);
-          const newStatus = mark.result === 'pass' ? 'defeated' : 'failed';
-          setGateBossState(studentId, bossKey, { ...cur, status:newStatus });
+          if (mark.result === 'pass') {
+            const firstTry = (cur.attemptCount || 1) === 1;
+            setGateBossState(studentId, bossKey, { ...cur, status:'defeated', trophyEarned:true, firstTryPass:firstTry, defeatedAt:new Date().toISOString() });
+            logActivity(studentId, '🏆', `Trophy earned: ${bossKey}${firstTry ? ' (1st try!)' : ''}`);
+          } else {
+            const attempts = cur.attemptCount || 1;
+            if (attempts >= 2) {
+              setGateBossState(studentId, bossKey, { ...cur, status:'no_trophy', noTrophyAt:new Date().toISOString() });
+              logActivity(studentId, '❌', `No trophy — ${bossKey} (2 attempts used)`);
+            } else {
+              setGateBossState(studentId, bossKey, { ...cur, status:'active', attemptCount:attempts + 1 });
+            }
+          }
+          count++;
         }
-        count++;
       });
       STATE.judgmentHallMarks = {};
       STATE.screen = "teacher-dash";
@@ -9779,7 +10369,7 @@ function bindEvents() {
         }
         if (!foundStudent) return;
         STATE.jhExcellenceAwarded[markKey] = true;
-        const land = LANDS[0];
+        const land = LANDS.find(l => l.id === (STATE.jhLandId || 1)) || LANDS[0];
         awardFromPool(foundStudent, land.name, 'legendary');
         logActivity(studentId, '⭐', 'Gatekeeper Excellence Bonus awarded');
         mount();
@@ -9872,6 +10462,28 @@ function bindEvents() {
         saveTileLink(_tclLand.id, tileId, field, url);
         btn.textContent = '✓';
         setTimeout(() => { btn.textContent = 'Save'; }, 1800);
+      });
+    });
+  }
+
+  if (STATE.screen === "teacher-lesson-schedule") {
+    $("tls-back") && $("tls-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; mount(); });
+    $("tls-land-sel") && $("tls-land-sel").addEventListener("change", e => {
+      STATE.tlsLandId = Number(e.target.value) || 1;
+      mount();
+    });
+    document.querySelectorAll(".tls-save-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tid = Number(btn.dataset.saveTid);
+        const row = btn.closest("tr[data-tid]");
+        if (!row) return;
+        row.querySelectorAll("[data-tid][data-field]").forEach(inp => {
+          const field = inp.dataset.field;
+          const val   = inp.value.trim();
+          saveLessonScheduleField(STATE.tlsLandId || 1, tid, field, val || null);
+        });
+        btn.textContent = '✓ Saved';
+        setTimeout(() => { btn.textContent = 'Save'; }, 2000);
       });
     });
   }
@@ -10184,7 +10796,7 @@ function bindEvents() {
   }
 
   if (STATE.screen === "lesson-stop") {
-    document.querySelectorAll(".ls-back-btn").forEach(btn => btn.addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.screen = "quest-map"; mount(); }));
+    document.querySelectorAll(".ls-back-btn").forEach(btn => btn.addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.catchUpOpen = false; STATE.screen = "quest-map"; mount(); }));
 
     // Camp tile flow
     $("camp-task-check") && $("camp-task-check").addEventListener("change", e => {
@@ -10505,6 +11117,72 @@ function bindEvents() {
         saveTaskCheck(STATE.student.id, STATE.lessonTile.id, 'exitTicketOpened', 0, true);
         mount();
       }
+    });
+
+    // New lesson tile: "Read and Learn" button
+    $("st-rl-btn") && $("st-rl-btn").addEventListener("click", () => {
+      const btn = $("st-rl-btn");
+      if (btn && btn.disabled) return;
+      const url = btn && btn.dataset.url;
+      if (url) window.open(url, "_blank", "noopener");
+      if (STATE.student && STATE.lessonTile) {
+        saveTaskCheck(STATE.student.id, STATE.lessonTile.id, 'wayground', 0, true);
+        saveTaskTimestamp(STATE.student.id, STATE.lessonTile.id, 'wayground', 0);
+        mount();
+      }
+    });
+
+    // New lesson tile: "Exit Ticket" button
+    $("st-et-btn") && $("st-et-btn").addEventListener("click", () => {
+      const btn = $("st-et-btn");
+      if (btn && btn.disabled) return;
+      const url = btn && btn.dataset.url;
+      if (url) window.open(url, "_blank", "noopener");
+      if (STATE.student && STATE.lessonTile) {
+        saveTaskCheck(STATE.student.id, STATE.lessonTile.id, 'exitTicketOpened', 0, true);
+        mount();
+      }
+    });
+
+    // Catch-up panel open
+    $("cu-open-btn") && $("cu-open-btn").addEventListener("click", () => {
+      STATE.catchUpOpen = true;
+      mount();
+    });
+
+    // Catch-up panel close
+    $("cu-close-btn") && $("cu-close-btn").addEventListener("click", () => {
+      STATE.catchUpOpen = false;
+      mount();
+    });
+
+    // Catch-up completion (fires same boss updates as normal completion)
+    $("cu-complete-btn") && $("cu-complete-btn").addEventListener("click", () => {
+      const student = STATE.student;
+      const tile    = STATE.lessonTile;
+      const land    = STATE.lessonLand || LANDS[0];
+      if (!student || !tile) return;
+      const pos = getLandPos(student);
+
+      recordCompletionMode(student.id, tile.id, 'catchUp');
+      saveTaskCheck(student.id, tile.id, 'outcomeRecorded', 0, true);
+      saveTaskCheck(student.id, tile.id, 'outcomeFail', 0, false);
+      saveStudentOverride(student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
+
+      const timeOnPage = STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null;
+      saveTileCompletion(student.id, tile.id, timeOnPage);
+      updateBossStateOnTileComplete(student, tile.id, land);
+      const xpAmount = 3;
+      const goldAmount = 3;
+      const _lvl = awardXP(student, xpAmount);
+      awardGold(student, goldAmount);
+      logActivity(student.id, '📚', `Catch-up completed: ${tile.name} (+${xpAmount} XP, +${goldAmount} 🪙)`);
+      if (_lvl.levelsGained > 0) logActivity(student.id, '⬆️', `Reached Level ${_lvl.newLevel}!`);
+
+      STATE.catchUpOpen = false;
+      showXPCelebration(xpAmount, _lvl.levelsGained, _lvl.newLevel, () => showGoldToast(goldAmount, () => {
+        STATE.screen = "quest-map"; mount();
+      }));
     });
 
     // Lesson tile flow: Pass outcome
@@ -10888,7 +11566,13 @@ Promise.all([
   CLASS_DATA = data;
   CLASS_DATA.periods.forEach(p => { p.students = getPeriodStudents(p.id); });
   fetch('/roster.local.json').then(r => r.ok ? r.json() : {}).then(r => { _roster = r; }).catch(() => {});
-  fetch('/bossSchedule.json').then(r => r.ok ? r.json() : {}).then(d => { BOSS_SCHEDULE = d; }).catch(() => {});
+  fetch('/bossSchedule.json').then(r => r.ok ? r.json() : {}).then(d => { BOSS_SCHEDULE = new Proxy(d, { get(t, k) {
+  if (typeof k !== "string") return t[k];
+  let landId = 1;
+  try { landId = (STATE.lessonLand && STATE.lessonLand.id) || (STATE.student ? getLandPos(STATE.student).land : 1) || 1; } catch (e) {}
+  if (landId > 1) return t[`${landId}-${k}`];   // Land 2+ entries are keyed "land-tile"; never leak Land 1's
+  return t[k];
+} }); }).catch(() => {});
   seedAndMigrate().catch(console.error);
   STATE.screen = 'code';
   mount();
