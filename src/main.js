@@ -4517,10 +4517,16 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
     : vt==='finalGatekeeper' ? "#FCA5A5"
     : vt==='scribesCalling'  ? "#FDE68A"
     : "rgba(255,255,255,.88)";
-  const nameFS   = vt==='finalGatekeeper'?10 : vt==='scribesCalling'?9 : vt==='standaloneBoss'?8.5 : vt==='regular'?10 : 8;
   const _sMatch  = /^S(\d+)$/.exec(name);
-  const displayName = (vt === 'regular' && _sMatch) ? `Session ${_sMatch[1]}` : name;
-  const nameEl   = `<text x="${x}" y="${nameY}" text-anchor="middle" font-size="${nameFS}" font-weight="bold" fill="${nameFill}" font-family="Arial" stroke="rgba(0,0,0,.7)" stroke-width="${vt==='regular'?1.5:0}" paint-order="stroke">${displayName}</text>`;
+  const _sessionStyle = vt==='regular' || !!_sMatch || /^S\d+b$/i.test(name); // same look as "Session 2"
+  const nameFS   = vt==='finalGatekeeper'?10 : vt==='scribesCalling'?9 : _sessionStyle?10 : vt==='standaloneBoss'?8.5 : 8;
+  // Map labels only (tile.name is unchanged): camps (which always follow a gatekeeper) → "Camp Day",
+  // "S5b"-style review tiles → "Study Hall", any other "S12"-style tile → "Session 12".
+  const displayName = vt === 'camp' && /^S\d+$/.test(name) ? 'Camp Day'
+    : /^S\d+b$/i.test(name) ? 'Study Hall'
+    : _sMatch ? `Session ${_sMatch[1]}`
+    : name;
+  const nameEl   = `<text x="${x}" y="${nameY}" text-anchor="middle" font-size="${nameFS}" font-weight="bold" fill="${nameFill}" font-family="Arial" stroke="rgba(0,0,0,.7)" stroke-width="${_sessionStyle?1.5:0}" paint-order="stroke">${displayName}</text>`;
   const skillEl  = skill && !locked ? `<text x="${x}" y="${nameY+13}" text-anchor="middle" font-size="7.5" fill="${done||brd?"#FDE68A":"#93C5FD"}" font-family="Arial" font-weight="700">${skill}</text>` : "";
   const typeTag  = !locked ? (
     vt==='finalGatekeeper'
