@@ -315,6 +315,148 @@ LOOT_CHALLENGES[30] = {
   ]
 };
 
+/* ─── LOOT ENCOUNTERS (story-only loot tiles) ───
+   Keyed "landId_tileId" so a loot tile in one Land never picks up another Land's
+   encounter. Encounter progress lives only in STATE.lootEnc (in memory, never
+   written to Firebase). The final step renders the standard #loot-claim-btn, so
+   completion + the normal loot reward run through the existing claim handler. */
+const LOOT_ENCOUNTERS = {
+  "2_31": {
+    title: "The Forgotten Mine",
+    npcKey: "gravenborn_lore",
+    intro: [
+      "Psst — over here, traveler. Below these halls lies an old mine. No Gravenborn has worked it in a hundred years.",
+      "But lately I hear tapping down there. Tap. Tap. Tap. Like someone is still building.",
+      "Will you go down and look around? Tell me what you find.",
+    ],
+    classNotes: {
+      Warrior: "Your Warrior's grip tightens on your gear. The tunnel is narrow, but you have faced worse.",
+      Archer:  "Your Archer's sharp eyes spot faint chisel marks on every wall. Someone was here.",
+      Elf:     "Your Elf ears catch it first: a soft humming, deeper in the dark.",
+      Wizard:  "Your Wizard's senses tingle. Old magic is sleeping somewhere in this mine.",
+    },
+    petLine: pet => `Your ${pet} sniffs the dusty floor, sneezes, then trots in a happy circle. It seems to like it down here.`,
+    objects: [
+      { id:"runes", icon:"✨", label:"Glowing Runes",
+        desc: "Blue runes shimmer on a smooth stone wall. They pulse slowly, like a heartbeat.",
+        actions: [
+          { label:"Trace the runes with your finger", outcome:"The runes warm under your hand. Letters slide into place and spell a message." },
+          { label:"Hold up a light and read them",   outcome:"Your light makes the runes glow brighter. Slowly, the carving becomes words." },
+        ],
+        clue: "The runes read: \"I build so that every reader will ask a question.\" The Eternal Architect left this message." },
+      { id:"wall", icon:"🧱", label:"Cracked Wall",
+        desc: "A long crack splits this wall. Cool air whistles through it from somewhere beyond.",
+        actions: [
+          { label:"Peek through the crack",     outcome:"You press one eye to the gap. On the other side is a hidden hall, lit by tiny lanterns." },
+          { label:"Tap the stones and listen",  outcome:"Tap. Tap. Something taps back! Dust trickles down, and the crack opens just wide enough to see through." },
+        ],
+        clue: "Beyond the wall, a brand-new stone arch is half finished, and the tool marks are fresh. The Architect is still building down here." },
+      { id:"chest", icon:"🧰", label:"Old Chest",
+        desc: "An iron-bound chest sits in the corner, covered in a blanket of dust.",
+        actions: [
+          { label:"Lift the lid carefully",          outcome:"The hinges creak. Inside: a worn chisel and a folded page of Gravenborn writing." },
+          { label:"Brush off the dust and look first", outcome:"Under the dust you find a carved star map on the lid. You open it slowly. Inside: a chisel and a folded page." },
+        ],
+        clue: "The page says: \"The Architect asked us one question before it began: What is worth the journey?\" It is the same question carved above the great gate." },
+    ],
+    outro: {
+      1: "Hmm. Only one clue, but a real one. The Architect is still down there, and now we know it.",
+      2: "Two clues! You have sharp eyes. The Architect leaves trails for readers who look closely.",
+      3: "All three clues! You have uncovered more than any Gravenborn in a hundred years.",
+      end: "Keep what you found in mind, traveler. When you finally face the Eternal Architect, it will ask what you believe. Take this for your trouble.",
+    },
+  },
+};
+function getLootEncounter(land, tile) {
+  return (land && tile && LOOT_ENCOUNTERS[`${land.id}_${tile.id}`]) || null;
+}
+function renderLootEncounter(enc, ctx) {
+  const { student, tile, land, isCompleted, isActionable, overlays } = ctx;
+  const key = `${student ? student.id : "?"}:${land.id}_${tile.id}`;
+  if (!STATE.lootEnc || STATE.lootEnc.key !== key) {
+    STATE.lootEnc = { key, step:"intro", objId:null, actionIdx:null, found:{}, petShown:false };
+  }
+  const es  = STATE.lootEnc;
+  const npc = (CLASS_DATA && CLASS_DATA.npcs && CLASS_DATA.npcs[enc.npcKey]) || {};
+  const npcName = npc.name || "Guide";
+  const merged  = student ? getMergedStudent(student) : {};
+  const clsLabel = student ? (CLS_LABEL[clsKey(student, merged)] || "") : "";
+  const petFile  = merged.activeCompanion || "";
+  const petName  = petFile ? petFile.replace(/^\d+-/, "").replace(/\.png$/i, "").replace(/[^a-z]+/gi, " ").trim().replace(/\b\w/g, c => c.toUpperCase()) : "";
+  const foundIds = enc.objects.filter(o => es.found[o.id]).map(o => o.id);
+
+  const btn = (attrs, label, primary) =>
+    `<button ${attrs} style="display:block;width:100%;min-height:48px;padding:12px 16px;margin-top:8px;border-radius:12px;font-family:var(--font-display);font-size:15px;font-weight:800;cursor:pointer;text-align:center;${primary
+      ? "background:linear-gradient(135deg,#7C3AED,#5B21B6);color:#fff;border:2px solid #A78BFA"
+      : "background:rgba(124,58,237,.06);color:var(--text-dark);border:2px solid rgba(124,58,237,.25)"}">${label}</button>`;
+  const npcBubble = lines => `<div style="display:flex;gap:12px;align-items:flex-start">
+      ${npc.image ? `<img src="${npc.image}" alt="${npcName}" style="width:72px;height:72px;flex-shrink:0;object-fit:contain;border-radius:12px;background:rgba(124,58,237,.12)" onerror="this.style.display='none'"/>` : ""}
+      <div style="flex:1;background:rgba(124,58,237,.06);border:1.5px solid rgba(124,58,237,.2);border-radius:12px;padding:10px 14px">
+        <div style="font-size:11px;font-weight:900;letter-spacing:1px;color:#7C3AED;text-transform:uppercase;margin-bottom:4px">${npcName}</div>
+        ${lines.map(l => `<p style="margin:0 0 6px;font-size:14px;line-height:1.5;color:var(--text-dark)">${l}</p>`).join("")}
+      </div>
+    </div>`;
+  const clueBox = text => `<div style="background:rgba(245,158,11,.08);border:1.5px solid rgba(245,158,11,.35);border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.5;color:var(--text-mid)">🔍 <b>Clue:</b> ${text}</div>`;
+
+  let body = "";
+  if (!isCompleted && !isActionable) {
+    body = `<div class="ls-done-state" style="text-align:center"><div class="ls-done-msg">🔒 Finish the session before this path to explore here.</div></div>`;
+  } else if (es.step === "intro") {
+    body = `${npcBubble(enc.intro)}
+      ${isCompleted ? `<div style="font-size:12px;text-align:center;color:var(--text-mid)">✅ Loot already claimed — you can explore again just for the story.</div>` : ""}
+      ${btn('data-enc-go="explore"', "🔦 Enter the Mine", true)}`;
+  } else if (es.step === "explore") {
+    const cards = enc.objects.map(o => `<button data-enc-obj="${o.id}" style="flex:1 1 130px;min-height:96px;padding:12px 8px;border-radius:14px;cursor:pointer;font-family:var(--font-display);font-weight:800;font-size:14px;color:var(--text-dark);background:${es.found[o.id] ? "rgba(5,150,105,.08)" : "rgba(124,58,237,.06)"};border:2px solid ${es.found[o.id] ? "#34D399" : "rgba(124,58,237,.25)"}">
+        <div style="font-size:30px;line-height:1.2">${o.icon}</div>${o.label}${es.found[o.id] ? '<div style="font-size:11px;color:#059669;margin-top:2px">✓ Clue found</div>' : ""}
+      </button>`).join("");
+    body = `<p style="margin:0;font-size:14px;line-height:1.5;color:var(--text-mid)">The tunnel opens into a dusty cavern. Three things catch your eye. What will you investigate?</p>
+      ${enc.classNotes[clsLabel] ? `<p style="margin:0;font-size:13px;line-height:1.5;color:#5B21B6;font-style:italic">${enc.classNotes[clsLabel]}</p>` : ""}
+      ${petName ? (es.petShown
+        ? `<p style="margin:0;font-size:13px;line-height:1.5;color:#065F46;font-style:italic">🐾 ${enc.petLine(petName)}</p>`
+        : `<button data-enc-pet="1" style="align-self:flex-start;min-height:40px;padding:8px 14px;border-radius:20px;border:1.5px dashed #34D399;background:rgba(16,185,129,.06);color:#065F46;font-weight:800;font-size:13px;cursor:pointer">🐾 Let your ${petName} explore</button>`) : ""}
+      <div style="display:flex;flex-wrap:wrap;gap:10px">${cards}</div>
+      ${foundIds.length ? `<div style="font-size:12px;font-weight:800;color:var(--text-mid);text-align:center">Clues found: ${foundIds.length} / ${enc.objects.length}</div>` : ""}
+      ${foundIds.length
+        ? btn('data-enc-go="outro"', `↩ Return to ${npcName}`, true)
+        : `<div style="font-size:12px;color:var(--text-mid);text-align:center">Find at least one clue, then return to ${npcName}.</div>`}`;
+  } else if (es.step === "object") {
+    const o = enc.objects.find(x => x.id === es.objId) || enc.objects[0];
+    const act = es.actionIdx != null ? o.actions[es.actionIdx] : null;
+    body = `<div style="text-align:center;font-size:44px;line-height:1">${o.icon}</div>
+      <div style="text-align:center;font-family:var(--font-display);font-size:18px;font-weight:900;color:var(--text-dark)">${o.label}</div>
+      <p style="margin:0;font-size:14px;line-height:1.5;color:var(--text-mid)">${o.desc}</p>
+      ${act
+        ? `<p style="margin:0;font-size:14px;line-height:1.5;color:var(--text-dark)">${act.outcome}</p>${clueBox(o.clue)}${btn('data-enc-go="explore"', "← Back to the cavern", true)}`
+        : `${o.actions.map((a, i) => btn(`data-enc-act="${i}"`, a.label, false)).join("")}${btn('data-enc-go="explore"', "← Step back", false)}`}`;
+  } else {
+    const n = Math.max(1, Math.min(3, foundIds.length));
+    body = `${npcBubble([enc.outro[n], enc.outro.end])}
+      ${enc.objects.filter(o => es.found[o.id]).map(o => clueBox(o.clue)).join("")}
+      ${isCompleted
+        ? `<div class="ls-done-state"><div class="ls-done-msg">✅ Loot claimed! Treasure secured.</div></div>`
+        : `<button class="ls-submit-btn enter" id="loot-claim-btn" style="margin-top:4px">💰 Claim Loot!</button>`}
+      ${btn('data-enc-go="explore"', "← Keep exploring", false)}`;
+  }
+
+  return `
+  <div class="screen ls-screen">
+    <div class="ls-card enter">
+      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
+      <div class="ls-breadcrumb" style="padding-right:28px;margin-bottom:4px">
+        <button class="ls-bc-back ls-back-btn">← Quest Map</button>
+        <span class="ls-bc-sep" style="margin:0 4px;opacity:.35">|</span>
+        <span class="ls-bc-land">${land.name}</span>
+        <span class="ls-bc-sep">›</span>
+        <span class="ls-bc-tile">${enc.title}</span>
+      </div>
+      <div style="text-align:center;font-family:var(--font-display);font-size:22px;font-weight:900;color:var(--text-dark)">⛏️ ${enc.title}</div>
+      ${body}
+      ${!isCompleted && isActionable ? `<div style="font-size:11px;color:var(--text-mid);text-align:center;opacity:.8">You can leave with ✕ and come back — your place is kept until you close or refresh the game.</div>` : ""}
+    </div>
+    ${overlays}
+  </div>`;
+}
+
 function resolveCollabQuest(tileId, tile) {
   const idx = Math.abs(tileId * 17 + 31) % COLLAB_QUEST_TEMPLATES.length;
   const tmpl = COLLAB_QUEST_TEMPLATES[idx];
@@ -5737,6 +5879,8 @@ function renderLessonStop() {
   }
 
   if (tile.type === 'loot') {
+    const _encounter = getLootEncounter(land, tile);
+    if (_encounter) return renderLootEncounter(_encounter, { student, tile, land, isCompleted, isActionable, overlays: _overlays });
     const challenge = LOOT_CHALLENGES[tile.id];
     if (!challenge) {
       return `
@@ -10863,6 +11007,20 @@ function bindEvents() {
         mount();
       }));
     });
+
+    // Loot encounter navigation (in-memory STATE.lootEnc only — no Firebase writes;
+    // the final step's #loot-claim-btn is handled by the existing claim handler below)
+    if (STATE.lootEnc) {
+      const _encGo = step => { Object.assign(STATE.lootEnc, step); mount(); document.querySelector(".ls-card")?.scrollIntoView({ block:"start" }); };
+      document.querySelectorAll("[data-enc-go]").forEach(b => b.addEventListener("click", () => _encGo({ step: b.dataset.encGo, objId:null, actionIdx:null })));
+      document.querySelectorAll("[data-enc-obj]").forEach(b => b.addEventListener("click", () => _encGo({ step:"object", objId: b.dataset.encObj, actionIdx:null })));
+      document.querySelectorAll("[data-enc-act]").forEach(b => b.addEventListener("click", () => {
+        const es = STATE.lootEnc;
+        es.found = Object.assign({}, es.found, { [es.objId]: true });
+        _encGo({ actionIdx: parseInt(b.dataset.encAct, 10) });
+      }));
+      document.querySelectorAll("[data-enc-pet]").forEach(b => b.addEventListener("click", () => { STATE.lootEnc.petShown = true; mount(); }));
+    }
 
     // Loot tile flow
     document.querySelectorAll('input[type="radio"][name^="loot-q"]').forEach(radio => {
