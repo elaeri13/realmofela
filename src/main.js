@@ -4493,12 +4493,17 @@ function landTileSVG(tile, biome, state, board, bossOverlay, bossTileVisual, gat
     : vt==='gatekeeper'    ? `/tiles/tile_gatekeeper.png`
     : vt==='boss'          ? `/tiles/tile_boss.png`
     : tileImgURL(type, biome);
-  const portraitPos   = vt==='finalGatekeeper' ? 'center top' : 'center';
-  const portraitFilter = vt==='finalGatekeeper' ? 'filter:brightness(.82) saturate(1.2);' : '';
-
-  const interior = locked
-    ? `<foreignObject x="0" y="0" width="${ts}" height="${ts}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${ts}px;height:${ts}px;background-image:url(${tileArtURL});background-size:cover;background-position:${portraitPos};filter:grayscale(100%);"></div></foreignObject>`
-    : `<foreignObject x="0" y="0" width="${ts}" height="${ts}"><div xmlns="http://www.w3.org/1999/xhtml" style="width:${ts}px;height:${ts}px;background-image:url(${tileArtURL});background-size:cover;background-position:${portraitPos};${portraitFilter}"></div></foreignObject>`;
+  // Native SVG <image> + SVG filters. (Previously an HTML <foreignObject> with a CSS
+  // filter — iOS Safari ignores the parent transform for filtered foreignObjects and
+  // stacks every locked tile's art in the map's top-left corner.)
+  const portraitAspect = vt==='finalGatekeeper' ? 'xMidYMin slice' : 'xMidYMid slice';
+  const artFilterId = locked ? 'tile-art-gray' : vt==='finalGatekeeper' ? 'tile-art-fgk' : '';
+  const artFilterDef = locked
+    ? `<filter id="tile-art-gray"><feColorMatrix type="saturate" values="0"/></filter>`
+    : vt==='finalGatekeeper'
+      ? `<filter id="tile-art-fgk"><feColorMatrix type="saturate" values="1.2"/><feComponentTransfer><feFuncR type="linear" slope=".82"/><feFuncG type="linear" slope=".82"/><feFuncB type="linear" slope=".82"/></feComponentTransfer></filter>`
+      : '';
+  const interior = `${artFilterDef}<image href="${tileArtURL}" x="0" y="0" width="${ts}" height="${ts}" preserveAspectRatio="${portraitAspect}"${artFilterId ? ` filter="url(#${artFilterId})"` : ''}/>`;
 
   const lockedOverlay = locked ? `
     <text x="${ts/2}" y="${ts/2+1}" text-anchor="middle" dominant-baseline="central" font-size="${vt==='finalGatekeeper'?24:20}">🔒</text>` : "";
