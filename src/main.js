@@ -871,6 +871,7 @@ const LANDS = [
   {
     id:2, name:"The Stone Kingdoms", subtitle:"Unit 2: From Earth to Mars", biome:2,
     trialName:"the Stone Kingdoms",
+    bgImage:"/tiles/map_background_stone_kingdoms.png",
     lore:"The astronomers of these kingdoms carved every star they could not yet reach into the walls of the halls. One question is still chiseled above the great gate: What is the value in space exploration? Walk the halls, read the carvings, and decide for yourself.",
     arrivalIntro:[
       "You have arrived at the Stone Kingdoms, a land of great halls carved from rock, where every wall is covered in maps of the night sky and every doorway frames a star.",
