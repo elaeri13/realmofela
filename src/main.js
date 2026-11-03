@@ -7197,6 +7197,13 @@ function renderTeacherDashboard() {
         </div>
       </div>
       <div class="period-tabs">${tabs}</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 4px">
+        ${STATE.resetPinsConfirmPi === STATE.teacherPeriodIdx
+          ? `<span style="font-size:13px;font-weight:700;color:#fff;background:rgba(127,29,29,.92);border-radius:8px;padding:8px 12px">⚠️ Reset the PIN for every student in ${period ? period.periodName : 'this period'}? Each student will log in with their default PIN and create a new one. Progress is not affected.</span>
+             <button class="btn btn-outline-sm" id="t-reset-pins-yes" style="background:#DC2626;color:#fff;border-color:#DC2626">Yes, reset all PINs</button>
+             <button class="btn btn-outline-sm" id="t-reset-pins-no">Cancel</button>`
+          : `<button class="btn btn-outline-sm" id="t-reset-pins-btn">🔑 Reset all PINs in this period</button>`}
+      </div>
       ${STATE.classSettingsOpen ? `<div class="cs-overlay" id="cs-overlay">
         <div class="cs-modal">
           <div class="cs-hdr">
@@ -9438,6 +9445,29 @@ function bindEvents() {
       $("cs-overlay") && $("cs-overlay").addEventListener("click", e => { if (e.target === $("cs-overlay")) closeCS(); });
     }
     $("t-jump-tool-btn") && $("t-jump-tool-btn").addEventListener("click", () => { STATE.jumpToolOpen = true; mount(); });
+    // Reset all PINs in the selected period — same write as the per-student "Reset PIN" button
+    $("t-reset-pins-btn") && $("t-reset-pins-btn").addEventListener("click", () => { STATE.resetPinsConfirmPi = STATE.teacherPeriodIdx; mount(); });
+    $("t-reset-pins-no")  && $("t-reset-pins-no").addEventListener("click", () => { STATE.resetPinsConfirmPi = null; mount(); });
+    $("t-reset-pins-yes") && $("t-reset-pins-yes").addEventListener("click", () => {
+      const period = CLASS_DATA.periods[STATE.resetPinsConfirmPi];
+      STATE.resetPinsConfirmPi = null;
+      if (!period) { mount(); return; }
+      let count = 0;
+      (period.students || []).forEach(s => {
+        const ov = _overrides[String(s.id)] || {};
+        if (!ov.pinSet && !ov.customPin) return; // already on the default PIN
+        saveStudentOverride(s.id, { customPin: null, pinSet: false });
+        logActivity(s.id, '🔑', 'PIN reset by teacher');
+        count++;
+      });
+      STATE.revealedPinSids = {};
+      mount();
+      const toast = document.createElement("div");
+      toast.className = "gold-toast";
+      toast.innerHTML = `<div class="gold-pop">🔑 ${count} PIN${count !== 1 ? 's' : ''} reset in ${period.periodName}</div>`;
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.classList.add("gold-toast-out"); setTimeout(() => toast.remove(), 380); }, 2500);
+    });
     if (STATE.jumpToolOpen) {
       const closeJT = () => { STATE.jumpToolOpen = false; mount(); };
       $("jt-close") && $("jt-close").addEventListener("click", closeJT);
@@ -9486,7 +9516,7 @@ function bindEvents() {
       $("tgs-overlay") && $("tgs-overlay").addEventListener("click", e => { if (e.target === $("tgs-overlay")) closeTGS(); });
     }
     document.querySelectorAll(".period-tab").forEach(btn => {
-      btn.addEventListener("click", () => { STATE.teacherPeriodIdx = parseInt(btn.dataset.pi, 10); mount(); });
+      btn.addEventListener("click", () => { STATE.teacherPeriodIdx = parseInt(btn.dataset.pi, 10); STATE.resetPinsConfirmPi = null; mount(); });
     });
     document.querySelectorAll(".t-card-menu-btn").forEach(btn => {
       btn.addEventListener("click", e => {
