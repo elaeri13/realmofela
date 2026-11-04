@@ -2370,6 +2370,54 @@ const HOUSE_BLURBS = {
 // Backward compat
 const GUILD_BLURBS = HOUSE_BLURBS;
 
+// "Choose Your House" flow buttons — used on the Starting Grounds map (tile 3) and on the hub.
+function bindHouseSelection() {
+  const $ = id => document.getElementById(id);
+  // House selection — intro → select
+  $("guild-intro-btn") && $("guild-intro-btn").addEventListener("click", () => {
+    STATE.sg0GuildReveal = "select";
+    mount();
+  });
+  // House selection — pick a house card → confirm
+  document.querySelectorAll("[data-house-pick]").forEach(card => {
+    card.addEventListener("click", () => {
+      STATE.sg0SelectedHouse = card.dataset.housePick;
+      STATE.sg0GuildReveal = "confirm";
+      mount();
+    });
+  });
+  // House confirm — back → select
+  $("guild-back-btn") && $("guild-back-btn").addEventListener("click", () => {
+    STATE.sg0GuildReveal = "select";
+    mount();
+  });
+  // House confirm — confirmed → save + celebration
+  $("guild-confirm-btn") && $("guild-confirm-btn").addEventListener("click", () => {
+    const chosen = STATE.sg0SelectedHouse;
+    if (!chosen) return;
+    saveStudentOverride(STATE.student.id, { house: chosen, houseConfirmed: true });
+    unlockCosmeticsForGuild(STATE.student.id, chosen);
+    STATE.sg0GuildReveal = "chosen";
+    mount();
+  });
+  // House reveal — continue button advances tile 3
+  $("guild-continue-btn") && $("guild-continue-btn").addEventListener("click", () => {
+    const tile = STATE.sg0Tile;
+    if (tile) advanceSg0Tile(STATE.student, tile.id);
+    STATE.sg0GuildReveal = null;
+    STATE.sg0SelectedHouse = null;
+    STATE.sg0Tile = null;
+    mount();
+  });
+}
+// Students past the Starting Grounds who never confirmed a house (e.g. everyone who started
+// before houses existed) can't reach tile 3 again, so the hub shows the same flow.
+function needsHouseOnHub(student) {
+  if (!student || !(CLASS_DATA && CLASS_DATA.houses)) return false;
+  const ov = _overrides[String(student.id)] || {};
+  return !ov.houseConfirmed && getLandPos(student).land >= 1;
+}
+
 function renderGuildReveal() {
   const step = STATE.sg0GuildReveal;
   const houses = CLASS_DATA && CLASS_DATA.houses;
@@ -3722,6 +3770,10 @@ function openTodaysLesson(useFallback) {
 
 function renderHub() {
   const s = getMergedStudent(STATE.student);
+  // Existing students who never picked a house: open "Choose Your House" over the hub.
+  if (needsHouseOnHub(STATE.student) && !STATE.sg0GuildReveal) {
+    STATE.sg0GuildReveal = "intro"; STATE.sg0SelectedHouse = null; STATE.sg0Tile = null;
+  }
 
   // Init picker from saved data on first visit
   if (STATE.avClass === null) {
@@ -4520,6 +4572,7 @@ function renderHub() {
     ${renderPartnerPickerModal()}
     ${STATE.sqInviteNotifOpen ? renderInviteNotifModal() : ''}
     ${renderHelpModal()}
+    ${renderGuildReveal()}
     ${STATE.studentCompanionOpen ? `
     <div class="equip-picker-overlay" id="student-companion-overlay">
       <div class="equip-picker-box" style="max-width:520px">
@@ -9476,6 +9529,7 @@ function bindEvents() {
   }
 
   if (STATE.screen === "hub") {
+    bindHouseSelection();
     $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; STATE.genName = null; STATE.genEpithet = null; STATE.namingOptions = null; STATE.epithetOptions = null; STATE._namingReturnScreen = null; mount(); });
     // Trophy mastery trial request — tap an available trophy
     document.querySelectorAll("[data-trophy-req]").forEach(cell => {
@@ -10804,42 +10858,7 @@ function bindEvents() {
     $("npc-close")     && $("npc-close").addEventListener("click", closeNpc);
     $("npc-close-btn") && $("npc-close-btn").addEventListener("click", closeNpc);
     $("npc-overlay")   && $("npc-overlay").addEventListener("click", e => { if (e.target === $("npc-overlay")) closeNpc(); });
-    // House selection — intro → select
-    $("guild-intro-btn") && $("guild-intro-btn").addEventListener("click", () => {
-      STATE.sg0GuildReveal = "select";
-      mount();
-    });
-    // House selection — pick a house card → confirm
-    document.querySelectorAll("[data-house-pick]").forEach(card => {
-      card.addEventListener("click", () => {
-        STATE.sg0SelectedHouse = card.dataset.housePick;
-        STATE.sg0GuildReveal = "confirm";
-        mount();
-      });
-    });
-    // House confirm — back → select
-    $("guild-back-btn") && $("guild-back-btn").addEventListener("click", () => {
-      STATE.sg0GuildReveal = "select";
-      mount();
-    });
-    // House confirm — confirmed → save + celebration
-    $("guild-confirm-btn") && $("guild-confirm-btn").addEventListener("click", () => {
-      const chosen = STATE.sg0SelectedHouse;
-      if (!chosen) return;
-      saveStudentOverride(STATE.student.id, { house: chosen, houseConfirmed: true });
-      unlockCosmeticsForGuild(STATE.student.id, chosen);
-      STATE.sg0GuildReveal = "chosen";
-      mount();
-    });
-    // House reveal — continue button advances tile 3
-    $("guild-continue-btn") && $("guild-continue-btn").addEventListener("click", () => {
-      const tile = STATE.sg0Tile;
-      if (tile) advanceSg0Tile(STATE.student, tile.id);
-      STATE.sg0GuildReveal = null;
-      STATE.sg0SelectedHouse = null;
-      STATE.sg0Tile = null;
-      mount();
-    });
+    bindHouseSelection();
     // Land 0 sg modal — Tile 1 NPC dialogue (Lumielle intro)
     $("tg-lumielle") && $("tg-lumielle").addEventListener("click", () => { STATE.tgDialogueOpen = true; mount(); });
     if (STATE.tgDialogueOpen) {
