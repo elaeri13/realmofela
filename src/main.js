@@ -2019,6 +2019,15 @@ function getLandContentTiles(land) {
   const tileById = Object.fromEntries((land.tiles || []).map(t => [t.id, t]));
   return (land.pathOrder || []).map(id => tileById[id]).filter(t => t && CONTENT_TYPES.has(t.type));
 }
+// Lesson link buttons render as real links (<a target="_blank">) when they have a URL and are
+// unlocked. School-managed Chromebooks and some browsers block window.open() as a pop-up;
+// an ordinary link is not blocked. Locked / missing-link buttons stay <button disabled>.
+function linkBtnOpen(cls, id, url, disabled) {
+  return (url && !disabled)
+    ? `<a class="${cls}" id="${id}" href="${url}" target="_blank" rel="noopener noreferrer" data-url="${url}">`
+    : `<button class="${cls}" id="${id}" ${disabled ? 'disabled' : ''} data-url="${url || ''}">`;
+}
+function linkBtnClose(url, disabled) { return (url && !disabled) ? '</a>' : '</button>'; }
 // Pasted links sometimes lack "https://" (e.g. "wayground.com/join?gc=123"); browsers then
 // treat them as a page on realmofela.com. Add the scheme when the text looks like a web address.
 function normalizeLink(url) {
@@ -6098,7 +6107,7 @@ function renderLessonStop() {
     <div class="gk-eyebrow">Trial of ${land.trialName || 'the Vale'}</div>
     <div class="gk-boss-name">${bossDisplayName}</div>
     ${loreText ? `<div class="gk-lore">"${loreText}"</div>` : ''}
-    <button class="gk-cta" id="gk-begin-btn" data-url="${assessUrl}">⚔️ Begin the Trial</button>
+    ${linkBtnOpen('gk-cta', 'gk-begin-btn', normalizeLink(assessUrl), false)}⚔️ Begin the Trial${linkBtnClose(normalizeLink(assessUrl), false)}
     ${!assessUrl ? `<div class="gk-cta-hint">Assessment link coming soon</div>` : ''}
   </div>
   ${_overlays}
@@ -6236,14 +6245,12 @@ function renderLessonStop() {
       ${sessionImageHtml}
       ${loreSection}
       ${showRegularButtons ? `
-      <button class="st-rl-btn${readAndLearnDone ? ' st-rl-done' : ''}${wgDisabled ? ' st-btn-locked' : ''}"
-              id="st-rl-btn" ${wgDisabled ? 'disabled' : ''} data-url="${waygroundUrl}">
+      ${linkBtnOpen(`st-rl-btn${readAndLearnDone ? ' st-rl-done' : ''}${wgDisabled ? ' st-btn-locked' : ''}`, 'st-rl-btn', waygroundUrl, wgDisabled)}
         ${wgLabel}
-      </button>
-      <button class="st-et-btn${etDisabled ? ' st-btn-locked' : ''}"
-              id="st-et-btn" ${etDisabled ? 'disabled' : ''} data-url="${pearUrl}">
+      ${linkBtnClose(waygroundUrl, wgDisabled)}
+      ${linkBtnOpen(`st-et-btn${etDisabled ? ' st-btn-locked' : ''}`, 'st-et-btn', pearUrl, etDisabled)}
         ${etLabel}
-      </button>
+      ${linkBtnClose(pearUrl, etDisabled)}
       ${!exitTicketReady && !tileIsLocked ? `<p class="ls-pear-hint">Click "${sessLabel}: Read and Learn" first to unlock the Exit Ticket.</p>` : ''}
       ${!waygroundUrl && !tileIsLocked ? `<p class="ls-pear-hint">The Read and Learn link for ${sessLabel} hasn't been added yet. Let ${getClassTeacherName()} know.</p>` : ''}
       ${exitTicketReady && !pearUrl && !tileIsLocked ? '<p class="ls-pear-hint">Exit ticket link coming soon.</p>' : ''}
@@ -6478,10 +6485,10 @@ function renderLessonStop() {
         </div>`;
       })()}
       ${loreSection}
-      <button class="ls-video-btn" id="ls-video-btn">
+      ${linkBtnOpen('ls-video-btn', 'ls-video-btn', getEffectiveWayground(land, tile) || 'https://wayground.com', false)}
         <span class="ls-play-icon">▶</span>
         <span>Open Lesson</span>
-      </button>
+      </a>
       <div class="ls-tiers">
         ${!videoOpened ? `<div class="ls-video-lock-hint">🔒 Watch the video first to unlock this checklist.</div>` : ''}
         ${tierHTML(mustDo, "mustDo", "ls-tier-must", "🔴", "Must Do", !videoOpened)}
@@ -11843,18 +11850,18 @@ function bindEvents() {
       });
     }
     $("gk-begin-btn") && $("gk-begin-btn").addEventListener("click", () => {
-      const url = $("gk-begin-btn").dataset.url;
-      if (url) window.open(url, "_blank", "noopener");
+      const b = $("gk-begin-btn"), url = b.dataset.url;
+      if (url && b.tagName !== 'A') window.open(url, "_blank", "noopener");
     });
     $("ls-video-btn") && $("ls-video-btn").addEventListener("click", () => {
       const _land = STATE.lessonLand || LANDS[0];
       const _tile = STATE.lessonTile;
       const url = (_tile && _land) ? (getEffectiveWayground(_land, _tile) || "https://wayground.com") : "https://wayground.com";
-      window.open(url, "_blank", "noopener");
-      if (STATE.lessonTile && STATE.student) {
+      if ($("ls-video-btn").tagName !== 'A') window.open(url, "_blank", "noopener");
+      setTimeout(() => { if (STATE.lessonTile && STATE.student) {
         saveVideoOpened(STATE.student.id, STATE.lessonTile.id);
         mount();
-      }
+      } }, 0);
     });
     $("ls-submit") && $("ls-submit").addEventListener("click", () => {
       const btn = $("ls-submit");
@@ -12020,12 +12027,13 @@ function bindEvents() {
       const btn = $("st-rl-btn");
       if (btn && btn.disabled) return;
       const url = btn && btn.dataset.url;
-      if (url) window.open(url, "_blank", "noopener");
-      if (STATE.student && STATE.lessonTile) {
+      if (url && btn.tagName !== 'A') window.open(url, "_blank", "noopener");
+      // Let the link open first, then save progress and redraw.
+      setTimeout(() => { if (STATE.student && STATE.lessonTile) {
         saveTaskCheck(STATE.student.id, STATE.lessonTile.id, 'wayground', 0, true);
         saveTaskTimestamp(STATE.student.id, STATE.lessonTile.id, 'wayground', 0);
         mount();
-      }
+      } }, 0);
     });
 
     // New lesson tile: "Exit Ticket" button
@@ -12033,11 +12041,11 @@ function bindEvents() {
       const btn = $("st-et-btn");
       if (btn && btn.disabled) return;
       const url = btn && btn.dataset.url;
-      if (url) window.open(url, "_blank", "noopener");
-      if (STATE.student && STATE.lessonTile) {
+      if (url && btn.tagName !== 'A') window.open(url, "_blank", "noopener");
+      setTimeout(() => { if (STATE.student && STATE.lessonTile) {
         saveTaskCheck(STATE.student.id, STATE.lessonTile.id, 'exitTicketOpened', 0, true);
         mount();
-      }
+      } }, 0);
     });
 
     // Catch-up panel open
