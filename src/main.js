@@ -873,6 +873,37 @@ const LANDS = [
     id:2, name:"The Stone Kingdoms", subtitle:"Unit 2: From Earth to Mars", biome:2,
     trialName:"the Stone Kingdoms",
     bgImage:"/tiles/map_background_stone_kingdoms.png",
+    // Kingdoms' Gate (arrival tile) story screen — shown instead of the generic arrival text
+    gateIntro:{
+      title:"Enter the Stone Kingdoms",
+      guardian:{ img:"/npcs/npc_gravenborn_gate_guardian.webp", name:"Stone Guardian" },
+      story:[
+        { n:"The mountain path ends at an enormous stone gate. Carved across its surface are moons, stars, and a trail of footprints that disappears into the sky." },
+        { n:"A stone guardian steps forward." },
+        { say:"“Others have passed this way,” it says. “Explorers. Inventors. People who looked at something impossible and asked, ‘What if?’”" },
+        { n:"The guardian brushes dust from a carving of a rocket." },
+        { say:"“Their stories are kept within these kingdoms. Your task is to discover what they learned—and decide which ideas matter most.”" },
+      ],
+      expedition:{
+        intro:"Inside the Stone Kingdoms, you’ll explore this question:",
+        question:"What do we gain from exploring space?",
+        lines:[
+          "You’ll follow the race to the Moon, examine the challenges of space exploration, and gather evidence to explain your thinking.",
+          "Along the way, you’ll practice finding important ideas and details, writing clear gist statements, and using language to communicate what you’ve learned.",
+        ],
+      },
+      carvings:[
+        { id:"moon",       icon:"🌙", label:"the Moon" },
+        { id:"rocket",     icon:"🚀", label:"the rocket" },
+        { id:"footprints", icon:"👣", label:"the footprints" },
+      ],
+      closing:[
+        { n:"The guardian listens, then places one heavy hand against the gate." },
+        { say:"“Curiosity will get you started,” it says. “Careful thinking will carry you further.”" },
+        { n:"With a deep rumble, the gates begin to open." },
+      ],
+      button:"Begin today’s lesson",
+    },
     lore:"The astronomers of these kingdoms carved every star they could not yet reach into the walls of the halls. One question is still chiseled above the great gate: What is the value in space exploration? Walk the halls, read the carvings, and decide for yourself.",
     arrivalIntro:[
       "You have arrived at the Stone Kingdoms, a land of great halls carved from rock, where every wall is covered in maps of the night sky and every doorway frames a star.",
@@ -5119,8 +5150,51 @@ function renderRealmComplete() {
   </div>`;
 }
 
+// Land-specific gate story (e.g. The Kingdoms' Gate). The carving choice is screen-only; nothing is saved.
+function renderGateIntro(land, gi) {
+  const pos = STATE.student ? getLandPos(STATE.student) : { completed: [] };
+  const done = STATE.arrivalTile && (pos.completed || []).includes(STATE.arrivalTile.id);
+  const pick = gi.carvings.find(c => c.id === STATE.gateCarving) || null;
+  const para = b => b.say
+    ? `<p class="gate-say">${b.say}</p>`
+    : `<p class="gate-narr">${b.n}</p>`;
+  return `<div class="screen arrival-screen gate-screen">
+    <div class="gate-wrap">
+      <h1 class="arrival-land-name gate-title">${gi.title}</h1>
+      <hr class="arrival-divider"/>
+      <div class="gate-scene">
+        <img class="gate-guardian" src="${gi.guardian.img}" alt="${gi.guardian.name}" width="600" height="657" onerror="this.style.display='none'"/>
+        <div class="gate-story">${gi.story.map(para).join('')}</div>
+      </div>
+      <section class="gate-card">
+        <h2 class="gate-h2">Your expedition</h2>
+        <p class="gate-narr">${gi.expedition.intro}</p>
+        <p class="gate-question">${gi.expedition.question}</p>
+        ${gi.expedition.lines.map(l => `<p class="gate-narr">${l}</p>`).join('')}
+      </section>
+      <section class="gate-card">
+        <h2 class="gate-h2">Before the gate opens…</h2>
+        <p class="gate-narr">Look closely at the carvings. Choose one: <b>the Moon, the rocket, or the footprints.</b></p>
+        <div class="gate-carvings" role="group" aria-label="Choose a carving">
+          ${gi.carvings.map(c => `<button class="gate-carving${pick && pick.id === c.id ? ' on' : ''}" data-gate-carving="${c.id}" aria-pressed="${pick && pick.id === c.id ? 'true' : 'false'}">
+            <span class="gate-carving-icon" aria-hidden="true">${c.icon}</span><span>${c.label.replace(/^the /, 'The ')}</span></button>`).join('')}
+        </div>
+        ${pick ? `<div class="gate-prompt">
+          <p class="gate-prompt-q">You chose <b>${pick.label}</b>. <b>What might it represent about exploration?</b> Share your idea with a partner.</p>
+          <p class="gate-narr">There is more than one possible answer. Be ready to explain yours.</p>
+        </div>` : ''}
+      </section>
+      ${pick || done ? `<div class="gate-closing">
+        ${gi.closing.map(para).join('')}
+        <button class="today-go-btn gate-begin" id="arrival-begin" data-gate-begin="1">⚔️ ${gi.button}</button>
+      </div>` : `<p class="gate-hint">Choose a carving to open the gate.</p>`}
+    </div>
+  </div>`;
+}
+
 function renderArrivalScreen() {
   const land = STATE.arrivalLand || LANDS[0];
+  if (land.gateIntro) return renderGateIntro(land, land.gateIntro);
   return `<div class="screen arrival-screen">
     <img class="arrival-banner" src="/tiles/tile_arrival.png" alt="Arrival" width="800" height="340" onerror="this.style.display='none'"/>
     <div class="arrival-body">
@@ -11084,20 +11158,30 @@ function bindEvents() {
   }
 
   if (STATE.screen === "arrival-screen") {
+    document.querySelectorAll("[data-gate-carving]").forEach(b => b.addEventListener("click", () => {
+      STATE.gateCarving = b.dataset.gateCarving; mount();
+      document.querySelector(".gate-prompt")?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }));
     $("arrival-begin") && $("arrival-begin").addEventListener("click", () => {
       const tile = STATE.arrivalTile;
       const land = STATE.arrivalLand || LANDS[0];
       if (!tile) return;
+      // Gate story button says "Begin today's lesson": go there when it's available, else the map.
+      const isGate = !!$("arrival-begin").dataset.gateBegin;
+      const next = () => {
+        STATE.gateCarving = null;
+        const info = isGate ? getTodaysLessonInfo(STATE.student) : null;
+        if (info && info.status === 'ok' && !(info.relation === 'ahead' && !(info.move && info.move.safe))) openTodaysLesson(false);
+        else { STATE.screen = "quest-map"; mount(); }
+      };
       const pos = getLandPos(STATE.student);
       if (!(pos.completed || []).includes(tile.id)) {
         const { levelsGained, newLevel } = awardXP(STATE.student, 5);
         completeBranchTile(STATE.student, tile.id);
         advanceStudentTile(STATE.student, land);
-        showXPCelebration(5, levelsGained, newLevel, () => {
-          STATE.screen = "quest-map"; mount();
-        });
+        showXPCelebration(5, levelsGained, newLevel, next);
       } else {
-        STATE.screen = "quest-map"; mount();
+        next();
       }
     });
   }

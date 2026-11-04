@@ -645,6 +645,33 @@ input  { font-family: var(--font-body); }
 .arrival-intro { font-size: 15px; font-weight: 500; color: rgba(220,210,255,0.85); text-align: center; line-height: 1.7; max-width: 420px; }
 .arrival-intro p { margin-bottom: 14px; }
 .arrival-intro p:last-child { margin-bottom: 0; }
+/* Kingdoms' Gate story screen */
+.gate-wrap { width: 100%; max-width: 820px; margin: 0 auto; padding: 32px 20px 56px; display: flex; flex-direction: column; align-items: center; gap: 18px; box-sizing: border-box; }
+.gate-title { margin: 0; }
+.gate-scene { display: grid; grid-template-columns: minmax(160px, 260px) 1fr; gap: 22px; align-items: center; width: 100%; }
+.gate-guardian { width: 100%; height: auto; filter: drop-shadow(0 8px 24px rgba(124,58,237,.45)); }
+.gate-story, .gate-closing { display: flex; flex-direction: column; gap: 12px; }
+.gate-narr { margin: 0; font-size: 16px; line-height: 1.65; color: rgba(225,215,255,.92); }
+.gate-say { margin: 0; font-size: 16px; line-height: 1.6; color: #2A1B47; background: #EAE3FF; border: 2px solid #B6A0E4; border-radius: 14px; padding: 12px 16px; font-weight: 700; }
+.gate-card { width: 100%; box-sizing: border-box; background: rgba(20,12,45,.72); border: 1.5px solid rgba(182,160,228,.45); border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.gate-h2 { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 900; color: #F8D477; letter-spacing: .4px; }
+.gate-question { margin: 2px 0; font-family: var(--font-display); font-size: clamp(19px, 3vw, 24px); font-weight: 900; color: #FFE29A; text-align: center; }
+.gate-carvings { display: flex; gap: 10px; flex-wrap: wrap; }
+.gate-carving { flex: 1 1 140px; min-height: 64px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 14px; border: 2px solid #B6A0E4; background: #EAE3FF; color: #352255; font-size: 16px; font-weight: 900; cursor: pointer; box-shadow: 0 2px 8px rgba(20,10,40,.22); transition: background-color .15s, transform .15s; font-family: inherit; }
+.gate-carving:hover { background: #F3EEFF; transform: translateY(-1px); }
+.gate-carving.on { background: #F8D477; border-color: #DCA83C; color: #251442; }
+.gate-carving:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.gate-carving-icon { font-size: 24px; }
+.gate-prompt { background: rgba(248,212,119,.12); border: 1.5px solid rgba(248,212,119,.55); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.gate-prompt-q { margin: 0; font-size: 17px; line-height: 1.55; color: #FFF7DD; }
+.gate-closing { width: 100%; }
+.gate-begin { width: 100%; margin-top: 6px; }
+.gate-hint { margin: 0; font-size: 14px; font-weight: 700; color: rgba(225,215,255,.75); }
+@media (max-width: 640px) {
+  .gate-scene { grid-template-columns: 1fr; }
+  .gate-guardian { max-width: 200px; margin: 0 auto; }
+}
+@media (prefers-reduced-motion: reduce) { .gate-carving { transition: none; } .gate-carving:hover { transform: none; } }
 .arrival-btn { margin-top: 12px; background: linear-gradient(135deg,var(--gold-light),var(--gold),var(--gold-dark)); color: #1a0a00; font-size: 20px; font-weight: 900; padding: 18px 44px; border-radius: 50px; border: none; cursor: pointer; box-shadow: 0 0 0 3px rgba(245,200,66,.3), 0 8px 32px rgba(245,200,66,.35); transition: transform .15s, box-shadow .15s; letter-spacing: .3px; font-family: var(--font-display); }
 .arrival-btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 0 0 4px rgba(245,200,66,.4), 0 12px 40px rgba(245,200,66,.45); }
 /* Boss Screen */
