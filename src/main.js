@@ -3549,11 +3549,10 @@ function bindHelpModal() {
     if (e.target === $("help-modal-overlay")) { STATE.helpModalOpen = false; mount(); }
   });
 }
-function getClassTeacherName(student) {
-  const cid = student ? classIdForStudent(student.id) : null;
-  const p = CLASS_DATA && (CLASS_DATA.periods || []).find(x => x.id === cid);
-  return (p && p.teacher) || 'your teacher';
-}
+// Name used in student-facing messages ("…unless Ms. Odom directs you otherwise").
+// Always Ms. Odom; the per-period teacher list in classData.json is left as is.
+const REALM_TEACHER_NAME = 'Ms. Odom';
+function getClassTeacherName() { return REALM_TEACHER_NAME; }
 // Hub: the one clear route into today's lesson (plus a friendly notice when it isn't available).
 function renderTodaysLessonEntry(student) {
   const info = getTodaysLessonInfo(student);
