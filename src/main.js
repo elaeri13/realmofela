@@ -3349,19 +3349,23 @@ function renderSetPin() {
     if (k === "⌫") return `<button class="num-btn num-del" id="sp-del" ${entry.length===0?"disabled":""}>⌫</button>`;
     return `<button class="num-btn" data-sp-digit="${k}">${k}</button>`;
   }).join('');
-  const heading = step === 'confirm' ? '🔐 Confirm your new PIN' : '🔐 Create your secret PIN';
-  const hint = step === 'confirm' ? 'Enter your new PIN one more time to confirm.' : 'Choose a 4-digit PIN that only you know.';
+  const confirm = step === 'confirm';
   return `
   <div class="screen screen-center">
     ${starsHTML()}
-    <div class="pin-card enter">
-      <div class="pin-avatar">
-        <div class="avatar-ring-lg" style="overflow:hidden;padding:0"><img src="/avatars/${getMergedStudent(s).avatar||'avatar_blankchibi.png'}" style="width:122px;height:122px;object-fit:cover;border-radius:50%;display:block" alt="${getCharName(s)}" width="122" height="122" loading="lazy"/></div>
-        <div class="pin-name">${getCharName(s)}</div>
+    <div class="pin-card setpin-card enter">
+      <div class="setpin-banner">✨ NEW SECRET PIN ✨</div>
+      <div class="setpin-steps" aria-label="Step ${confirm ? 2 : 1} of 2">
+        <span class="setpin-step${confirm ? ' done' : ' on'}">${confirm ? '✓' : '1'} Make it up</span>
+        <span class="setpin-step${confirm ? ' on' : ''}">2 Type it again</span>
       </div>
-      <p class="pin-hint" style="font-weight:800">${heading}</p>
-      <p class="pin-hint" style="font-size:13px;margin-top:-6px;opacity:.75">${hint}</p>
-      <div class="pin-dots">${dots}</div>
+      <div class="setpin-who">
+        <img src="/avatars/${getMergedStudent(s).avatar||'avatar_blankchibi.png'}" alt="${getCharName(s)}" width="48" height="48" loading="lazy"/>
+        <span>${getCharName(s)}</span>
+      </div>
+      <p class="setpin-big">${confirm ? 'Type your <u>NEW</u> PIN again' : 'Make up a <u>NEW</u> 4-digit PIN'}</p>
+      <p class="setpin-sub">${confirm ? 'Same 4 numbers, one more time.' : "Not your old number! Pick 4 numbers only you will remember."}</p>
+      <div class="pin-dots setpin-dots">${dots}</div>
       ${STATE.pinError ? `<p class="error-box">⚠️ ${STATE.pinError}</p>` : ''}
       <div class="numpad">${pad}</div>
     </div>
@@ -3473,6 +3477,15 @@ function renderNaming() {
 }
 
 // Flag-for-help modal (same behavior as before; shared by hub, session page and map).
+// Jump Tool land: teacher's pick, else the land most claimed students in this period are in.
+function getJumpToolLand(students) {
+  const chosen = STATE.jtLandId && LANDS.find(l => l.id === STATE.jtLandId);
+  if (chosen) return chosen;
+  const counts = {};
+  (students || []).forEach(s => { const l = getLandPos(s).land; if (l) counts[l] = (counts[l] || 0) + 1; });
+  const best = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+  return LANDS.find(l => l.id === Number(best)) || LANDS.find(l => l.id === 1) || LANDS[0];
+}
 function renderHelpModal() {
   if (!STATE.helpModalOpen) return '';
   return `
@@ -3519,20 +3532,28 @@ function getClassTeacherName(student) {
 function renderTodaysLessonEntry(student) {
   const info = getTodaysLessonInfo(student);
   const teacher = getClassTeacherName(student);
-  const box = inner => `<div class="today-entry">${inner}</div>`;
-  const note = (msg) => box(`<div class="today-entry-note">📜 ${msg}</div>`);
+  const mapBtn = `<button class="today-map-btn" id="view-map-btn">🗺️ View overworld map</button>`;
+  // One card: label on top, then [primary action | map] in a single row of equal height.
+  const card = (label, main) => `<div class="today-quest">
+      ${label ? `<div class="today-entry-label">${label}</div>` : ''}
+      <div class="today-row">${main}${mapBtn}</div>
+    </div>`;
+  const note = msg => card('', `<div class="today-entry-note">📜 ${msg}</div>`);
   if (info.status === 'ok') {
     const blocked = info.relation === 'ahead' && !(info.move && info.move.safe);
     if (blocked) {
       const pos = getLandPos(student);
       const curTile = info.land.tiles.find(t => t.id === pos.tile);
-      return box(`<div class="today-entry-label">Today: ${info.label}</div>
-        <div class="today-entry-note">Finish ${curTile ? sessionLabel(curTile) : 'your current session'} first to reach today's lesson, or ask ${teacher} for help.</div>
-        ${curTile ? `<button class="btn btn-gold today-entry-btn" id="today-lesson-btn" data-today-fallback="1">⚔️ Go to ${sessionLabel(curTile).split(' · ')[0]}</button>` : ''}`);
+      const curName = curTile ? sessionLabel(curTile).split(' · ')[0] : 'your current session';
+      return card(`📜 Today: ${info.label}`,
+        `<div class="today-main">
+          <div class="today-entry-note today-entry-note-sm">Finish ${curName} first to reach today's lesson, or ask ${teacher} for help.</div>
+          ${curTile ? `<button class="today-go-btn" id="today-lesson-btn" data-today-fallback="1">⚔️ Go to ${curName}</button>` : ''}
+        </div>`);
     }
     const returning = info.started || info.relation === 'done';
-    return box(`<div class="today-entry-label">Today: ${info.label}${info.relation === 'done' ? ' <span class="today-entry-done">✓ Completed</span>' : ''}</div>
-      <button class="btn btn-gold today-entry-btn" id="today-lesson-btn">⚔️ ${returning ? "Return to today's lesson" : "Begin today's lesson"}</button>`);
+    return card(`📜 Today: ${info.label}${info.relation === 'done' ? ' <span class="today-entry-done">✓ Completed</span>' : ''}`,
+      `<button class="today-go-btn" id="today-lesson-btn">⚔️ ${returning ? "Return to today's lesson" : "Begin today's lesson"}</button>`);
   }
   if (info.status === 'other_land') return note(`Today's lesson is in ${info.land.name}. Use the overworld map to continue your journey.`);
   if (info.status === 'locked')     return note(`Today's lesson (${info.label}) is locked right now. ${teacher} will open it when it's time.`);
@@ -4048,7 +4069,6 @@ function renderHub() {
       </div>
       <div class="hub-actions enter" style="animation-delay:.2s">
         ${renderTodaysLessonEntry(STATE.student)}
-        <button class="btn btn-outline-sm hub-map-btn" id="view-map-btn">🗺️ View overworld map</button>
         ${(() => {
           const invites = getSQInvites(STATE.student.id);
           const pendingCount = Object.values(invites).filter(i => i.status === 'pending').length;
@@ -7552,21 +7572,30 @@ function renderTeacherDashboard() {
         </div>
       </div>` : ''}
       ${STATE.jumpToolOpen ? (() => {
-        const _jtLand = LANDS[0];
+        const _jtStudents = (period.students || []).filter(s => (_overrides[String(s.id)] || {}).claimed);
+        const _jtLand = getJumpToolLand(_jtStudents);
         const _jtOrder = _jtLand.pathOrder || [];
         const _jtTiles = _jtOrder.map(tid => _jtLand.tiles.find(t => t.id === tid)).filter(Boolean);
-        const _jtStudents = period.students;
-        const _jtTileLabel = t => t.name + (t.type === 'forge' ? ' — Writer\'s Craft' : t.type === 'studyHall' ? ' — Study Hall' : t.type === 'camp' ? ' — Camp' : t.type === 'dungeon' ? ' — Final Boss' : '');
+        const _jtTileLabel = t => sessionLabel(t) + (t.type === 'dungeon' ? ' — Final Boss' : t.type === 'event' ? ' — Writing' : t.type === 'arrival' ? ' — Arrival' : '');
         return `<div class="cs-overlay" id="jt-overlay" style="z-index:1200">
           <div class="jt-modal">
             <div class="jt-hdr">
               <div>
                 <div class="jt-title">🚀 Jump Tool</div>
-                <div class="jt-subtitle">Move students to a specific tile</div>
+                <div class="jt-subtitle">Move students to a specific tile in their current land</div>
               </div>
               <button class="jt-close" id="jt-close">✕</button>
             </div>
             <div class="jt-body">
+              <div class="jt-field-row">
+                <label class="jt-field-lbl" for="jt-land">Land</label>
+                <select id="jt-land" class="jt-tile-sel">
+                  ${LANDS.filter(l => l.id && (l.pathOrder || []).length).map(l => {
+                    const n = _jtStudents.filter(s => getLandPos(s).land === l.id).length;
+                    return `<option value="${l.id}"${l.id === _jtLand.id ? ' selected' : ''}>${l.name}${n ? ` (${n} student${n !== 1 ? 's' : ''})` : ''}</option>`;
+                  }).join('')}
+                </select>
+              </div>
               <div class="jt-field-row">
                 <label class="jt-field-lbl" for="jt-target-tile">Target Tile</label>
                 <select id="jt-target-tile" class="jt-tile-sel">
@@ -7599,14 +7628,14 @@ function renderTeacherDashboard() {
                   <tbody>
                     ${_jtStudents.map(s => {
                       const pos = getLandPos(s);
-                      const curT = _jtLand.tiles.find(t => t.id === pos.tile);
-                      const ov = _overrides[String(s.id)] || {};
-                      const isUnclaimed = !ov.claimed;
-                      if (isUnclaimed) return '';
-                      return `<tr>
-                        <td><input type="checkbox" class="jt-student-check" data-jt-sid="${s.id}"/></td>
+                      const sLand = getLandData(pos.land);
+                      const curT = sLand && sLand.tiles.find(t => t.id === pos.tile);
+                      const sameLand = pos.land === _jtLand.id && _jtOrder.includes(pos.tile);
+                      const where = curT ? sessionLabel(curT).split(' · ')[0] : '—';
+                      return `<tr${sameLand ? '' : ' class="jt-row-off"'}>
+                        <td><input type="checkbox" class="jt-student-check" data-jt-sid="${s.id}" ${sameLand ? '' : 'disabled'}/></td>
                         <td><span class="jt-s-name">${getCharName(s)}</span><span class="jt-s-id">#${s.id}</span></td>
-                        <td class="jt-cur-tile">${curT?.name || '—'}</td>
+                        <td class="jt-cur-tile">${sameLand ? where : `In ${sLand ? sLand.name : 'another land'}${curT ? ' — ' + where : ''}`}</td>
                       </tr>`;
                     }).join('')}
                   </tbody>
@@ -7614,7 +7643,7 @@ function renderTeacherDashboard() {
               </div>
               <div class="jt-footer">
                 <button id="jt-jump-btn" class="jt-jump-btn">🚀 Jump Selected Students</button>
-                <div id="jt-result" class="jt-result"></div>
+                <div id="jt-result" class="jt-result">${STATE.jtResult || ''}</div>
               </div>
             </div>
           </div>
@@ -9614,7 +9643,7 @@ function bindEvents() {
       $("cs-close") && $("cs-close").addEventListener("click", closeCS);
       $("cs-overlay") && $("cs-overlay").addEventListener("click", e => { if (e.target === $("cs-overlay")) closeCS(); });
     }
-    $("t-jump-tool-btn") && $("t-jump-tool-btn").addEventListener("click", () => { STATE.jumpToolOpen = true; mount(); });
+    $("t-jump-tool-btn") && $("t-jump-tool-btn").addEventListener("click", () => { STATE.jumpToolOpen = true; STATE.jtLandId = null; STATE.jtResult = ''; mount(); });
     // Today's lesson for the selected period (class). Saving never moves any student.
     $("t-today-save") && $("t-today-save").addEventListener("click", () => {
       const period = CLASS_DATA.periods[STATE.teacherPeriodIdx];
@@ -9653,37 +9682,44 @@ function bindEvents() {
       setTimeout(() => { toast.classList.add("gold-toast-out"); setTimeout(() => toast.remove(), 380); }, 2500);
     });
     if (STATE.jumpToolOpen) {
-      const closeJT = () => { STATE.jumpToolOpen = false; mount(); };
+      const closeJT = () => { STATE.jumpToolOpen = false; STATE.jtResult = ''; mount(); };
       $("jt-close") && $("jt-close").addEventListener("click", closeJT);
       $("jt-overlay") && $("jt-overlay").addEventListener("click", e => { if (e.target === $("jt-overlay")) closeJT(); });
+      $("jt-land") && $("jt-land").addEventListener("change", e => { STATE.jtLandId = Number(e.target.value) || null; STATE.jtResult = ''; mount(); });
       $("jt-select-all") && $("jt-select-all").addEventListener("click", () => {
-        document.querySelectorAll(".jt-student-check").forEach(cb => { cb.checked = true; });
+        document.querySelectorAll(".jt-student-check:not(:disabled)").forEach(cb => { cb.checked = true; });
       });
       $("jt-jump-btn") && $("jt-jump-btn").addEventListener("click", () => {
+        const land = LANDS.find(l => l.id === Number(($("jt-land") || {}).value));
         const targetId = parseInt($("jt-target-tile").value);
-        if (!targetId) { $("jt-result").textContent = "⚠️ Select a target tile first."; return; }
+        if (!land) { $("jt-result").textContent = "⚠️ Select a land first."; return; }
+        if (!targetId || !(land.pathOrder || []).includes(targetId)) { $("jt-result").textContent = "⚠️ Select a target tile first."; return; }
         const checked = [...document.querySelectorAll(".jt-student-check:checked")];
         if (!checked.length) { $("jt-result").textContent = "⚠️ Select at least one student."; return; }
         const doReset = !!($("jt-reset-progress") && $("jt-reset-progress").checked);
         const doExitTicket = !!($("jt-exit-ticket") && $("jt-exit-ticket").checked);
-        const land = LANDS[0];
         const allStudents = CLASS_DATA.periods.flatMap(p => p.students);
-        let count = 0;
+        let count = 0, skipped = 0;
         checked.forEach(cb => {
           const stu = allStudents.find(s => String(s.id) === cb.dataset.jtSid);
-          if (stu) {
-            if (doReset) resetTileProgress(stu.id, targetId);
-            jumpStudentToTile(stu, targetId, land);
-            if (doExitTicket) {
-              saveTaskCheck(stu.id, targetId, 'wayground', 0, true);
-              saveTaskCheck(stu.id, targetId, 'workbook', 0, true);
-            }
-            count++;
+          if (!stu) return;
+          // Only move students who are actually in this land, on a tile of its path (re-checked here).
+          const pos = getLandPos(stu);
+          if (pos.land !== land.id || !(land.pathOrder || []).includes(pos.tile)) { skipped++; return; }
+          if (doReset) resetTileProgress(stu.id, targetId);
+          jumpStudentToTile(stu, targetId, land);
+          if (doExitTicket) {
+            saveTaskCheck(stu.id, targetId, 'wayground', 0, true);
+            saveTaskCheck(stu.id, targetId, 'workbook', 0, true);
           }
+          count++;
         });
+        const tgt = land.tiles.find(t => t.id === targetId);
         const modeLabel = doExitTicket ? 'Jumped to exit ticket' : (doReset ? 'Reset & jumped' : 'Jumped');
-        $("jt-result").textContent = `✅ ${modeLabel} ${count} student${count !== 1 ? 's' : ''} to tile ${targetId}.`;
-        setTimeout(() => mount(), 600);
+        STATE.jtLandId = land.id;
+        STATE.jtResult = `✅ ${modeLabel} ${count} student${count !== 1 ? 's' : ''} to ${land.name} — ${tgt ? sessionLabel(tgt).split(' · ')[0] : 'tile ' + targetId}.`
+          + (skipped ? ` ⚠️ ${skipped} not moved (not in ${land.name}).` : '');
+        mount();
       });
     }
     // Help flag badge — clicking 🤚 on a card clears it
