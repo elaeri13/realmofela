@@ -9459,6 +9459,15 @@ function bindEvents() {
   }
 
   /* HUB */
+  /* ACHIEVEMENTS — its own block: these handlers used to be nested inside the hub block,
+     so they never ran on the Achievements screen and its buttons did nothing. */
+  if (STATE.screen === "achievements") {
+    $("ach-back-btn") && $("ach-back-btn").addEventListener("click", () => { STATE.screen = "hub"; mount(); });
+    document.querySelectorAll("[data-ach-tab]").forEach(btn => {
+      btn.addEventListener("click", () => { STATE.achievementsTab = btn.dataset.achTab; mount(); });
+    });
+  }
+
   if (STATE.screen === "hub") {
     $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; STATE.genName = null; STATE.genEpithet = null; STATE.namingOptions = null; STATE.epithetOptions = null; STATE._namingReturnScreen = null; mount(); });
     // Trophy mastery trial request — tap an available trophy
@@ -9880,13 +9889,6 @@ function bindEvents() {
       const expanded = det.classList.toggle("expanded");
       $("guild-hub-toggle").textContent = expanded ? "▲ Details" : "▼ Details";
     });
-    // Achievements screen (tab switching & back button handled via STATE.screen)
-    if (STATE.screen === 'achievements') {
-      $("ach-back-btn") && $("ach-back-btn").addEventListener("click", () => { STATE.screen = "hub"; mount(); });
-      document.querySelectorAll("[data-ach-tab]").forEach(btn => {
-        btn.addEventListener("click", () => { STATE.achievementsTab = btn.dataset.achTab; mount(); });
-      });
-    }
     $("open-shop-btn") && $("open-shop-btn").addEventListener("click", () => {
       STATE.shopOpen = true; STATE.shopConfirmItem = null; STATE.shopSuccess = false; STATE.shopTobbleIdx = Math.floor(Math.random() * 5); mount();
     });
