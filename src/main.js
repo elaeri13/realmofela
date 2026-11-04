@@ -1,5 +1,6 @@
 import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, signInAnonymously } from './firebaseClient.js'
 import { NAMES, EPITHETS } from './data/characterNames.js'
+import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession } from './currentSession.js'
 
 /* ═══════════════════════════════════════════════
    REALM OF ELA  —  Pure Vanilla JS
@@ -1844,6 +1845,52 @@ function saveCollabQuestsEnabled(val) {
   _settings.collabQuestsEnabled = !!val;
   set(ref(db, 'settings/collabQuestsEnabled'), !!val).catch(console.error);
 }
+// ── Today's lesson: teacher-designated current session per class ──
+// settings/currentSession/{classId} = { landId, tileId, setAt }  (teacher dashboard only)
+function getCurrentSessionSettings() { return (_settings && _settings.currentSession) || {}; }
+function saveClassCurrentSession(classId, landId, tileId) {
+  if (!_settings) _settings = {};
+  if (!_settings.currentSession) _settings.currentSession = {};
+  const cid = String(classId);
+  const val = (landId && tileId) ? { landId: Number(landId), tileId: Number(tileId), setAt: new Date().toISOString() } : null;
+  if (val) _settings.currentSession[cid] = val; else delete _settings.currentSession[cid];
+  set(ref(db, `settings/currentSession/${cid}`), val).catch(console.error);
+}
+// Everything the hub button / map marker need for this student. Read-only — never writes.
+function getTodaysLessonInfo(student) {
+  if (!student) return { status: 'unset' };
+  const pos = getLandPos(student);
+  const r = resolveTodaysLesson({ studentId: student.id, settingsCurrentSession: getCurrentSessionSettings(), lands: LANDS, pos });
+  if (r.status !== 'ok' && r.status !== 'other_land') return r;
+  const info = Object.assign({}, r, { label: sessionLabel(r.tile) });
+  if (r.status !== 'ok') return info;
+  // Respect existing locks, using the same rules as the map:
+  // release date not reached, past this class's progress cap, or a gate the teacher hasn't opened.
+  if (isTileLocked(r.land.id, r.tile.id)) return Object.assign(info, { status: 'not_released' });
+  if (r.relation !== 'done') {
+    const asIfHere = r.relation === 'ahead' ? Object.assign({}, pos, { tile: r.tile.id }) : pos;
+    const ts = tileState(r.tile, asIfHere, false, r.land);
+    if (ts === 'capped') return Object.assign(info, { status: 'capped' });
+    if (r.relation === 'behind') {
+      // Marker already past it: reachable only through the existing missed-lesson catch-up.
+      const _rd = getReleaseDate(r.land.id, r.tile.id);
+      if (!_rd || isTileLocked(r.land.id, r.tile.id)) return Object.assign(info, { status: 'locked' });
+    } else if (ts === 'locked') {
+      return Object.assign(info, { status: 'locked' });
+    }
+  }
+  const ov = _overrides[String(student.id)] || {};
+  info.started = hasStartedSession({ completed: pos.completed, taskProgress: ov.taskProgress, tileId: r.tile.id });
+  if (r.relation === 'ahead') {
+    info.move = planMoveToToday({
+      land: r.land, pos, targetTileId: r.tile.id,
+      isReleasedPast: tid => { const d = getReleaseDate(r.land.id, tid); return !!d && !isTileLocked(r.land.id, tid); },
+      isGateTile: tid => Object.values(r.land.gateBosses || {}).some(gb => gb.session === tid) && !(pos.completed || []).includes(tid),
+    });
+  }
+  return info;
+}
+
 function getProgressCap(cohortId, landId) {
   return (((_settings && _settings.progressCap) || {})[String(cohortId)] || {})[String(landId)] ?? null;
 }
@@ -3425,6 +3472,108 @@ function renderNaming() {
   </div>`;
 }
 
+// Flag-for-help modal (same behavior as before; shared by hub, session page and map).
+function renderHelpModal() {
+  if (!STATE.helpModalOpen) return '';
+  return `
+    <div class="help-modal-overlay" id="help-modal-overlay">
+      <div class="help-modal">
+        <div class="help-modal-title">🚩 Flag for Help</div>
+        <p class="help-modal-sub">What do you need help with? <span style="opacity:.6">(optional)</span></p>
+        <textarea class="help-modal-input" id="help-modal-input" maxlength="200" rows="3" placeholder="Type your question or leave blank to just raise your flag…"></textarea>
+        <div class="help-modal-btns">
+          <button class="btn btn-outline-sm" id="help-modal-skip">Skip</button>
+          <button class="btn btn-red" id="help-modal-send">🚩 Send Flag</button>
+        </div>
+      </div>
+    </div>`;
+}
+function bindHelpModal() {
+  const $ = id => document.getElementById(id);
+  if (!($("help-modal-send") || $("help-modal-skip"))) return;
+  const doFlag = (msg) => {
+    STATE.helpFlagged = true;
+    STATE.helpModalOpen = false;
+    setHelpFlag(STATE.student.id, msg);
+    logActivity(STATE.student.id, '🚩', msg ? `Flagged for help: ${msg.slice(0, 60)}` : 'Flagged for help');
+    mount();
+    const toast = document.createElement("div");
+    toast.className = "toast"; toast.textContent = "🙋 Your teacher has been notified! Hang tight, hero.";
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  };
+  $("help-modal-send") && $("help-modal-send").addEventListener("click", () => {
+    doFlag(($("help-modal-input") || {}).value || '');
+  });
+  $("help-modal-skip") && $("help-modal-skip").addEventListener("click", () => doFlag(''));
+  $("help-modal-overlay") && $("help-modal-overlay").addEventListener("click", (e) => {
+    if (e.target === $("help-modal-overlay")) { STATE.helpModalOpen = false; mount(); }
+  });
+}
+function getClassTeacherName(student) {
+  const cid = student ? classIdForStudent(student.id) : null;
+  const p = CLASS_DATA && (CLASS_DATA.periods || []).find(x => x.id === cid);
+  return (p && p.teacher) || 'your teacher';
+}
+// Hub: the one clear route into today's lesson (plus a friendly notice when it isn't available).
+function renderTodaysLessonEntry(student) {
+  const info = getTodaysLessonInfo(student);
+  const teacher = getClassTeacherName(student);
+  const box = inner => `<div class="today-entry">${inner}</div>`;
+  const note = (msg) => box(`<div class="today-entry-note">📜 ${msg}</div>`);
+  if (info.status === 'ok') {
+    const blocked = info.relation === 'ahead' && !(info.move && info.move.safe);
+    if (blocked) {
+      const pos = getLandPos(student);
+      const curTile = info.land.tiles.find(t => t.id === pos.tile);
+      return box(`<div class="today-entry-label">Today: ${info.label}</div>
+        <div class="today-entry-note">Finish ${curTile ? sessionLabel(curTile) : 'your current session'} first to reach today's lesson, or ask ${teacher} for help.</div>
+        ${curTile ? `<button class="btn btn-gold today-entry-btn" id="today-lesson-btn" data-today-fallback="1">⚔️ Go to ${sessionLabel(curTile).split(' · ')[0]}</button>` : ''}`);
+    }
+    const returning = info.started || info.relation === 'done';
+    return box(`<div class="today-entry-label">Today: ${info.label}${info.relation === 'done' ? ' <span class="today-entry-done">✓ Completed</span>' : ''}</div>
+      <button class="btn btn-gold today-entry-btn" id="today-lesson-btn">⚔️ ${returning ? "Return to today's lesson" : "Begin today's lesson"}</button>`);
+  }
+  if (info.status === 'other_land') return note(`Today's lesson is in ${info.land.name}. Use the overworld map to continue your journey.`);
+  if (info.status === 'locked')     return note(`Today's lesson (${info.label}) is locked right now. ${teacher} will open it when it's time.`);
+  if (info.status === 'capped')     return note(`Today's lesson (${info.label}) isn't open for your class yet.`);
+  if (info.status === 'not_released') return note(`Today's lesson (${info.label}) isn't available yet. Check back soon!`);
+  return note(`Today's lesson isn't available yet. You can still explore the overworld map.`);
+}
+// Open today's lesson page directly. Re-checks everything at click time.
+function openTodaysLesson(useFallback) {
+  const student = STATE.student;
+  if (!student) return;
+  // Driven only by the teacher's setting. (The map keeps its existing schedule auto-advance.)
+  const info = getTodaysLessonInfo(student);
+  const pos = getLandPos(student);
+  let tile = null, land = null;
+  if (info.status === 'ok') {
+    land = info.land;
+    if (info.relation === 'ahead') {
+      if (info.move && info.move.safe) {
+        // Move only the student's marker (never marks anything complete). Skipped sessions have
+        // passed release dates, so they show as missed and stay open through catch-up.
+        saveStudentOverride(student.id, { currentTile: info.tile.id });
+        logActivity(student.id, '📍', `Moved to today's lesson: ${info.label}`);
+        tile = info.tile;
+      } else if (useFallback) {
+        tile = land.tiles.find(t => t.id === pos.tile) || null;
+      }
+    } else {
+      tile = info.tile;
+    }
+  }
+  if (!tile || !land) { STATE.screen = "hub"; mount(); return; }
+  STATE.lessonTile = tile;
+  STATE.lessonLand = land;
+  STATE.lessonOpenedAt = Date.now();
+  STATE.catchUpOpen = false;
+  STATE.screen = "lesson-stop";
+  mount();
+  window.scrollTo(0, 0);
+}
+
 function renderHub() {
   const s = getMergedStudent(STATE.student);
 
@@ -3898,10 +4047,8 @@ function renderHub() {
         </div>
       </div>
       <div class="hub-actions enter" style="animation-delay:.2s">
-        <button class="btn btn-gold" id="continue-quest-btn">⚔️ Continue Quest</button>
-        <button class="btn ${STATE.helpFlagged?"btn-red btn-red-dim":"btn-red"}" id="help-btn" ${STATE.helpFlagged?"disabled":""}>
-          ${STATE.helpFlagged?"🙋 Help Requested!":"🚩 Flag for Help"}
-        </button>
+        ${renderTodaysLessonEntry(STATE.student)}
+        <button class="btn btn-outline-sm hub-map-btn" id="view-map-btn">🗺️ View overworld map</button>
         ${(() => {
           const invites = getSQInvites(STATE.student.id);
           const pendingCount = Object.values(invites).filter(i => i.status === 'pending').length;
@@ -4201,18 +4348,7 @@ function renderHub() {
     ${custHTML}
     ${renderPartnerPickerModal()}
     ${STATE.sqInviteNotifOpen ? renderInviteNotifModal() : ''}
-    ${STATE.helpModalOpen ? `
-    <div class="help-modal-overlay" id="help-modal-overlay">
-      <div class="help-modal">
-        <div class="help-modal-title">🚩 Flag for Help</div>
-        <p class="help-modal-sub">What do you need help with? <span style="opacity:.6">(optional)</span></p>
-        <textarea class="help-modal-input" id="help-modal-input" maxlength="200" rows="3" placeholder="Type your question or leave blank to just raise your flag…"></textarea>
-        <div class="help-modal-btns">
-          <button class="btn btn-outline-sm" id="help-modal-skip">Skip</button>
-          <button class="btn btn-red" id="help-modal-send">🚩 Send Flag</button>
-        </div>
-      </div>
-    </div>` : ''}
+    ${renderHelpModal()}
     ${STATE.studentCompanionOpen ? `
     <div class="equip-picker-overlay" id="student-companion-overlay">
       <div class="equip-picker-box" style="max-width:520px">
@@ -4752,6 +4888,20 @@ function decorationSVG(name, cx, cy) {
   <image href="${url}" x="${x}" y="${y}" width="${ts}" height="${ts}" preserveAspectRatio="xMidYMid slice" clip-path="url(#${cid})" opacity="0.82" style="pointer-events:none"/>`;
 }
 
+// Map overlay: marks the class's "today's lesson" tile, separate from the student's YOU ARE HERE marker.
+function todaysLessonMapMarker(student, land, pos) {
+  const info = getTodaysLessonInfo(student);
+  if (!info.tile || !info.land || info.land.id !== land.id || info.status === 'invalid') return '';
+  const t = info.tile;
+  const ts = LW.TILE, tx = t.x - ts / 2, ty = t.y - ts / 2;
+  const same = pos && pos.tile === t.id;
+  const labelY = same ? ty - 52 : ty - 12;  // sit above "YOU ARE HERE" when both point at the same tile
+  return `<g class="today-marker" style="pointer-events:none">
+    ${same ? '' : `<rect x="${tx - 7}" y="${ty - 7}" width="${ts + 14}" height="${ts + 14}" rx="${Math.round(ts * .14) + 6}" fill="none" stroke="#FBBF24" stroke-width="3" stroke-dasharray="10 5"/>`}
+    <rect x="${t.x - 56}" y="${labelY - 11}" width="112" height="16" rx="8" fill="rgba(120,53,15,.92)" stroke="#FBBF24" stroke-width="1.2"/>
+    <text x="${t.x}" y="${labelY}" text-anchor="middle" font-size="8.5" font-weight="900" fill="#FDE68A" font-family="Arial" letter-spacing="1">★ TODAY'S LESSON</text>
+  </g>`;
+}
 function buildLandSVG(land, pos, board, extraSVG) {
   const biome = land.biome;
   const W = land.W || LW.W;
@@ -5493,6 +5643,8 @@ function renderLessonStop() {
   </div>` : '';
 
   const _overlays = `
+    ${STATE.student ? `<button class="ls-help-btn${STATE.helpFlagged ? ' flagged' : ''}" id="ls-help-btn" ${STATE.helpFlagged ? 'disabled' : ''}>${STATE.helpFlagged ? '🙋 Help requested' : '🙋 Need help?'}</button>` : ''}
+    ${renderHelpModal()}
     ${STATE.sideQuestModalOpen ? (() => {
       const tid = STATE.sideQuestTileId;
       const tile = findTileById(tid);
@@ -5719,7 +5871,7 @@ function renderLessonStop() {
       const cuPearUrl  = pearUrl;
       return `<div class="cu-panel${catchUpForcedOpen ? '' : ' enter'}" id="cu-panel">
         <div class="cu-panel-hdr">
-          <span class="cu-panel-title">📚 Missed a day? — ${sessLabel}</span>
+          <span class="cu-panel-title">📚 Catch up — ${sessLabel}</span>
           ${!catchUpForcedOpen ? `<button class="cu-panel-close" id="cu-close-btn">✕</button>` : ''}
         </div>
         <div class="cu-step">
@@ -5805,8 +5957,21 @@ function renderLessonStop() {
               : `<div class="ls-done-msg">📚 That one needs more practice — your teacher has been notified and will help you get there.</div>`)
           : `<div class="ls-done-msg">✅ ${sessLabel} complete! Well done, warrior.</div>`}
       </div>` : ''}
-      ${catchUpEligible && !catchUpForcedOpen && !catchUpOpen ? `
-      <button class="cu-open-btn" id="cu-open-btn">📚 Missed a day? Start here</button>` : ''}
+      ${(() => {
+        // Secondary catch-up area. Never blocks today's lesson; teacher exceptions still apply.
+        const showCuBtn = catchUpEligible && !catchUpForcedOpen && !catchUpOpen;
+        const _today = student ? getTodaysLessonInfo(student) : null;
+        const isToday = !!(_today && _today.status === 'ok' && _today.tile.id === tile.id && _today.land.id === land.id);
+        const missedOthers = (isToday && !tileMissed) ? getMissedTiles(student, land).filter(tid => tid !== tile.id) : [];
+        if (!showCuBtn && !missedOthers.length) return '';
+        return `<div class="cu-secondary">
+          ${isToday ? `<p class="cu-guidance">Finish today's lesson first, unless ${getClassTeacherName(student)} directs you otherwise.</p>` : ''}
+          ${showCuBtn ? `<button class="cu-open-btn" id="cu-open-btn">📚 Catch up on a missed lesson</button>` : ''}
+          ${missedOthers.length ? `<div class="cu-missed-list"><span class="cu-missed-lbl">${showCuBtn ? 'Other missed lessons:' : '📚 Catch up on a missed lesson:'}</span>
+            ${missedOthers.map(tid => { const mt = land.tiles.find(t => t.id === tid); return mt ? `<button class="cu-missed-link" data-open-missed="${tid}">${sessionLabel(mt).split(' · ')[0]}</button>` : ''; }).join('')}
+          </div>` : ''}
+        </div>`;
+      })()}
       ${catchUpHtml}
       ${wbRef ? `<div class="ls-workbook">${wbRef}</div>` : ""}
     </div>
@@ -6564,12 +6729,13 @@ function renderQuestMap() {
     <div class="lm-svg-wrap">
       <div class="lm-map-bg" ${land.bgImage ? `style="background-image:url('${land.bgImage}')"` : ""}></div>
       <svg viewBox="0 -30 ${land.W||LW.W} ${(land.H||LW.H)+30}" style="width:100%;height:auto;max-width:${land.W||LW.W}px;display:block" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-        ${buildLandSVG(land,pos,false,"")}
+        ${buildLandSVG(land,pos,false,todaysLessonMapMarker(STATE.student, land, pos))}
       </svg>
     </div>
     <button class="qm-help-btn${STATE.helpFlagged?' flagged':''}" id="qm-help-btn" ${STATE.helpFlagged?'disabled':''}>
       ${STATE.helpFlagged?'🙋 Help Requested':'🤚 Need Help'}
     </button>
+    ${renderHelpModal()}
     ${completedInLand && getCollabQuestsEnabled() ? `
     <button class="sq-board-banner" id="sq-board-btn">
       <span class="sq-board-banner-scroll">📜</span>
@@ -7205,6 +7371,27 @@ function renderTeacherDashboard() {
              <button class="btn btn-outline-sm" id="t-reset-pins-no">Cancel</button>`
           : `<button class="btn btn-outline-sm" id="t-reset-pins-btn">🔑 Reset all PINs in this period</button>`}
       </div>
+      ${(() => {
+        // Today's lesson for this class (teacher-only; students never see this control)
+        if (!period) return '';
+        const cur = getCurrentSessionSettings()[String(period.id)] || null;
+        const curVal = cur ? `${cur.landId}:${cur.tileId}` : '';
+        const opts = listSessionOptions(LANDS);
+        const curOpt = opts.find(o => o.value === curVal);
+        const groups = LANDS.filter(l => l.id).map(l => {
+          const inLand = opts.filter(o => o.land.id === l.id);
+          if (!inLand.length) return '';
+          return `<optgroup label="${l.name}">${inLand.map(o => `<option value="${o.value}"${o.value === curVal ? ' selected' : ''}>${sessionLabel(o.tile)}</option>`).join('')}</optgroup>`;
+        }).join('');
+        return `<div class="t-today-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 8px;padding:8px 12px;border-radius:10px;background:rgba(15,10,40,.55);border:1.5px solid rgba(251,191,36,.45)">
+          <label for="t-today-sel" style="font-size:13px;font-weight:800;color:#FDE68A">📍 Today's lesson for ${period.periodName}:</label>
+          <select id="t-today-sel" style="min-height:36px;padding:4px 8px;border-radius:8px;font-weight:700;max-width:100%">
+            <option value=""${curVal ? '' : ' selected'}>— Not set —</option>${groups}
+          </select>
+          <button class="btn btn-outline-sm" id="t-today-save">Save</button>
+          <span style="font-size:12px;font-weight:700;color:${curOpt ? '#A7F3D0' : (cur ? '#FCA5A5' : 'rgba(255,255,255,.65)')}">${curOpt ? `Students see: ${curOpt.land.name} — ${sessionLabel(curOpt.tile)}` : (cur ? 'Saved session no longer exists — choose another' : 'Students see "Today\'s lesson isn\'t ready yet"')}</span>
+        </div>`;
+      })()}
       ${STATE.classSettingsOpen ? `<div class="cs-overlay" id="cs-overlay">
         <div class="cs-modal">
           <div class="cs-hdr">
@@ -8916,7 +9103,8 @@ function bindEvents() {
         mount();
       });
     });
-    $("continue-quest-btn") && $("continue-quest-btn").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
+    $("today-lesson-btn") && $("today-lesson-btn").addEventListener("click", e => openTodaysLesson(!!e.currentTarget.dataset.todayFallback));
+    $("view-map-btn") && $("view-map-btn").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
     $("sq-invite-badge") && $("sq-invite-badge").addEventListener("click", () => {
       STATE.sqInviteNotifOpen = true; mount();
     });
@@ -9311,26 +9499,7 @@ function bindEvents() {
       mount();
       $("help-modal-input") && $("help-modal-input").focus();
     });
-    if ($("help-modal-send") || $("help-modal-skip")) {
-      const doFlag = (msg) => {
-        STATE.helpFlagged = true;
-        STATE.helpModalOpen = false;
-        setHelpFlag(STATE.student.id, msg);
-        logActivity(STATE.student.id, '🚩', msg ? `Flagged for help: ${msg.slice(0, 60)}` : 'Flagged for help');
-        mount();
-        const toast = document.createElement("div");
-        toast.className = "toast"; toast.textContent = "🙋 Your teacher has been notified! Hang tight, hero.";
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
-      };
-      $("help-modal-send") && $("help-modal-send").addEventListener("click", () => {
-        doFlag(($("help-modal-input") || {}).value || '');
-      });
-      $("help-modal-skip") && $("help-modal-skip").addEventListener("click", () => doFlag(''));
-      $("help-modal-overlay") && $("help-modal-overlay").addEventListener("click", (e) => {
-        if (e.target === $("help-modal-overlay")) { STATE.helpModalOpen = false; mount(); }
-      });
-    }
+    bindHelpModal();
     // Shop open/close
     $("guild-hub-toggle") && $("guild-hub-toggle").addEventListener("click", () => {
       const det = $("guild-hub-details");
@@ -9446,6 +9615,20 @@ function bindEvents() {
       $("cs-overlay") && $("cs-overlay").addEventListener("click", e => { if (e.target === $("cs-overlay")) closeCS(); });
     }
     $("t-jump-tool-btn") && $("t-jump-tool-btn").addEventListener("click", () => { STATE.jumpToolOpen = true; mount(); });
+    // Today's lesson for the selected period (class). Saving never moves any student.
+    $("t-today-save") && $("t-today-save").addEventListener("click", () => {
+      const period = CLASS_DATA.periods[STATE.teacherPeriodIdx];
+      if (!period) return;
+      const v = ($("t-today-sel") || {}).value || '';
+      const [landId, tileId] = v ? v.split(':').map(Number) : [null, null];
+      saveClassCurrentSession(period.id, landId, tileId);
+      mount();
+      const toast = document.createElement("div");
+      toast.className = "gold-toast";
+      toast.innerHTML = `<div class="gold-pop">📍 ${period.periodName}: ${v ? 'today\'s lesson saved' : 'today\'s lesson cleared'}</div>`;
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.classList.add("gold-toast-out"); setTimeout(() => toast.remove(), 380); }, 2200);
+    });
     // Reset all PINs in the selected period — same write as the per-student "Reset PIN" button
     $("t-reset-pins-btn") && $("t-reset-pins-btn").addEventListener("click", () => { STATE.resetPinsConfirmPi = STATE.teacherPeriodIdx; mount(); });
     $("t-reset-pins-no")  && $("t-reset-pins-no").addEventListener("click", () => { STATE.resetPinsConfirmPi = null; mount(); });
@@ -10036,6 +10219,7 @@ function bindEvents() {
       STATE.helpModalOpen = true; mount();
       $("help-modal-input") && $("help-modal-input").focus();
     });
+    bindHelpModal();
     // Sanctum return popup close
     $("sanctum-return-close") && $("sanctum-return-close").addEventListener("click", () => {
       STATE.sanctumReturnOpen = false;
@@ -10982,6 +11166,20 @@ function bindEvents() {
   }
 
   if (STATE.screen === "lesson-stop") {
+    // Open a missed lesson from today's lesson page (same screen the map opens for missed tiles)
+    document.querySelectorAll("[data-open-missed]").forEach(b => b.addEventListener("click", () => {
+      const land = STATE.lessonLand;
+      const t = land && land.tiles.find(x => x.id === Number(b.dataset.openMissed));
+      if (!t || !isTileMissed(STATE.student, land, t.id)) return;
+      STATE.lessonTile = t; STATE.lessonOpenedAt = Date.now(); STATE.catchUpOpen = false;
+      mount(); window.scrollTo(0, 0);
+    }));
+    $("ls-help-btn") && $("ls-help-btn").addEventListener("click", () => {
+      if (STATE.helpFlagged) return;
+      STATE.helpModalOpen = true; mount();
+      $("help-modal-input") && $("help-modal-input").focus();
+    });
+    bindHelpModal();
     document.querySelectorAll(".ls-back-btn").forEach(btn => btn.addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.catchUpOpen = false; STATE.screen = "quest-map"; mount(); }));
 
     // Camp tile flow
