@@ -3642,11 +3642,22 @@ function openTodaysLesson(useFallback) {
     }
   }
   if (!tile || !land) { STATE.screen = "hub"; mount(); return; }
-  STATE.lessonTile = tile;
-  STATE.lessonLand = land;
-  STATE.lessonOpenedAt = Date.now();
-  STATE.catchUpOpen = false;
-  STATE.screen = "lesson-stop";
+  // Open the tile on the same screen the map uses for it.
+  if (tile.type === 'arrival') {
+    STATE.arrivalTile = tile;
+    STATE.arrivalLand = land;
+    STATE.gateCarving = null;
+    STATE.screen = "arrival-screen";
+  } else if (['lesson', 'forge', 'studyHall', 'camp'].includes(tile.type)) {
+    STATE.lessonTile = tile;
+    STATE.lessonLand = land;
+    STATE.lessonOpenedAt = Date.now();
+    STATE.catchUpOpen = false;
+    STATE.screen = "lesson-stop";
+  } else {
+    // Boss, writing event, etc. have their own entry flows — send the student to the map.
+    STATE.screen = "quest-map";
+  }
   mount();
   window.scrollTo(0, 0);
 }
