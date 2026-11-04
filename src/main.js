@@ -243,7 +243,7 @@ const STANDARD_NAMES = {
 };
 /* ─── SIDE QUESTS ─── */
 const COLLAB_QUESTS = [
-  { title:"Guild Scholars",     desc:"Discuss the main idea with a partner. Agree on one key point together.",         xp:15 },
+  { title:"House Scholars",     desc:"Discuss the main idea with a partner. Agree on one key point together.",         xp:15 },
   { title:"Peer Forge",         desc:"Share your written response with a partner and give each other one piece of feedback.", xp:15 },
   { title:"Alliance Quest",     desc:"Work with a partner to find 2 pieces of text evidence and compare them.",        xp:15 },
   { title:"Council of Two",     desc:"Compare your answers — what's the same? What's different? Discuss why.",          xp:15 },
@@ -1406,14 +1406,14 @@ const LAND0 = {
       flavorDramatic:"✦ The Hall of Heroes is already expecting you. ✦" },
     { id:2, type:"sg", name:"The Hall of Heroes",    x:195, y:350, sgModal:"avatar",
       flavor:"Every legend begins with a face and a name. Step into the Hall of Heroes to choose your class and forge the hero you will become. Your look, your story." },
-    { id:3, type:"sg", name:"The Guild Hall",         x:455, y:630,
-      flavor:"All heroes belong to a guild. Enter and see where your talents place you — your guild will be your companion through every challenge that lies ahead." },
+    { id:3, type:"sg", name:"The House Hall",          x:455, y:630,
+      flavor:"Every scholar-adventurer belongs to a School House. Enter and discover where your talents place you — your House will walk with you through every challenge that lies ahead." },
     { id:4, type:"sg", name:"The Armory",             x:715, y:630,
       flavor:"Know your power before the battle. The Armory holds the secrets of XP, levels, and the strength that grows within you with every tile you complete." },
     { id:5, type:"sg", name:"The Training Grounds",   x:715, y:350, sgModal:"lesson",
       flavor:"No hero charges into battle untrained. Walk through a practice run and learn how your quests will be tracked before the real lessons begin." },
     { id:6, type:"sg", name:"The Village Gate",       x:195, y:630, sgModal:"gate",
-      flavor:"You've chosen your class. You've found your guild. The Realm knows your name now.<br><br>Beyond this gate, the real trials begin — new lands, new challenges, and a legend still waiting to be written. Take a breath, hero. It's time." },
+      flavor:"You've chosen your class. You've found your House. The Realm knows your name now.<br><br>Beyond this gate, the real trials begin — new lands, new challenges, and a legend still waiting to be written. Take a breath, hero. It's time." },
     { id:10, type:"npc", npcKey:"lumin_hint",          x:195,  y:210, landId:0 },
     { id:11, type:"npc", npcKey:"lumin_lore",          x:715,  y:210, landId:0 },
     { id:12, type:"npc", npcKey:"lumin_encouragement", x:975,  y:490, landId:0 },
@@ -1479,6 +1479,7 @@ const STUDENT_DEFAULTS = {
   claimed: false,
   characterName: null,
   guild: null,
+  house: null,
   avatarClass: null,
   title: null,
   level: 1, xp: 0, xpNext: 50,
@@ -1541,6 +1542,17 @@ function getStdBossState(studentId, bossKey) {
   return ((_overrides[String(studentId)] || {}).standardBossState || {})[bossKey]
     || { status:'not_started', encounterCount:0, lastAttemptSession:null, failedAt:null };
 }
+// Returns 'gold'|'silver'|'bronze'|null based on teacher-awarded demonstrationCount.
+// NEVER auto-derives from encounter history — only teacher-set counts count.
+function getMedalLevel(stdBossStateObj) {
+  const n = stdBossStateObj && stdBossStateObj.demonstrationCount;
+  if (typeof n !== 'number') return null;
+  if (n >= 3) return 'gold';
+  if (n >= 2) return 'silver';
+  if (n >= 1) return 'bronze';
+  return null;
+}
+const MEDAL_EMOJI = { gold:'🥇', silver:'🥈', bronze:'🥉' };
 function setStdBossState(studentId, bossKey, stateObj) {
   const sid = String(studentId);
   if (!_overrides[sid]) _overrides[sid] = {};
@@ -2303,38 +2315,61 @@ function completeSideQuest(student, key) {
   if (Math.random() < 0.5) awardSeasonalBadge(student);
   showXPCelebration(quest.xp, levelsGained, newLevel, () => mount());
 }
-function getGuildCounts() {
-  const guilds = CLASS_DATA && CLASS_DATA.guilds ? CLASS_DATA.guilds : {};
+// ── House system (replaces guild system) ──────────────────────────────────────
+// Legacy guild keys map to new house keys; existing student `guild` field is
+// preserved as-is — we only READ it here to derive a house on first transition.
+const GUILD_TO_HOUSE = { ember:'altruismo', tide:'amistad', thorn:'rêveur', storm:'isibindi' };
+
+function getStudentHouse(ov) {
+  if (ov.house) return ov.house;
+  if (ov.guild && GUILD_TO_HOUSE[ov.guild]) return GUILD_TO_HOUSE[ov.guild];
+  return null;
+}
+function getHouseData(houseKey) {
+  const houses = CLASS_DATA && CLASS_DATA.houses;
+  return (houses && houses[houseKey]) || null;
+}
+
+function getHouseCounts() {
+  const houses = CLASS_DATA && CLASS_DATA.houses ? CLASS_DATA.houses : {};
   const counts = {};
-  Object.keys(guilds).forEach(k => { counts[k] = 0; });
+  Object.keys(houses).forEach(k => { counts[k] = 0; });
   if (!CLASS_DATA) return counts;
   const ov = getOverrides();
   for (const period of CLASS_DATA.periods) {
     for (const student of period.students) {
       const sOv = ov.students[String(student.id)] || {};
-      const g = sOv.guild || student.guild;
-      if (g && counts[g] !== undefined) counts[g]++;
+      const h = getStudentHouse(sOv);
+      if (h && counts[h] !== undefined) counts[h]++;
     }
   }
   return counts;
 }
-function assignGuild(studentId) {
-  const counts = getGuildCounts();
+// Kept for backward-compat call sites; always returns house counts now
+function getGuildCounts() { return getHouseCounts(); }
+
+function assignHouse(studentId) {
+  const counts = getHouseCounts();
   const keys = Object.keys(counts);
   if (!keys.length) return null;
   const min = Math.min(...keys.map(k => counts[k]));
   const tied = keys.filter(k => counts[k] === min);
   const chosen = tied[Math.floor(Math.random() * tied.length)];
-  saveStudentOverride(studentId, { guild: chosen });
+  saveStudentOverride(studentId, { house: chosen });
   unlockCosmeticsForGuild(studentId, chosen);
   return chosen;
 }
-const GUILD_BLURBS = {
-  ember: "The Ember Guild is first through every door. They are the bold ones — full of energy, impossible to ignore, always ready to take the first step. To wear their crest is to carry a spark that never goes out.",
-  tide:  "The Tide Guild always comes back. They are the steady ones — resilient, consistent, unshaken by setbacks. To wear their crest is to carry the quiet certainty that you will return, every time.",
-  thorn: "The Thorn Guild holds the line. They are the disciplined ones — gritty, loyal, unbroken by hard ground. To wear their crest is to carry the understanding that real strength is grown, not given.",
-  storm: "The Storm Guild never stands still. They are the bold movers — fast, adaptable, always three steps ahead. To wear their crest is to carry the wind at your back and the boldness to use it.",
+// Kept for backward-compat call sites
+function assignGuild(studentId) { return assignHouse(studentId); }
+
+const HOUSE_BLURBS = {
+  altruismo: "Altruismo rises by lifting others. They are the first to offer a hand and the last to give up on a teammate. To wear their crest is to carry the belief that your strength belongs to everyone around you.",
+  amistad:   "Amistad always comes back. They are the loyal ones — steady through every setback, true through every trial. To wear their crest is to carry the quiet certainty that friendship is the greatest power in the Realm.",
+  'rêveur':  "Rêveur dares to imagine what isn't yet real. They are the disciplined dreamers — gritty enough to do the work, bold enough to believe in the vision. To wear their crest is to carry a dream that refuses to die.",
+  isibindi:  "Isibindi means courage, and they carry that name into every room. They are the bold ones — adaptable, unafraid, always three steps ahead. To wear their crest is to carry the wind at your back and the daring to use it.",
 };
+// Backward compat
+const GUILD_BLURBS = HOUSE_BLURBS;
 
 function renderGuildReveal() {
   const step = STATE.sg0GuildReveal;
@@ -2343,10 +2378,10 @@ function renderGuildReveal() {
     return `<div class="guild-reveal-overlay" id="guild-intro-overlay">
       <div class="guild-reveal-inner guild-intro-inner">
         <div class="guild-intro-modal">
-          <div class="guild-intro-header">⚔️ Your Guild</div>
+          <div class="guild-intro-header">🏫 Your School House</div>
           <div class="guild-intro-body">
-            <p>Every hero belongs somewhere. In the Realm, that place is your guild — the people who'll stand with you through every trial, every tile, every boss fight. Guilds aren't about being better than anyone else. They're about being part of something bigger than yourself.</p>
-            <p>Crimson. Storm. Ember. Shadow. Four guilds, one Realm. Yours is waiting to meet you.</p>
+            <p>Every scholar-adventurer belongs somewhere. In the Realm, that place is your School House — the community that will stand with you through every trial, every tile, every challenge. Your House isn't about being better than anyone else. It's about being part of something bigger than yourself.</p>
+            <p>Altruismo. Amistad. Rêveur. Isibindi. Four Houses, one Realm. Yours is waiting to welcome you.</p>
           </div>
           <div class="guild-intro-footer">
             <button class="btn btn-gold" id="guild-intro-btn">I'm Ready to Join →</button>
@@ -2357,22 +2392,22 @@ function renderGuildReveal() {
   }
 
   const ov = getOverrides().students[String(STATE.student.id)] || {};
-  const guildKey = ov.guild;
-  const guilds = CLASS_DATA && CLASS_DATA.guilds;
-  if (!guilds || !guildKey || !guilds[guildKey]) return "";
-  const guild = guilds[guildKey];
-  const allKeys = Object.keys(guilds);
+  const houseKey = getStudentHouse(ov);
+  const houses = CLASS_DATA && CLASS_DATA.houses;
+  if (!houses || !houseKey || !houses[houseKey]) return "";
+  const house = houses[houseKey];
+  const allKeys = Object.keys(houses);
 
   if (step === "spinning") {
     const crests = allKeys.map(k =>
-      `<img class="guild-crest-dim" src="${guilds[k].crest}" alt="${guilds[k].name}" width="80" height="80"
+      `<img class="guild-crest-dim" src="${houses[k].crest}" alt="${houses[k].name}" width="80" height="80"
         onerror="this.style.opacity='.15';this.style.fontSize='40px';this.style.lineHeight='80px'"/>`
     ).join("");
     return `<div class="guild-reveal-overlay">
       <div class="guild-reveal-inner">
-        <div class="guild-spin-title">✦ THE GUILDS ARE DELIBERATING ✦</div>
+        <div class="guild-spin-title">✦ THE REALM IS PLACING YOU ✦</div>
         <div class="guild-crest-grid">${crests}</div>
-        <div class="guild-spin-hint">Ancient forces weigh your fate...</div>
+        <div class="guild-spin-hint">Your path is being written...</div>
       </div>
     </div>`;
   }
@@ -2386,19 +2421,19 @@ function renderGuildReveal() {
   }
 
   if (step === "chosen") {
-    const blurb = GUILD_BLURBS[guild.name.toLowerCase()] || "";
+    const blurb = HOUSE_BLURBS[house.name.toLowerCase()] || HOUSE_BLURBS[houseKey] || "";
     return `<div class="guild-reveal-overlay">
-      <div class="guild-color-flash" style="background:${guild.color}"></div>
+      <div class="guild-color-flash" style="background:${house.color}"></div>
       <div class="guild-reveal-inner">
-        <div class="guild-chosen-eyebrow">YOU HAVE BEEN CHOSEN BY THE</div>
-        <img class="guild-chosen-crest" src="${guild.crest}" alt="${guild.name}" width="170" height="170"
-          style="--gc:${guild.color}"
+        <div class="guild-chosen-eyebrow">YOU HAVE BEEN WELCOMED INTO</div>
+        <img class="guild-chosen-crest" src="${house.crest}" alt="${house.name}" width="170" height="170"
+          style="--gc:${house.color}"
           onerror="this.style.fontSize='80px';this.style.lineHeight='1'"/>
-        <div class="guild-chosen-name" style="color:${guild.color}">${guild.name.toUpperCase()}</div>
-        <div class="guild-chosen-motto">"${guild.motto}"</div>
+        <div class="guild-chosen-name" style="color:${house.color}">${house.name.toUpperCase()}</div>
+        <div class="guild-chosen-motto">"${house.motto}"</div>
         ${blurb ? `<div class="guild-chosen-blurb">${blurb}</div>` : ''}
         <button class="guild-continue-btn" id="guild-continue-btn"
-          style="background:${guild.color};color:#fff;animation-delay:.9s">Continue Your Quest →</button>
+          style="background:${house.color};color:#fff;animation-delay:.9s">Begin Your Journey →</button>
       </div>
     </div>`;
   }
@@ -2431,6 +2466,7 @@ function getMergedStudent(base) {
   if (ov._isReset) {
     if (!('currentLand' in ov))      merged.currentLand      = null;
     if (!('guild' in ov))            merged.guild            = null;
+    if (!('house' in ov))            merged.house            = null;
     if (!('title' in ov))            merged.title            = null;
     if (!('activeCompanion' in ov))  merged.activeCompanion  = null;
     if (!('bosses' in ov))           merged.bosses           = [];
@@ -2825,8 +2861,13 @@ function isCosmeticUnlocked(student, cosmetic) {
       return (s.bosses || []).includes(cosmetic.unlockValue);
     case 'seasonal_window':
       return today >= cosmetic.unlockValue.start && today <= cosmetic.unlockValue.end;
-    case 'guild':
-      return (ov.guild || null) === cosmetic.unlockValue;
+    case 'guild': {
+      // Match by house (new) or legacy guild key, or by the old guild unlock value mapped to house
+      const studentHouse = getStudentHouse(ov);
+      const unlockVal = cosmetic.unlockValue;
+      // unlockValue is a legacy guild key (ember/tide/thorn/storm); check if student's house matches the mapping
+      return studentHouse === (GUILD_TO_HOUSE[unlockVal] || unlockVal) || (ov.guild || null) === unlockVal;
+    }
     case 'shop':
     case 'drop':
       return (ov.unlockedCosmetics || []).includes(cosmetic.id);
@@ -2838,10 +2879,13 @@ function unlockCosmeticsForBoss(student, bossName) {
     .filter(c => c.unlockType === 'boss_defeat' && c.unlockValue === bossName)
     .forEach(c => unlockCosmetic(student, c.id));
 }
-function unlockCosmeticsForGuild(studentId, guildKey) {
+function unlockCosmeticsForGuild(studentId, houseOrGuildKey) {
   const student = { id: studentId };
+  // Match by legacy guild key or by the new house key (via reverse lookup)
+  const reverseLookup = Object.fromEntries(Object.entries(GUILD_TO_HOUSE).map(([g,h]) => [h,g]));
+  const legacyKey = reverseLookup[houseOrGuildKey] || houseOrGuildKey;
   COSMETICS_MANIFEST
-    .filter(c => c.unlockType === 'guild' && c.unlockValue === guildKey)
+    .filter(c => c.unlockType === 'guild' && (c.unlockValue === legacyKey || c.unlockValue === houseOrGuildKey))
     .forEach(c => unlockCosmetic(student, c.id));
 }
 function unlockCosmeticsForLevel(student, newLevel) {
@@ -2872,22 +2916,23 @@ function renderShopModal(student) {
   const confirmItem = STATE.shopConfirmItem ? SHOP_ITEMS.find(i => i.id === STATE.shopConfirmItem) : null;
   const enabledItems = SHOP_ITEMS.filter(i => getShopItemEnabled(i.id));
 
-  // Compute guild with fewest total XP from existing student data
+  // Compute house with fewest total XP from existing student data
   let behindGuildName = null;
-  if (CLASS_DATA && CLASS_DATA.guilds && CLASS_DATA.periods) {
-    const guildXP = {};
-    Object.keys(CLASS_DATA.guilds).forEach(k => { guildXP[k] = 0; });
+  if (CLASS_DATA && CLASS_DATA.houses && CLASS_DATA.periods) {
+    const houseXP = {};
+    Object.keys(CLASS_DATA.houses).forEach(k => { houseXP[k] = 0; });
     CLASS_DATA.periods.forEach(p => {
       (p.students || []).forEach(s => {
         const m = getMergedStudent(s);
-        const g = m.guild || s.guild;
-        if (g && guildXP[g] !== undefined) guildXP[g] += (m.xp || 0);
+        const sOv = getOverrides().students[String(s.id)] || {};
+        const h = getStudentHouse(sOv) || getStudentHouse(m);
+        if (h && houseXP[h] !== undefined) houseXP[h] += (m.xp || 0);
       });
     });
-    const populated = Object.entries(guildXP).filter(([,v]) => v > 0);
+    const populated = Object.entries(houseXP).filter(([,v]) => v > 0);
     if (populated.length > 0) {
       const minKey = populated.reduce((a, b) => a[1] <= b[1] ? a : b)[0];
-      behindGuildName = CLASS_DATA.guilds[minKey]?.name || minKey;
+      behindGuildName = CLASS_DATA.houses[minKey]?.name || minKey;
     }
   }
 
@@ -3169,7 +3214,8 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               namingOptions: null, epithetOptions: null, _namingReturnScreen: null,
               teacherLinksLandId: 1,
               newPinStep: 'enter', newPinEntry: '', newPinFirst: '', revealedPinSids: {},
-              reteachAssignSid: null, reteachAssignTileId: null };
+              reteachAssignSid: null, reteachAssignTileId: null,
+              achievementsTab: 'medals' };
 
 /* ─── CHIBI SVG ─── */
 function chibiSVG(cls, size) {
@@ -4067,9 +4113,9 @@ function renderHub() {
                       </div>`;
                     }
                     const _avGOv = getOverrides().students[String(s.id)] || {};
-                    const _avGKey = _avGOv.guild;
-                    const _avGuilds = CLASS_DATA && CLASS_DATA.guilds;
-                    const _avColor = (_avGKey && _avGuilds && _avGuilds[_avGKey]) ? _avGuilds[_avGKey].color : '#3B1F8C';
+                    const _avHKey = getStudentHouse(_avGOv);
+                    const _avHouseData = _avHKey ? getHouseData(_avHKey) : null;
+                    const _avColor = _avHouseData ? _avHouseData.color : '#3B1F8C';
                     const _avBg = `radial-gradient(ellipse at 45% 40%, ${_avColor}28 0%, ${_avColor}88 100%)`;
                     return `<div class="avatar-ring-xl" style="overflow:hidden;padding:0;position:relative;background:${_avBg};border-color:${_avColor};box-shadow:0 6px 24px ${_avColor}59">
                       <img src="${displayAvatarUrl}" class="hub-avatar-img" alt="Avatar" width="250" height="250"/>
@@ -4109,24 +4155,22 @@ function renderHub() {
             <div class="char-level-stat-compact">⭐ Level ${s.level}</div>
             ${(() => {
               const _gOv = getOverrides().students[String(s.id)] || {};
-              const _gKey = _gOv.guild;
-              const _guilds = CLASS_DATA && CLASS_DATA.guilds;
-              if (!_gKey || !_guilds || !_guilds[_gKey]) return '';
-              const _g = _guilds[_gKey];
-              const _hasDetails = !!((_g.motto || _g.values || _g.chant));
-              return `<div class="guild-banner-compact" style="border-color:${_g.color};background:${_g.color}18">
-                <img class="guild-banner-crest-sm" src="${_g.crest}" alt="${_g.name}" width="28" height="28" onerror="this.style.display='none'"/>
+              const _hKey = getStudentHouse(_gOv);
+              const _h = _hKey ? getHouseData(_hKey) : null;
+              if (!_h) return '';
+              const _hasDetails = !!((_h.motto || _h.values || _h.chant));
+              return `<div class="guild-banner-compact" style="border-color:${_h.color};background:${_h.color}18">
+                <img class="guild-banner-crest-sm" src="${_h.crest}" alt="${_h.name}" width="28" height="28" onerror="this.style.display='none'"/>
                 <div class="guild-hub-info">
                   <div class="guild-hub-header">
-                    <span class="guild-banner-label-sm">GUILD</span>
-                    <span class="guild-hub-name" style="color:${_g.color}">${_g.name}</span>
-                    ${_g.element ? `<span class="guild-hub-element" style="color:${_g.color}">· ${_g.element}</span>` : ''}
+                    <span class="guild-banner-label-sm">HOUSE</span>
+                    <span class="guild-hub-name" style="color:${_h.color}">${_h.name}</span>
                   </div>
                   ${_hasDetails ? `<button class="guild-hub-toggle" id="guild-hub-toggle">▼ Details</button>
                   <div class="guild-hub-details" id="guild-hub-details">
-                    ${_g.motto ? `<div class="guild-hub-motto">"${_g.motto}"</div>` : ''}
-                    ${_g.values ? `<div class="guild-hub-values">${_g.values}</div>` : ''}
-                    ${_g.chant ? `<div class="guild-hub-chant" style="color:${_g.color}">${_g.chant}</div>` : ''}
+                    ${_h.motto ? `<div class="guild-hub-motto">"${_h.motto}"</div>` : ''}
+                    ${_h.values ? `<div class="guild-hub-values">${_h.values}</div>` : ''}
+                    ${_h.chant ? `<div class="guild-hub-chant" style="color:${_h.color}">${_h.chant}</div>` : ''}
                   </div>` : ''}
                 </div>
               </div>`;
@@ -4150,8 +4194,11 @@ function renderHub() {
         ${hasPendingPotion ? `<div class="brew-pending" style="margin-top:8px">⏳ Crafting request sent — awaiting teacher approval</div>` : ''}
       </div>
       <div class="hub-panel boss-panel-wrap enter" style="animation-delay:.16s">
-        <div class="panel-title">🏆 Boss Mastery</div>
+        <div class="panel-title">🏆 Achievements</div>
         ${trophyGridHTML}
+        <div style="margin-top:12px;text-align:center">
+          <button class="btn btn-outline-sm" id="open-achievements-btn" style="width:100%">🏅 Mastery Medals &amp; Trophies →</button>
+        </div>
       </div>
         ${(() => {
           const activeSQ = getActiveSideQuests(STATE.student);
@@ -6539,19 +6586,18 @@ function renderSg0Modal() {
   const ICONS = {1:"📋",2:"⚔️",3:"🏛️",4:"🛡️",5:"⚔️",6:"🌟"};
   const icon  = ICONS[tile.id] || "✦";
 
-  // Tile 3 — show assigned guild info (reveal animation is a separate overlay)
+  // Tile 3 — show assigned house info (reveal animation is a separate overlay)
   if (tile.id === 3) {
     const gOv = getOverrides().students[String(STATE.student.id)] || {};
-    const gKey = gOv.guild;
-    const guilds = CLASS_DATA && CLASS_DATA.guilds;
-    if (gKey && guilds && guilds[gKey]) {
-      const guild = guilds[gKey];
+    const houseKey = getStudentHouse(gOv);
+    const house = houseKey ? getHouseData(houseKey) : null;
+    if (houseKey && house) {
       const gBody = `<p class="sg-modal-flavor">"${tile.flavor}"</p>
-        <div class="sg-guild-card" style="border-color:${guild.color}">
-          <img class="sg-guild-card-crest" src="${guild.crest}" alt="${guild.name}" width="72" height="72"
+        <div class="sg-guild-card" style="border-color:${house.color}">
+          <img class="sg-guild-card-crest" src="${house.crest}" alt="${house.name}" width="72" height="72"
             onerror="this.style.fontSize='44px';this.style.lineHeight='1'"/>
-          <div class="sg-guild-card-name" style="color:${guild.color}">${guild.name}</div>
-          <div class="sg-guild-card-motto">"${guild.motto}"</div>
+          <div class="sg-guild-card-name" style="color:${house.color}">${house.name}</div>
+          <div class="sg-guild-card-motto">"${house.motto}"</div>
         </div>`;
       const gFooter = isDone
         ? `<div style="color:#10B981;font-weight:700;font-size:14px">✓ Completed</div>`
@@ -6568,7 +6614,7 @@ function renderSg0Modal() {
         </div>
       </div>`;
     }
-    // No guild yet — reveal animation handles it; don't show the regular modal
+    // No house yet — reveal animation handles it; don't show the regular modal
     return "";
   }
 
@@ -6576,7 +6622,7 @@ function renderSg0Modal() {
   if (tile.id === 4) {
     const statCards = [
       { icon:"❤️", name:"HP — Health Points",     color:"#C0392B", desc:"Your academic health. HP mirrors your performance on exit tickets, letting you know if you are prepared to fight the gatekeeper." },
-      { icon:"💙", name:"MP — Mana Points",        color:"#1A6B8A", desc:"Your behavior score. MP reflects how you show up every day — respect, effort, and how you treat your guild." },
+      { icon:"💙", name:"MP — Mana Points",        color:"#1A6B8A", desc:"Your behavior score. MP reflects how you show up every day — respect, effort, and how you treat your House." },
       { icon:"💚", name:"SP — Stamina Points",     color:"#27AE60", desc:"Your effort score. SP tracks how hard you're working — completing tasks and pushing through challenges." },
       { icon:"⭐", name:"XP — Experience Points",  color:"#D4A017", desc:"Counts up forever and never goes down. Every lesson earns XP. This is how you will level up. Prizes are awarded for certain level milestones." },
     ];
@@ -7816,36 +7862,36 @@ function renderTeacherDashboard() {
       })()}
       <div class="t-student-grid">${cards}</div>
       ${(() => {
-        const guilds = CLASS_DATA && CLASS_DATA.guilds;
-        if (!guilds) return "";
-        const counts = getGuildCounts();
+        const houses = CLASS_DATA && CLASS_DATA.houses;
+        if (!houses) return "";
+        const counts = getHouseCounts();
         const ov = getOverrides();
-        const guildMembers = {};
+        const houseMembers = {};
         const periodCounts = {};
-        Object.keys(guilds).forEach(k => { guildMembers[k] = []; periodCounts[k] = {}; });
+        Object.keys(houses).forEach(k => { houseMembers[k] = []; periodCounts[k] = {}; });
         for (const p of CLASS_DATA.periods) {
           for (const st of p.students) {
             const sOv = ov.students[String(st.id)] || {};
-            const g = sOv.guild || st.guild;
-            if (g && guildMembers[g]) {
-              guildMembers[g].push(getCharName(st));
-              periodCounts[g][p.id] = (periodCounts[g][p.id] || 0) + 1;
+            const h = getStudentHouse(sOv);
+            if (h && houseMembers[h]) {
+              houseMembers[h].push(getCharName(st));
+              periodCounts[h][p.id] = (periodCounts[h][p.id] || 0) + 1;
             }
           }
         }
-        const chips = Object.keys(guilds).map(k => {
-          const guild = guilds[k];
-          const names = guildMembers[k] || [];
+        const chips = Object.keys(houses).map(k => {
+          const house = houses[k];
+          const names = houseMembers[k] || [];
           const breakdown = CLASS_DATA.periods
             .map(p => `${p.periodName}: ${periodCounts[k][p.id] || 0}`)
             .join(" · ");
-          return `<div class="t-guild-chip" style="border-color:${guild.color}">
-            <img class="t-guild-chip-crest" src="${guild.crest}" alt="${guild.name}" width="28" height="28"
+          return `<div class="t-guild-chip" style="border-color:${house.color}">
+            <img class="t-guild-chip-crest" src="${house.crest}" alt="${house.name}" width="28" height="28"
               onerror="this.style.display='none'"/>
             <div style="flex:1;min-width:0">
               <div style="display:flex;align-items:center;gap:8px">
-                <span class="t-guild-chip-name" style="color:${guild.color}">${guild.name}</span>
-                <span class="t-guild-chip-count" style="color:${guild.color}">${counts[k] || 0}</span>
+                <span class="t-guild-chip-name" style="color:${house.color}">${house.name}</span>
+                <span class="t-guild-chip-count" style="color:${house.color}">${counts[k] || 0}</span>
               </div>
               <div class="t-guild-members">${names.length ? names.join(", ") : "No members yet"}</div>
               <div class="t-guild-period-counts">${breakdown}</div>
@@ -7853,7 +7899,7 @@ function renderTeacherDashboard() {
           </div>`;
         }).join("");
         return `<div class="t-section" style="margin-top:4px">
-          <div class="t-section-title">⚔️ Guild Roster</div>
+          <div class="t-section-title">🏫 House Roster</div>
           <div class="t-guild-roster">${chips}</div>
         </div>`;
       })()}
@@ -8198,23 +8244,23 @@ function renderTeacherEdit() {
         ).join('');
         return `<div class="t-section">
           <div class="t-section-title">✨ Cosmetics</div>
-          <p class="t-cosm-note">Manually grant frames &amp; avatars. Land, guild, boss, level, and seasonal cosmetics also unlock automatically from gameplay.</p>
+          <p class="t-cosm-note">Manually grant frames &amp; avatars. Land, house, boss, level, and seasonal cosmetics also unlock automatically from gameplay.</p>
           <div class="chip-row">${cosmChips || '<span style="color:var(--text-light);font-size:13px;font-style:italic">No manually awarded cosmetics</span>'}</div>
           ${addable.length ? `<select class="t-add-sel" id="add-cosm-sel"><option value="">+ Award cosmetic…</option>${cosmOpts}</select>` : ''}
         </div>`;
       })()}
 
       ${(() => {
-        const guilds = CLASS_DATA && CLASS_DATA.guilds;
-        if (!guilds) return "";
+        const houses = CLASS_DATA && CLASS_DATA.houses;
+        if (!houses) return "";
         const sOvG = getOverrides().students[String(s.id)] || {};
-        const currentGuild = sOvG.guild || "";
+        const currentHouse = getStudentHouse(sOvG) || "";
         const opts = `<option value="">— Unassigned —</option>` +
-          Object.keys(guilds).map(k =>
-            `<option value="${k}" ${currentGuild===k?"selected":""}>${guilds[k].name}</option>`
+          Object.keys(houses).map(k =>
+            `<option value="${k}" ${currentHouse===k?"selected":""}>${houses[k].name}</option>`
           ).join("");
         return `<div class="t-section">
-          <div class="t-section-title">⚔️ Guild</div>
+          <div class="t-section-title">🏫 School House</div>
           <select class="t-add-sel" id="guild-sel" style="width:100%;padding:8px 10px">${opts}</select>
         </div>`;
       })()}
@@ -8431,25 +8477,33 @@ function renderJudgmentHall() {
     const totalSessions = !isGate ? (boss.sessions || []).length : 1;
 
     if (!isGate) {
-      // Standard boss — pass = Mastery Seal; fail = stays available (medal not removed)
+      // Standard boss — +Demo increments demonstrationCount (Bronze/Silver/Gold); Seal awards mastery
       const rowsHTML = rows.length === 0
-        ? `<tr><td colspan="4" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No students with medal ready for seal</td></tr>`
+        ? `<tr><td colspan="5" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No students with medal ready for seal</td></tr>`
         : rows.map(({ student, state }) => {
             const markKey = `${bossKey}_${student.id}`;
             const pending = STATE.judgmentHallMarks[markKey] || {};
             const pSel = pending.result === 'pass' ? ' jh-sel-pass' : '';
             const fSel = pending.result === 'fail' ? ' jh-sel-fail' : '';
+            const demoCount = typeof state.demonstrationCount === 'number' ? state.demonstrationCount : null;
+            const medalLevel = getMedalLevel(state);
+            const demoDisplay = medalLevel
+              ? `${MEDAL_EMOJI[medalLevel]} ${medalLevel.charAt(0).toUpperCase() + medalLevel.slice(1)} (${demoCount}/3)`
+              : (demoCount !== null ? `${demoCount}/3 demos` : '—');
             const currentStatus = (() => {
               if (state.status === 'defeated')          return '<span class="jh-pill jh-pill-pass">⭐ Seal Awarded</span>';
               if (state.status === 'mastery_requested') return '<span class="jh-pill jh-pill-pending">🏅 Seal Requested</span>';
               return '<span class="jh-pill jh-pill-wound">🏅 Medal Earned</span>';
             })();
+            const canAddDemo = (demoCount === null || demoCount < 3);
             return `<tr>
               <td style="font-size:13px;font-weight:700">${getCharName(student)} <span style="font-size:11px;font-weight:400;color:#9CA3AF">(${student.id})</span></td>
               <td><span class="jh-enc-tag">${state.encounterCount || '?'} / ${totalSessions}</span></td>
               <td>${currentStatus}</td>
+              <td style="font-size:12px;color:#6B7280">${demoDisplay}</td>
               <td>
-                <div style="display:flex;gap:6px">
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  ${canAddDemo ? `<button class="jh-demo-btn" data-jhd-sid="${student.id}" data-jhd-bk="${bossKey}" title="Record one verified demonstration">+1 Demo</button>` : '<span style="font-size:11px;color:#10B981;font-weight:700">Max demos</span>'}
                   <button class="jh-tog jh-tog-pass${pSel}" data-jhk="${markKey}" data-jhr="pass" ${state.status === 'defeated' ? 'disabled' : ''}>Award Seal</button>
                   <button class="jh-tog jh-tog-fail${fSel}" data-jhk="${markKey}" data-jhr="fail" ${state.status === 'defeated' ? 'disabled' : ''}>Not Yet</button>
                 </div>
@@ -8460,11 +8514,11 @@ function renderJudgmentHall() {
         <div class="jh-group-head">
           <div>
             <div class="jh-group-name">${displayName}</div>
-            <div class="jh-group-sub">${subLabel} · Medal auto-awarded; pass here awards Mastery Seal</div>
+            <div class="jh-group-sub">${subLabel} · +Demo records a verified demonstration (Bronze→Silver→Gold); Seal awards mastery</div>
           </div>
         </div>
         <table class="jh-table">
-          <thead><tr><th>Student</th><th>Encounters</th><th>Status</th><th style="width:200px">Seal Decision</th></tr></thead>
+          <thead><tr><th>Student</th><th>Encounters</th><th>Seal Status</th><th>Mastery Medal</th><th style="width:240px">Actions</th></tr></thead>
           <tbody>${rowsHTML}</tbody>
         </table>
       </div>`;
@@ -8570,6 +8624,8 @@ function renderJudgmentHall() {
       .jh-table tr:last-child td { border-bottom:none; }
       .jh-enc-tag { font-size:11px; background:#F3F4F6; border-radius:5px; padding:2px 7px; color:#6B7280; }
       .jh-tog { border:1px solid #D1D5DB; background:#FFFFFF; border-radius:6px; padding:6px 12px; font-size:12px; cursor:pointer; color:#6B7280; }
+      .jh-demo-btn { border:1px solid #7C3AED; background:#EDE9FE; border-radius:6px; padding:6px 10px; font-size:11px; font-weight:700; cursor:pointer; color:#5B21B6; }
+      .jh-demo-btn:hover { background:#DDD6FE; }
       .jh-tog-pass.jh-sel-pass { background:#D1FAE5; border-color:#10B981; color:#065F46; font-weight:700; }
       .jh-tog-fail.jh-sel-fail { background:#FEE2E2; border-color:#EF4444; color:#991B1B; font-weight:700; }
       .jh-grade-check { display:flex; align-items:center; gap:6px; font-size:12px; color:#6B7280; cursor:pointer; }
@@ -8597,12 +8653,13 @@ function renderFlagLog() {
   const periods = CLASS_DATA.periods || [];
   const allStudents = periods.flatMap(p => (p.students || []).map(s => ({ student: s, period: p })));
 
-  const guildSet = new Set();
+  const houseSet = new Set();
   allStudents.forEach(({ student }) => {
-    const g = getMergedStudent(student).guild || student.guild;
-    if (g) guildSet.add(g);
+    const sOvH = getOverrides().students[String(student.id)] || {};
+    const h = getStudentHouse(sOvH);
+    if (h) houseSet.add(h);
   });
-  const guilds = [...guildSet].sort();
+  const guilds = [...houseSet].sort();
   const selGuild = STATE.flagLogGuild || null;
 
   const formatAge = (sinceMs) => {
@@ -8635,7 +8692,8 @@ function renderFlagLog() {
     const ov = _overrides[sid] || {};
     if (!ov.claimed) return; // Skip unclaimed/inactive accounts
 
-    const guild = getMergedStudent(student).guild || student.guild;
+    const sOvFl = getOverrides().students[String(student.id)] || {};
+    const guild = getStudentHouse(sOvFl);
     if (selGuild && guild !== selGuild) return;
     const ts = ov.taskTimestamps || {};
     const completed = (ov.completedTiles || student.completedTiles || []).map(Number);
@@ -8721,8 +8779,12 @@ function renderFlagLog() {
   const totalFlags = FLAG_TYPES.reduce((n, ft) => n + byType[ft.key].length, 0);
 
   const guildTabs = [
-    `<button class="fl-guild-tab${!selGuild ? ' active' : ''}" data-fl-guild="">All Guilds</button>`,
-    ...guilds.map(g => `<button class="fl-guild-tab${selGuild === g ? ' active' : ''}" data-fl-guild="${g}">${g}</button>`),
+    `<button class="fl-guild-tab${!selGuild ? ' active' : ''}" data-fl-guild="">All Houses</button>`,
+    ...guilds.map(g => {
+      const hd = getHouseData(g);
+      const label = hd ? hd.name : g;
+      return `<button class="fl-guild-tab${selGuild === g ? ' active' : ''}" data-fl-guild="${g}">${label}</button>`;
+    }),
   ].join('');
 
   const cardsHTML = FLAG_TYPES.map(ft => {
@@ -8735,10 +8797,10 @@ function renderFlagLog() {
         ? `<colgroup><col style="width:28%"><col style="width:17%"><col style="width:32%"><col style="width:11%"><col style="width:12%"></colgroup>`
         : `<colgroup><col style="width:30%"><col style="width:20%"><col style="width:37%"><col style="width:13%"></colgroup>`;
     const theadCols = isMastery
-      ? `<th>Student</th><th>Guild</th><th>Boss</th><th>Since</th><th>Action</th>`
+      ? `<th>Student</th><th>House</th><th>Boss</th><th>Since</th><th>Action</th>`
       : isClearable
-        ? `<th>Student</th><th>Guild</th><th>Tile / Note</th><th>Active For</th><th>Action</th>`
-        : `<th>Student</th><th>Guild</th><th>Tile / Note</th><th>Active For</th>`;
+        ? `<th>Student</th><th>House</th><th>Tile / Note</th><th>Active For</th><th>Action</th>`
+        : `<th>Student</th><th>House</th><th>Tile / Note</th><th>Active For</th>`;
     const emptyColspan = (isMastery || isClearable) ? 5 : 4;
     const rowsHTML = rows.length === 0
       ? `<tr><td colspan="${emptyColspan}" style="text-align:center;padding:18px;font-size:13px;color:#6B7280;font-style:italic">No active flags</td></tr>`
@@ -8988,6 +9050,133 @@ function renderBossRoster() {
   </div>`;
 }
 
+/* ─── ACHIEVEMENTS SCREEN ─── */
+function renderAchievements() {
+  const s = getMergedStudent(STATE.student);
+  const ov = _overrides[String(s.id)] || {};
+  const stdBossStateMap = ov.standardBossState || {};
+  const gateBossStateMap = ov.gateBossState || {};
+  const bossStatusMap = ov.bossStatus || {};
+  const studentLand = getLandPos(STATE.student).land || 1;
+  const tab = STATE.achievementsTab || 'medals';
+
+  const trophyLands = LANDS.filter(l => l.id <= studentLand && (l.standardBosses || l.gateBosses));
+
+  // ── Mastery Medals tab ────────────────────────────────────────────────
+  const medalsHTML = trophyLands.map(tl => {
+    const stdBosses = tl.standardBosses || {};
+    if (!Object.keys(stdBosses).length) return '';
+    const cells = Object.entries(stdBosses).map(([bk, boss]) => {
+      const st = stdBossStateMap[bk] || {};
+      const medalEarned = !!(st.medalAwarded || ['mastery_available','mastery_requested','defeated'].includes(st.status));
+      const sealEarned  = st.status === 'defeated';
+      const medalLevel  = getMedalLevel(st);
+      const bkTitle     = bk.charAt(0).toUpperCase() + bk.slice(1);
+      const imgSrc      = `/trophies/trophy_${bk}.jpeg`;
+
+      let medalBadge = '';
+      if (medalLevel) {
+        const colors = { gold:'#F59E0B', silver:'#9CA3AF', bronze:'#92400E' };
+        const labels = { gold:'Gold', silver:'Silver', bronze:'Bronze' };
+        medalBadge = `<div class="ach-medal-badge" style="background:${colors[medalLevel]}22;color:${colors[medalLevel]};border:1px solid ${colors[medalLevel]}66">${MEDAL_EMOJI[medalLevel]} ${labels[medalLevel]}</div>`;
+      } else if (medalEarned) {
+        medalBadge = `<div class="ach-medal-badge" style="background:#FEF3C7;color:#92400E;border:1px solid #FCD34D">🏅 Medal</div>`;
+      }
+
+      const locked = !medalEarned;
+      return `<div class="ach-cell ${locked ? 'ach-locked' : 'ach-unlocked'}">
+        <div class="ach-img-wrap">
+          <img src="${imgSrc}" class="trophy-img" alt="${bkTitle}" onerror="this.style.display='none'"/>
+          ${locked ? '<div class="trophy-lock">🔒</div>' : ''}
+          ${sealEarned ? '<div class="trophy-seal-badge" title="Mastery Seal">⭐</div>' : ''}
+        </div>
+        <div class="ach-name">${bkTitle}</div>
+        ${boss.standard ? `<div class="trophy-std-tag">${boss.standard}</div>` : ''}
+        ${medalBadge}
+      </div>`;
+    }).join('');
+    return `<div class="trophy-land-section">
+      <div class="trophy-land-label">${tl.name}</div>
+      <div class="trophy-grid">${cells}</div>
+    </div>`;
+  }).join('') || `<p style="color:#9CA3AF;text-align:center;padding:24px">No standard bosses in lands you've visited yet.</p>`;
+
+  // ── Gatekeeper Trophies tab ───────────────────────────────────────────
+  const trophiesHTML = trophyLands.map(tl => {
+    const gateBosses = tl.gateBosses || {};
+    const dungeonTile = tl.tiles && tl.tiles.find(t => t.type === 'dungeon');
+    const gateCells = Object.entries(gateBosses).map(([bk, boss]) => {
+      const gst = gateBossStateMap[bk] || {};
+      const earned = !!(gst.trophyEarned);
+      const noTrophy = gst.status === 'no_trophy';
+      const firstTry = !!(gst.firstTryPass);
+      const bkTitle = bk.charAt(0).toUpperCase() + bk.slice(1);
+      const imgSrc = `/trophies/trophy_${bk}.jpeg`;
+      return `<div class="ach-cell ${earned ? 'ach-unlocked' : 'ach-locked'}">
+        <div class="ach-img-wrap">
+          <img src="${imgSrc}" class="trophy-img" alt="${bkTitle}" onerror="this.style.display='none'"/>
+          ${!earned ? `<div class="trophy-lock">${noTrophy ? '✗' : '🔒'}</div>` : ''}
+          ${earned && firstTry ? '<div class="trophy-seal-badge" style="background:rgba(251,191,36,.9);color:#1f2937">★</div>' : ''}
+        </div>
+        <div class="ach-name">${bkTitle}</div>
+        <div class="trophy-std-tag">Gate Trophy</div>
+      </div>`;
+    }).join('');
+    const dungeonCell = dungeonTile ? (() => {
+      const dKey = `${tl.id}_${dungeonTile.id}`;
+      const earned = bossStatusMap[dKey] === 'confirmed';
+      const imgSrc = `/trophies/trophy_final_${tl.id}.png`;
+      return `<div class="ach-cell ${earned ? 'ach-unlocked' : 'ach-locked'}">
+        <div class="ach-img-wrap">
+          <img src="${imgSrc}" class="trophy-img" alt="${dungeonTile.name||'Final Boss'}" onerror="this.style.opacity='0.2'"/>
+          ${!earned ? '<div class="trophy-lock">🔒</div>' : ''}
+        </div>
+        <div class="ach-name">${dungeonTile.name || 'Final Boss'}</div>
+        <div class="trophy-std-tag">Final Prize</div>
+      </div>`;
+    })() : '';
+    if (!gateCells && !dungeonCell) return '';
+    return `<div class="trophy-land-section">
+      <div class="trophy-land-label">${tl.name}</div>
+      <div class="trophy-grid">${gateCells}${dungeonCell}</div>
+    </div>`;
+  }).join('') || `<p style="color:#9CA3AF;text-align:center;padding:24px">No gatekeeper trophies in lands you've visited yet.</p>`;
+
+  return `<div class="screen hub-screen">
+    ${starsHTML()}
+    <div class="hub-wrap">
+      <div class="hub-header enter">
+        <button class="btn-back" id="ach-back-btn">← Back to Hub</button>
+        <div class="hub-badge">🏆 Achievements</div>
+      </div>
+      <div class="ach-screen-wrap enter" style="animation-delay:.05s">
+        <div class="ach-tabs">
+          <button class="ach-tab${tab==='medals'?' ach-tab-active':''}" data-ach-tab="medals">🏅 Mastery Medals</button>
+          <button class="ach-tab${tab==='trophies'?' ach-tab-active':''}" data-ach-tab="trophies">🏆 Gatekeeper Trophies</button>
+        </div>
+        <div class="ach-body">
+          ${tab === 'medals' ? medalsHTML : trophiesHTML}
+        </div>
+      </div>
+    </div>
+    <style>
+      .ach-screen-wrap { background:rgba(255,255,255,.04); border-radius:14px; padding:20px; }
+      .ach-tabs { display:flex; gap:10px; margin-bottom:20px; }
+      .ach-tab { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:8px; padding:10px 20px; cursor:pointer; color:rgba(255,255,255,.7); font-size:14px; font-weight:600; }
+      .ach-tab:hover { background:rgba(255,255,255,.14); }
+      .ach-tab.ach-tab-active { background:rgba(255,255,255,.18); border-color:rgba(255,255,255,.35); color:#fff; }
+      .ach-body { }
+      .ach-cell { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; }
+      .ach-cell.ach-locked { opacity:.45; filter:grayscale(.6); }
+      .ach-cell.ach-unlocked { border-color:rgba(251,191,36,.4); background:rgba(251,191,36,.06); }
+      .ach-img-wrap { position:relative; width:80px; height:80px; }
+      .ach-img-wrap .trophy-img { width:80px; height:80px; border-radius:8px; object-fit:cover; }
+      .ach-name { font-size:12px; font-weight:700; color:#F9FAFB; }
+      .ach-medal-badge { font-size:11px; border-radius:999px; padding:2px 10px; font-weight:700; }
+    </style>
+  </div>`;
+}
+
 /* ─── MOUNT & EVENTS ─── */
 function mount() {
   const root = document.getElementById("root");
@@ -8999,6 +9188,7 @@ function mount() {
   if (STATE.screen === "set-pin")        root.innerHTML = renderSetPin();
   if (STATE.screen === "naming")         root.innerHTML = renderNaming();
   if (STATE.screen === "hub")            root.innerHTML = renderHub();
+  if (STATE.screen === "achievements")   root.innerHTML = renderAchievements();
   if (STATE.screen === "teacher-login")  root.innerHTML = renderTeacherLogin();
   if (STATE.screen === "teacher-dash")   root.innerHTML = renderTeacherDashboard();
   if (STATE.screen === "teacher-edit")   root.innerHTML = renderTeacherEdit();
@@ -9250,6 +9440,7 @@ function bindEvents() {
     });
     $("today-lesson-btn") && $("today-lesson-btn").addEventListener("click", e => openTodaysLesson(!!e.currentTarget.dataset.todayFallback));
     $("view-map-btn") && $("view-map-btn").addEventListener("click", () => { STATE.screen = "quest-map"; mount(); });
+    $("open-achievements-btn") && $("open-achievements-btn").addEventListener("click", () => { STATE.screen = "achievements"; STATE.achievementsTab = 'medals'; mount(); });
     $("sq-invite-badge") && $("sq-invite-badge").addEventListener("click", () => {
       STATE.sqInviteNotifOpen = true; mount();
     });
@@ -9652,6 +9843,13 @@ function bindEvents() {
       const expanded = det.classList.toggle("expanded");
       $("guild-hub-toggle").textContent = expanded ? "▲ Details" : "▼ Details";
     });
+    // Achievements screen (tab switching & back button handled via STATE.screen)
+    if (STATE.screen === 'achievements') {
+      $("ach-back-btn") && $("ach-back-btn").addEventListener("click", () => { STATE.screen = "hub"; mount(); });
+      document.querySelectorAll("[data-ach-tab]").forEach(btn => {
+        btn.addEventListener("click", () => { STATE.achievementsTab = btn.dataset.achTab; mount(); });
+      });
+    }
     $("open-shop-btn") && $("open-shop-btn").addEventListener("click", () => {
       STATE.shopOpen = true; STATE.shopConfirmItem = null; STATE.shopSuccess = false; STATE.shopTobbleIdx = Math.floor(Math.random() * 5); mount();
     });
@@ -10314,10 +10512,10 @@ function bindEvents() {
       const compTiles = Array.from({length: tileVal-1}, (_,i) => i+1);
       const extraOverrides = landVal === 0 ? { completedLand0: false } : {};
       const guildSel = $("guild-sel");
-      const guildVal = guildSel ? guildSel.value : undefined;
+      const houseVal = guildSel ? guildSel.value : undefined;
       const _prevOv = getOverrides().students[String(STATE.teacherStudent.id)] || {};
       const prevLand = _prevOv.currentLand || 0;
-      const prevGuild = _prevOv.guild || null;
+      const prevHouse = getStudentHouse(_prevOv) || null;
       saveStudentOverride(STATE.teacherStudent.id, {
         xp: xpVal, xpNext: xpNVal,
         items: STATE.teacherEdit.items,
@@ -10325,7 +10523,7 @@ function bindEvents() {
         currentLand: landVal,
         currentTile: tileVal,
         completedTiles: compTiles,
-        ...(guildVal !== undefined ? { guild: guildVal || null } : {}),
+        ...(houseVal !== undefined ? { house: houseVal || null } : {}),
         ...extraOverrides,
       });
       // Unlock land frames for any lands the student has now passed
@@ -10335,9 +10533,9 @@ function bindEvents() {
           if (lid >= 1) unlockCosmeticsForLandComplete(stub, lid);
         }
       }
-      // Unlock guild frame if guild was just assigned (changed from previous)
-      if (guildVal && guildVal !== prevGuild) {
-        unlockCosmeticsForGuild(STATE.teacherStudent.id, guildVal);
+      // Unlock house frame if house was just assigned (changed from previous)
+      if (houseVal && houseVal !== prevHouse) {
+        unlockCosmeticsForGuild(STATE.teacherStudent.id, houseVal);
       }
       STATE.screen = "teacher-dash";
       const toast = document.createElement("div");
@@ -10485,7 +10683,7 @@ function bindEvents() {
         // Tile 3: Guild Hall — trigger reveal animation for first-timers
         if (tile.id === 3) {
           const _gOv = getOverrides().students[String(STATE.student.id)] || {};
-          if (!_gOv.guild) {
+          if (!getStudentHouse(_gOv)) {
             STATE.sg0GuildReveal = "intro";
             STATE.sg0Tile = tile;
             mount();
@@ -10782,6 +10980,22 @@ function bindEvents() {
     document.querySelectorAll(".fl-clearall-cancel-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         STATE.clearAllFlagPending = null;
+        mount();
+      });
+    });
+
+    // +1 Demo buttons — increment demonstrationCount for standard boss (teacher-authoritative)
+    document.querySelectorAll("[data-jhd-sid][data-jhd-bk]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sid = btn.dataset.jhdSid;
+        const bk  = btn.dataset.jhdBk;
+        const cur = getStdBossState(sid, bk);
+        const curCount = typeof cur.demonstrationCount === 'number' ? cur.demonstrationCount : 0;
+        if (curCount >= 3) return;
+        const newCount = curCount + 1;
+        setStdBossState(sid, bk, { ...cur, demonstrationCount: newCount, lastDemoAt: new Date().toISOString() });
+        const medalLabel = newCount >= 3 ? 'Gold' : newCount === 2 ? 'Silver' : 'Bronze';
+        logActivity(sid, MEDAL_EMOJI[getMedalLevel({ demonstrationCount: newCount })], `Mastery demo recorded: ${bk} — ${medalLabel} (${newCount}/3)`);
         mount();
       });
     });
@@ -12078,7 +12292,7 @@ function initFirebaseCache() {
 function liveMount() {
   // Only auto-remount on screens that benefit from real-time updates.
   // Avoids wiping in-progress student lesson forms on foreign writes.
-  if (['teacher-dash', 'hub', 'grid', 'quest-map'].includes(STATE.screen)) mount();
+  if (['teacher-dash', 'hub', 'achievements', 'grid', 'quest-map'].includes(STATE.screen)) mount();
 }
 
 async function seedAndMigrate() {
@@ -12090,7 +12304,8 @@ async function seedAndMigrate() {
     await update(ref(db), writes);
   }
 
-  // One-time guild reset: clear all guild assignments if any retired key is present
+  // One-time guild reset: clear assignments for truly retired guild keys (crimson, shadow)
+  // Note: ember/tide/thorn/storm are NOT retired — they map to houses via GUILD_TO_HOUSE
   const guildSnap = await get(ref(db, 'students'));
   if (guildSnap.exists()) {
     const _allStudents = guildSnap.val();
@@ -12099,10 +12314,21 @@ async function seedAndMigrate() {
     if (_hasRetired) {
       const _guildWrites = {};
       for (const [_id, _s] of Object.entries(_allStudents)) {
-        if (_s && _s.guild) _guildWrites[`students/${_id}/guild`] = null;
+        if (_s && _s.guild && _retiredGuilds.has(_s.guild)) _guildWrites[`students/${_id}/guild`] = null;
       }
       if (Object.keys(_guildWrites).length) await update(ref(db), _guildWrites);
     }
+
+    // One-time house migration: for students with a legacy guild key (ember/tide/thorn/storm)
+    // but no house field yet, write house = GUILD_TO_HOUSE[guild] so the new field is set.
+    // This preserves the legacy guild field untouched.
+    const _houseMigrations = {};
+    for (const [_id, _s] of Object.entries(_allStudents)) {
+      if (_s && _s.guild && !_s.house && GUILD_TO_HOUSE[_s.guild]) {
+        _houseMigrations[`students/${_id}/house`] = GUILD_TO_HOUSE[_s.guild];
+      }
+    }
+    if (Object.keys(_houseMigrations).length) await update(ref(db), _houseMigrations);
   }
 
   // Migrate legacy overrides/ records to students/{number}
