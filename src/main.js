@@ -4000,13 +4000,17 @@ function renderHub() {
       const sealAvail   = st.status === 'mastery_available';
       const bkTitle     = bk.charAt(0).toUpperCase() + bk.slice(1);
       const tapAttr     = sealAvail ? ` data-trophy-req="${bk}"` : '';
+      const medalLevel  = getMedalLevel(st);
       const cellClass   = sealEarned ? 'trophy-earned' : sealReq ? 'trophy-requested' : sealAvail ? 'trophy-available' : 'trophy-locked';
       const imgSrc      = `/trophies/trophy_${bk}.jpeg`;
+      const medalBadgeHTML = medalLevel
+        ? `<div class="trophy-medal-badge" title="${medalLevel} medal">${MEDAL_EMOJI[medalLevel]}</div>`
+        : (medalEarned && !sealEarned && !sealReq && !sealAvail ? '<div class="trophy-medal-badge" title="Medal earned">🏅</div>' : '');
       return `<div class="trophy-cell ${cellClass}"${tapAttr}>
         <div class="trophy-img-wrap" style="position:relative">
           <img src="${imgSrc}" class="trophy-img" alt="${bkTitle}" onerror="this.style.display='none'"/>
-          ${!medalEarned ? '<div class="trophy-lock">🔒</div>' : ''}
-          ${medalEarned && !sealEarned && !sealReq && !sealAvail ? '<div class="trophy-medal-badge" title="Medal earned">🏅</div>' : ''}
+          ${!medalEarned && !medalLevel ? '<div class="trophy-lock">🔒</div>' : ''}
+          ${medalBadgeHTML}
           ${sealAvail ? '<div class="trophy-lock" style="font-size:16px">✦</div>' : ''}
           ${sealReq  ? '<div class="trophy-pending-badge">Pending…</div>' : ''}
           ${sealEarned ? '<div class="trophy-seal-badge" title="Mastery Seal">⭐</div>' : ''}
