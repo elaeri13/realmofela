@@ -1798,15 +1798,22 @@ function denyCraft(studentId) {
 }
 function getPacingSettings() { return (_settings && _settings.pacing) || null; }
 function getExpectedTile() { return (_settings && _settings.expectedTile) || null; }
-function saveExpectedTile(tileId) {
+// Land the expected tile belongs to (tile ids repeat across lands). Older saves have none.
+function getExpectedTileLand() { return (_settings && _settings.expectedTileLand) || null; }
+function saveExpectedTile(tileId, landId) {
   if (!_settings) _settings = {};
   _settings.expectedTile = tileId ? Number(tileId) : null;
+  _settings.expectedTileLand = tileId && landId ? Number(landId) : null;
   set(ref(db, 'settings/expectedTile'), _settings.expectedTile).catch(console.error);
+  set(ref(db, 'settings/expectedTileLand'), _settings.expectedTileLand).catch(console.error);
 }
 function calcHP(student) {
   const expectedTileId = getExpectedTile();
   if (!expectedTileId) return 10;
   const pos = getLandPos(student);
+  // Tile ids repeat across lands: only compare students who are in the expected tile's land.
+  const _etLand = getExpectedTileLand();
+  if (_etLand && pos.land !== _etLand) return 10;
   const land = LANDS.find(l => l.id === pos.land) || LANDS[0];
   const pathOrder = (land && land.pathOrder) || [];
   const expectedIdx = pathOrder.indexOf(Number(expectedTileId));
@@ -3477,6 +3484,25 @@ function renderNaming() {
 }
 
 // Flag-for-help modal (same behavior as before; shared by hub, session page and map).
+// Jump Tool may move a Verdant Vale student into The Stone Kingdoms (the only land change the
+// app supports — same as the automatic move at login). Not for students who already entered Land 2.
+function canJumpIntoLand(student, land) {
+  if (!land || land.id !== 2) return false;
+  const ov = _overrides[String(student.id)] || {};
+  return getLandPos(student).land === 1 && !ov.land2Entry;
+}
+// Class Settings → Expected Tile: land shown in the picker (teacher's pick, saved land, else most students).
+function getExpectedTileUiLand(periods) {
+  const pick = id => LANDS.find(l => l.id === id && (l.pathOrder || []).length);
+  if (STATE.etLandId && pick(STATE.etLandId)) return pick(STATE.etLandId);
+  if (getExpectedTileLand() && pick(getExpectedTileLand())) return pick(getExpectedTileLand());
+  const counts = {};
+  for (const p of (periods || [])) for (const s of (p.students || [])) {
+    const lid = getLandPos(s).land; if (lid > 0) counts[lid] = (counts[lid] || 0) + 1;
+  }
+  const best = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+  return pick(Number(best)) || pick(1) || LANDS[0];
+}
 // Jump Tool land: teacher's pick, else the land most claimed students in this period are in.
 function getJumpToolLand(students) {
   const chosen = STATE.jtLandId && LANDS.find(l => l.id === STATE.jtLandId);
@@ -7421,23 +7447,16 @@ function renderTeacherDashboard() {
           <div class="cs-section">
             <div class="cs-section-title">📍 Expected Tile ${expectedTile ? `<span class="pacing-on-badge">Set</span>` : '<span class="pacing-off-badge">Not set — class at full HP</span>'}</div>
             <div class="pacing-form" style="border-top:none;padding:0">
+              <label class="pacing-lbl">Land
+                <select id="expected-tile-land" class="pacing-input" style="height:36px;font-size:13px">
+                  ${LANDS.filter(l => l.id && (l.pathOrder || []).length).map(l => `<option value="${l.id}"${l.id === getExpectedTileUiLand(periods).id ? ' selected' : ''}>${l.name}</option>`).join('')}
+                </select>
+              </label>
               <label class="pacing-lbl">Which tile should the class be on right now?
                 <select id="expected-tile-sel" class="pacing-input" style="height:36px;font-size:13px">
                   <option value="">— No expected tile (all students at HP 10) —</option>
                   ${(() => {
-                    const activeLandTiles = (() => {
-                      const landCounts = {};
-                      for (const p of periods) for (const s of p.students) {
-                        const lid = getLandPos(s).land;
-                        if (lid > 0) landCounts[String(lid)] = (landCounts[String(lid)] || 0) + 1;
-                      }
-                      let activeLandId = 1;
-                      let best = 0;
-                      for (const [lid, cnt] of Object.entries(landCounts)) {
-                        if (cnt > best) { best = cnt; activeLandId = Number(lid); }
-                      }
-                      return LANDS.find(l => l.id === activeLandId) || LANDS[0];
-                    })();
+                    const activeLandTiles = getExpectedTileUiLand(periods);
                     const pathOrder = activeLandTiles.pathOrder || [];
                     const tileMap = {};
                     for (const t of activeLandTiles.tiles) tileMap[t.id] = t;
@@ -7602,7 +7621,7 @@ function renderTeacherDashboard() {
                   <option value="">— Select destination —</option>
                   ${_jtTiles.map(t => `<option value="${t.id}">${_jtTileLabel(t)}</option>`).join('')}
                 </select>
-                <p class="jt-hint">Skipped tiles forfeit Gold and add a Skipped flag.</p>
+                <p class="jt-hint">Skipped tiles forfeit Gold and add a Skipped flag.${_jtLand.id === 2 ? ' Students still in The Verdant Vale can be moved into The Stone Kingdoms (their Vale progress is archived; XP, Gold and items stay).' : ''}</p>
               </div>
               <div class="jt-options-row">
                 <label class="jt-opt-lbl">
@@ -7631,11 +7650,15 @@ function renderTeacherDashboard() {
                       const sLand = getLandData(pos.land);
                       const curT = sLand && sLand.tiles.find(t => t.id === pos.tile);
                       const sameLand = pos.land === _jtLand.id && _jtOrder.includes(pos.tile);
+                      const canEnter = canJumpIntoLand(s, _jtLand);
                       const where = curT ? sessionLabel(curT).split(' · ')[0] : '—';
-                      return `<tr${sameLand ? '' : ' class="jt-row-off"'}>
-                        <td><input type="checkbox" class="jt-student-check" data-jt-sid="${s.id}" ${sameLand ? '' : 'disabled'}/></td>
+                      const ok = sameLand || canEnter;
+                      return `<tr${ok ? '' : ' class="jt-row-off"'}>
+                        <td><input type="checkbox" class="jt-student-check" data-jt-sid="${s.id}" ${ok ? '' : 'disabled'}/></td>
                         <td><span class="jt-s-name">${getCharName(s)}</span><span class="jt-s-id">#${s.id}</span></td>
-                        <td class="jt-cur-tile">${sameLand ? where : `In ${sLand ? sLand.name : 'another land'}${curT ? ' — ' + where : ''}`}</td>
+                        <td class="jt-cur-tile">${sameLand ? where
+                          : canEnter ? `<span class="jt-enter">In ${sLand.name}${curT ? ' — ' + where : ''} → moves to ${_jtLand.name}</span>`
+                          : `In ${sLand ? sLand.name : 'another land'}${curT ? ' — ' + where : ''} · can't move between these lands here`}</td>
                       </tr>`;
                     }).join('')}
                   </tbody>
@@ -9637,7 +9660,7 @@ function bindEvents() {
       mount();
     });
 
-    $("t-class-settings-btn") && $("t-class-settings-btn").addEventListener("click", () => { STATE.classSettingsOpen = true; mount(); });
+    $("t-class-settings-btn") && $("t-class-settings-btn").addEventListener("click", () => { STATE.classSettingsOpen = true; STATE.etLandId = null; mount(); });
     if (STATE.classSettingsOpen) {
       const closeCS = () => { STATE.classSettingsOpen = false; mount(); };
       $("cs-close") && $("cs-close").addEventListener("click", closeCS);
@@ -9699,15 +9722,23 @@ function bindEvents() {
         const doReset = !!($("jt-reset-progress") && $("jt-reset-progress").checked);
         const doExitTicket = !!($("jt-exit-ticket") && $("jt-exit-ticket").checked);
         const allStudents = CLASS_DATA.periods.flatMap(p => p.students);
-        let count = 0, skipped = 0;
+        let count = 0, skipped = 0, entered = 0;
         checked.forEach(cb => {
           const stu = allStudents.find(s => String(s.id) === cb.dataset.jtSid);
           if (!stu) return;
+          // Vale → Stone Kingdoms: use the same fresh-start move that runs at student login
+          // (archives Land 1 per-tile data; XP, Gold, items and character untouched).
+          if (canJumpIntoLand(stu, land)) {
+            bumpStudentToLand2(stu);
+            const first = (land.pathOrder || [])[0];
+            if (first && targetId !== first) completeBranchTile(stu, first); // past the arrival tile
+            entered++;
+          }
           // Only move students who are actually in this land, on a tile of its path (re-checked here).
           const pos = getLandPos(stu);
           if (pos.land !== land.id || !(land.pathOrder || []).includes(pos.tile)) { skipped++; return; }
           if (doReset) resetTileProgress(stu.id, targetId);
-          jumpStudentToTile(stu, targetId, land);
+          if (pos.tile !== targetId) jumpStudentToTile(stu, targetId, land);
           if (doExitTicket) {
             saveTaskCheck(stu.id, targetId, 'wayground', 0, true);
             saveTaskCheck(stu.id, targetId, 'workbook', 0, true);
@@ -9718,6 +9749,7 @@ function bindEvents() {
         const modeLabel = doExitTicket ? 'Jumped to exit ticket' : (doReset ? 'Reset & jumped' : 'Jumped');
         STATE.jtLandId = land.id;
         STATE.jtResult = `✅ ${modeLabel} ${count} student${count !== 1 ? 's' : ''} to ${land.name} — ${tgt ? sessionLabel(tgt).split(' · ')[0] : 'tile ' + targetId}.`
+          + (entered ? ` 🗺️ ${entered} moved from The Verdant Vale into ${land.name}.` : '')
           + (skipped ? ` ⚠️ ${skipped} not moved (not in ${land.name}).` : '');
         mount();
       });
@@ -9819,10 +9851,12 @@ function bindEvents() {
     });
 
     // Expected Tile setting
+    $("expected-tile-land") && $("expected-tile-land").addEventListener("change", e => { STATE.etLandId = Number(e.target.value) || null; mount(); });
     $("expected-tile-save") && $("expected-tile-save").addEventListener("click", () => {
       const sel = $("expected-tile-sel");
       if (!sel) return;
-      saveExpectedTile(sel.value ? Number(sel.value) : null);
+      const landSel = $("expected-tile-land");
+      saveExpectedTile(sel.value ? Number(sel.value) : null, landSel ? Number(landSel.value) : null);
       mount();
     });
 
