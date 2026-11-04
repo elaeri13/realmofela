@@ -4982,9 +4982,18 @@ function todaysLessonMapMarker(student, land, pos) {
   const t = info.tile;
   const ts = LW.TILE, tx = t.x - ts / 2, ty = t.y - ts / 2;
   const same = pos && pos.tile === t.id;
-  const labelY = same ? ty - 52 : ty - 12;  // sit above "YOU ARE HERE" when both point at the same tile
+  if (same) {
+    // Same tile as "YOU ARE HERE": a ribbon inside the tile's bottom edge, so it can't run off the
+    // top of the map or land on nearby characters.
+    const rw = ts - 6, ry = ty + ts - 17;
+    return `<g class="today-marker" style="pointer-events:none">
+    <rect x="${t.x - rw / 2}" y="${ry}" width="${rw}" height="14" rx="7" fill="rgba(120,53,15,.94)" stroke="#FBBF24" stroke-width="1.2"/>
+    <text x="${t.x}" y="${ry + 10}" text-anchor="middle" font-size="7.2" font-weight="900" fill="#FDE68A" font-family="Arial" letter-spacing=".4">★ TODAY'S LESSON</text>
+  </g>`;
+  }
+  const labelY = ty - 12;
   return `<g class="today-marker" style="pointer-events:none">
-    ${same ? '' : `<rect x="${tx - 7}" y="${ty - 7}" width="${ts + 14}" height="${ts + 14}" rx="${Math.round(ts * .14) + 6}" fill="none" stroke="#FBBF24" stroke-width="3" stroke-dasharray="10 5"/>`}
+    <rect x="${tx - 7}" y="${ty - 7}" width="${ts + 14}" height="${ts + 14}" rx="${Math.round(ts * .14) + 6}" fill="none" stroke="#FBBF24" stroke-width="3" stroke-dasharray="10 5"/>
     <rect x="${t.x - 56}" y="${labelY - 11}" width="112" height="16" rx="8" fill="rgba(120,53,15,.92)" stroke="#FBBF24" stroke-width="1.2"/>
     <text x="${t.x}" y="${labelY}" text-anchor="middle" font-size="8.5" font-weight="900" fill="#FDE68A" font-family="Arial" letter-spacing="1">★ TODAY'S LESSON</text>
   </g>`;
