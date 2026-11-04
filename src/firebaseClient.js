@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getDatabase, ref, set, get, update, onValue, off, push, query, limitToLast } from 'firebase/database'
+import { getDatabase, ref, set, get, update, onValue, off, push, query, limitToLast, runTransaction } from 'firebase/database'
 import { getAuth, signInAnonymously } from 'firebase/auth'
 
 const firebaseConfig = {
@@ -15,4 +15,4 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig)
 export const db = getDatabase(app)
 export const auth = getAuth(app)
-export { ref, set, get, update, onValue, off, push, query, limitToLast, signInAnonymously }
+export { ref, set, get, update, onValue, off, push, query, limitToLast, runTransaction, signInAnonymously }

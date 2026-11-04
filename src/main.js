@@ -1,5 +1,6 @@
-import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, signInAnonymously } from './firebaseClient.js'
+import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, runTransaction, signInAnonymously } from './firebaseClient.js'
 import { NAMES, EPITHETS } from './data/characterNames.js'
+import { CHARACTER_ABILITIES, LEVEL10_FRAME_ID, XP_PER_LEVEL, rewardsForLevel, levelStatus, claimableLevels, trackLevels, nextRewardLevel, nextMilestoneLevel, abilityStatus, levelsToCelebrate, isMilestone, isAbilityLevel, isClaimablePart, partLabel, partIcon } from './levelRewards.js'
 import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession } from './currentSession.js'
 
 /* ═══════════════════════════════════════════════
@@ -150,6 +151,8 @@ const COSMETICS_MANIFEST = [
   { id:'frame_rank_10', displayName:'Silver Knight Frame',     category:'rank', assetPath:'/cosmetics/frames/rank/silver.png', unlockType:'level', unlockValue:10 },
   { id:'frame_rank_15', displayName:'Gold Champion Frame',     category:'rank', assetPath:'/cosmetics/frames/rank/gold.png',   unlockType:'level', unlockValue:15 },
   { id:'frame_rank_20', displayName:'Mythic Hero Frame',       category:'rank', assetPath:'/cosmetics/frames/rank/mythic.png', unlockType:'level', unlockValue:20 },
+  // ── Level reward frames (Phase 3: unlocked by claiming the level reward in Hero's Journey) ──
+  { id:'frame_level_10_starfall', displayName:'Starfall Legend Frame', category:'rank', assetPath:'/cosmetics/frames/legendary/starfall.png', unlockType:'level_reward', unlockValue:10 },
   // ── Seasonal frames ───────────────────────────────────────────────────────
   { id:'frame_seasonal_bts',          displayName:'Back to School Frame',  category:'seasonal', assetPath:'/cosmetics/frames/seasonal/back-to-school.png',   unlockType:'seasonal_window', unlockValue:{ start:'2026-08-01', end:'2026-09-30' } },
   { id:'frame_seasonal_halloween',    displayName:'Halloween Frame',       category:'seasonal', assetPath:'/cosmetics/frames/seasonal/halloween.png',         unlockType:'seasonal_window', unlockValue:{ start:'2026-10-01', end:'2026-10-31' } },
@@ -2834,6 +2837,125 @@ function showXPCelebration(amount, levelsGained, newLevel, onComplete, message =
   };
   setTimeout(dismiss, levelsGained > 0 ? 1800 : 1200);
 }
+/* ─── PHASE 3: HERO'S JOURNEY — LEVEL REWARDS ───────────────────────────────
+   Reward track/abilities live in src/levelRewards.js. A claim is recorded once per level at
+   students/{id}/levelRewards/{level} via a Firebase transaction (only created if missing), and only
+   after that commit is the reward handed out through the existing Gold / companion / equipment code.
+
+   Reward claiming stays OFF on the live site until the Firebase security changes described in
+   docs/phase-3-level-up-plan.md are approved: today any browser can write any student's Gold or
+   reward records, so a claim button cannot be made trustworthy yet. In the local dev server, tests
+   can turn it on with window.__REALM_TEST_CLAIMS = true (stripped from production builds).       */
+const LEVEL_REWARD_CLAIMS_LIVE = false;
+function rewardClaimsEnabled() {
+  return LEVEL_REWARD_CLAIMS_LIVE ||
+    (import.meta.env.DEV && typeof window !== 'undefined' && window.__REALM_TEST_CLAIMS === true);
+}
+function getLevelRewardClaims(student) { return ((student && _overrides[String(student.id)]) || {}).levelRewards || {}; }
+function getStudentLevel(student) { return (student && getMergedStudent(student).level) || 1; }
+function getClaimedLevelTitles(student) {
+  if (!student) return [];
+  const claims = getLevelRewardClaims(student);
+  const out = [];
+  Object.keys(claims).map(Number).sort((a, b) => a - b)
+    .forEach(L => rewardsForLevel(L).forEach(p => { if (p.type === 'title' && !out.includes(p.title)) out.push(p.title); }));
+  return out;
+}
+// Loot pools are per land; Starting Grounds / unknown lands use the Vale's pools.
+function rewardLandName(student) {
+  const land = LANDS.find(x => x.id === getLandPos(student).land);
+  return (land && (EQUIP_POOLS[land.name] || PET_POOLS[land.name])) ? land.name : 'The Verdant Vale';
+}
+// Common collectible = an item for the Collectibles bag (accessory equipment). Picks one the
+// student doesn't own; if they own them all, the reward says up front it becomes Gold instead.
+const COLLECTIBLE_OWNED_GOLD = 15;
+function previewCollectible(student, tier) {
+  const ov = _overrides[String(student.id)] || {};
+  const pool = ((EQUIP_POOLS[rewardLandName(student)] || {}).accessory || {})[tier] || [];
+  const unowned = (Array.isArray(pool) ? pool : [pool]).filter(id => !(ov.equipInventory || []).includes(id));
+  return { unowned, allOwned: unowned.length === 0 };
+}
+function grantCollectible(student, tier) {
+  const { unowned } = previewCollectible(student, tier);
+  if (unowned.length) {
+    const id = randFrom(unowned);
+    awardEquipItem(student, id);
+    return { type: 'collectible', id, label: getEquipItemDef(id).n };
+  }
+  awardGold(student, COLLECTIBLE_OWNED_GOLD);
+  return { type: 'gold', amount: COLLECTIBLE_OWNED_GOLD, label: `${COLLECTIBLE_OWNED_GOLD} Gold (collectible already owned)` };
+}
+// Loot roll: an unowned companion from the land's pool, else an unowned equipment item, else Gold.
+// Unlike awardFromPool it never gives XP (claims must not change XP).
+function grantLoot(student, tier) {
+  const land = rewardLandName(student);
+  const ov = _overrides[String(student.id)] || {};
+  const pets = ((PET_POOLS[land] || {})[tier] || []).filter(f => !(ov.companions || []).includes(f));
+  if (pets.length) {
+    const f = randFrom(pets);
+    awardCompanion(student, f);
+    return { type: 'companion', file: f, label: `Companion: ${companionByFile(f).name}` };
+  }
+  const eqPool = ((EQUIP_POOLS[land] || {}).accessory || {})[tier] || [];
+  const eq = (Array.isArray(eqPool) ? eqPool : [eqPool]).filter(id => !(ov.equipInventory || []).includes(id));
+  if (eq.length) {
+    const id = randFrom(eq);
+    awardEquipItem(student, id);
+    return { type: 'collectible', id, label: getEquipItemDef(id).n };
+  }
+  const g = tier === 'rare' ? 30 : 15;
+  awardGold(student, g);
+  return { type: 'gold', amount: g, label: `${g} Gold (you already own everything in this loot pool)` };
+}
+const _claimInFlight = new Set();
+async function claimLevelReward(student, level) {
+  const sid = String(student.id), L = Number(level);
+  if (!rewardClaimsEnabled()) return { ok: false, reason: 'closed' };
+  if (getStudentLevel(student) < L) return { ok: false, reason: 'locked' };
+  const parts = rewardsForLevel(L);
+  if (!parts.some(isClaimablePart)) return { ok: false, reason: 'nothing' };
+  const key = `${sid}:${L}`;
+  if (_claimInFlight.has(key)) return { ok: false, reason: 'busy' };
+  _claimInFlight.add(key);
+  try {
+    const recRef = ref(db, `students/${sid}/levelRewards/${L}`);
+    const claimedAt = new Date().toISOString();
+    // Atomic: only creates the record if no claim exists (also across devices/tabs).
+    const tx = await runTransaction(recRef, cur => (cur ? undefined : { claimedAt, level: L }));
+    if (!tx || !tx.committed) return { ok: false, reason: 'already' };
+    if (!_overrides[sid]) _overrides[sid] = {};
+    _overrides[sid].levelRewards = Object.assign({}, _overrides[sid].levelRewards || {}, { [L]: { claimedAt, level: L } });
+    const results = [];
+    for (const p of parts) {
+      if (p.type === 'gold')             { awardGold(student, p.amount); results.push({ type: 'gold', amount: p.amount, label: `${p.amount} Gold` }); }
+      else if (p.type === 'collectible') results.push(grantCollectible(student, p.tier));
+      else if (p.type === 'loot')        results.push(grantLoot(student, p.tier));
+      else if (p.type === 'title')       results.push({ type: 'title', title: p.title, label: `Title: “${p.title}”` });
+      else if (p.type === 'frame')       results.push({ type: 'frame', id: p.cosmeticId, label: partLabel(p) });
+    }
+    _overrides[sid].levelRewards[L] = { claimedAt, level: L, results };
+    update(recRef, { results }).catch(console.error);
+    logActivity(sid, '🎁', `Claimed Level ${L} reward: ${results.map(r => r.label).join(', ')}`);
+    return { ok: true, level: L, results };
+  } catch (e) {
+    console.error(e);
+    return { ok: false, reason: 'error' };
+  } finally {
+    _claimInFlight.delete(key);
+  }
+}
+// Existing characters get a celebration marker at their current level (old level-ups never replay).
+function ensureCelebrationMarker(student) {
+  if (!student) return;
+  const ov = _overrides[String(student.id)] || {};
+  if (ov.claimed && ov.levelCelebratedThrough == null) saveStudentOverride(student.id, { levelCelebratedThrough: getStudentLevel(student) });
+}
+function pendingCelebrationLevels(student) {
+  if (!student) return [];
+  const ov = _overrides[String(student.id)] || {};
+  return levelsToCelebrate(getStudentLevel(student), ov.levelCelebratedThrough);
+}
+
 /* ─── GOLD HELPERS ─── */
 function getGold(student) {
   return (_overrides[String(student.id)] || {}).gold || 0;
@@ -2953,6 +3075,8 @@ function isCosmeticUnlocked(student, cosmetic) {
       // unlockValue is a legacy guild key (ember/tide/thorn/storm); check if student's house matches the mapping
       return studentHouse === (GUILD_TO_HOUSE[unlockVal] || unlockVal) || (ov.guild || null) === unlockVal;
     }
+    case 'level_reward':
+      return !!((ov.levelRewards || {})[String(cosmetic.unlockValue)]);
     case 'shop':
     case 'drop':
       return (ov.unlockedCosmetics || []).includes(cosmetic.id);
@@ -3911,7 +4035,9 @@ function renderHub() {
 
   // Customize overlay — tabbed: avatar / title / companions
   const activeTitle = STATE.pendingTitle || s.title;
-  const titleOptions = TITLE_OPTIONS.includes(s.title) ? TITLE_OPTIONS : [s.title, ...TITLE_OPTIONS];
+  const _lvlTitles = getClaimedLevelTitles(STATE.student);
+  const _baseTitles = [..._lvlTitles, ...TITLE_OPTIONS];
+  const titleOptions = _baseTitles.includes(s.title) ? _baseTitles : [s.title, ..._baseTitles];
   const sOv = getOverrides().students[String(s.id)] || {};
   const earnedCompanions = sOv.companions || [];
   const activeCompanion = STATE.pendingCompanion !== undefined ? STATE.pendingCompanion : (sOv.activeCompanion || null);
@@ -4250,7 +4376,7 @@ function renderHub() {
               </div>
             </div>
             <div class="stats-footer-divider"></div>
-            <div class="char-level-stat-compact">⭐ Level ${s.level}</div>
+            ${renderHubJourneyStrip(STATE.student)}
             ${(() => {
               const _gOv = getOverrides().students[String(s.id)] || {};
               const _hKey = getStudentHouse(_gOv);
@@ -4608,6 +4734,7 @@ function renderHub() {
     ${STATE.sqInviteNotifOpen ? renderInviteNotifModal() : ''}
     ${renderHelpModal()}
     ${renderGuildReveal()}
+    ${renderLevelUpOverlay()}
     ${STATE.studentCompanionOpen ? `
     <div class="equip-picker-overlay" id="student-companion-overlay">
       <div class="equip-picker-box" style="max-width:520px">
@@ -7045,6 +7172,7 @@ function renderQuestMap() {
       ${STATE.helpFlagged?'🙋 Help Requested':'🤚 Need Help'}
     </button>
     ${renderHelpModal()}
+    ${renderLevelUpOverlay()}
     ${completedInLand && getCollabQuestsEnabled() ? `
     <button class="sq-board-banner" id="sq-board-btn">
       <span class="sq-board-banner-scroll">📜</span>
@@ -9313,6 +9441,156 @@ function renderAchievements() {
   </div>`;
 }
 
+/* ─── HERO'S JOURNEY SCREEN ─── */
+function heroAvatarSrc(student) {
+  const m = getMergedStudent(student);
+  return `/avatars/${m.avatar || 'avatar_blankchibi.png'}`;
+}
+function renderRewardParts(parts, opts = {}) {
+  return parts.map(p => `<li class="hj-part hj-part-${p.type}"><span class="hj-part-ico" aria-hidden="true">${partIcon(p)}</span><span>${partLabel(p)}${
+    p.type === 'autoFrame' ? ' <em class="hj-part-note">(unlocks automatically)</em>' :
+    p.type === 'ability' ? ' <em class="hj-part-note">(passive)</em>' :
+    p.type === 'future' ? ' <em class="hj-part-note">(future phase)</em>' :
+    (p.type === 'collectible' && opts.collectibleOwned) ? ` <em class="hj-part-note">(you own it already → ${COLLECTIBLE_OWNED_GOLD} Gold)</em>` : ''}</span></li>`).join('');
+}
+function renderHerosJourney() {
+  const student = STATE.student;
+  const m = getMergedStudent(student);
+  const level = getStudentLevel(student);
+  const xp = m.xp || 0, xpNext = m.xpNext || XP_PER_LEVEL;
+  const pct = Math.max(0, Math.min(100, Math.round(xp / xpNext * 100)));
+  const claims = getLevelRewardClaims(student);
+  const live = rewardClaimsEnabled();
+  const ready = claimableLevels(level, claims);
+  const cls = CLS_LABEL[clsKey(student, m)] || 'Adventurer';
+  const nextMs = nextMilestoneLevel(level);
+  const collectibleOwned = previewCollectible(student, 'common').allOwned;
+
+  const cards = trackLevels(level).map(L => {
+    const st = levelStatus(L, level, claims);
+    const parts = rewardsForLevel(L);
+    const rec = claims[String(L)] || {};
+    const chip =
+      st === 'locked'  ? `<span class="hj-chip hj-chip-locked">🔒 Reach Level ${L}</span>` :
+      st === 'auto'    ? `<span class="hj-chip hj-chip-auto">✓ Unlocked</span>` :
+      st === 'claimed' ? `<span class="hj-chip hj-chip-claimed">✓ Claimed</span>` :
+      live             ? `<button class="hj-claim-btn" data-claim-level="${L}">🎁 Claim reward</button>` :
+                         `<span class="hj-chip hj-chip-earned">✨ Earned — claiming opens soon</span>`;
+    const got = st === 'claimed' && Array.isArray(rec.results) && rec.results.length
+      ? `<div class="hj-got">You got: ${rec.results.map(r => r.label).join(' · ')}</div>` : '';
+    return `<div class="hj-card hj-${st}${isMilestone(L) ? ' hj-milestone' : isAbilityLevel(L) ? ' hj-abilitylvl' : ''}${L === level + 1 ? ' hj-next-card' : ''}" data-level="${L}">
+      <div class="hj-card-hdr"><span class="hj-lvl">Lv ${L}</span>${isMilestone(L) ? '<span class="hj-tag">★ Milestone</span>' : isAbilityLevel(L) ? '<span class="hj-tag hj-tag-ab">✨ Ability</span>' : ''}</div>
+      <ul class="hj-parts">${renderRewardParts(parts, { collectibleOwned: st !== 'claimed' && collectibleOwned })}</ul>
+      ${got}
+      <div class="hj-card-foot">${chip}</div>
+    </div>`;
+  }).join('');
+
+  const abilities = CHARACTER_ABILITIES.map(a => {
+    const st = abilityStatus(a, level);
+    return `<li class="hj-ab hj-ab-${st}">
+      <span class="hj-ab-ico" aria-hidden="true">${a.icon}</span>
+      <div class="hj-ab-body"><div class="hj-ab-name">${a.name} <span class="hj-ab-lvl">Lv ${a.level}</span></div>
+        <div class="hj-ab-desc">${a.desc}</div></div>
+      <span class="hj-ab-status">${st === 'locked' ? `🔒 Reach Level ${a.level}` : st === 'active' ? '✅ Active' : '✓ Unlocked · ⏳ Coming soon'}</span>
+    </li>`;
+  }).join('');
+
+  const reveal = STATE.hjReveal ? `<div class="hj-reveal-overlay" id="hj-reveal-overlay" role="dialog" aria-modal="true">
+      <div class="hj-reveal">
+        <div class="hj-reveal-title">🎁 Level ${STATE.hjReveal.level} Reward!</div>
+        <ul class="hj-reveal-list">${STATE.hjReveal.results.map(r => `<li>${r.label}</li>`).join('')}</ul>
+        ${STATE.hjReveal.results.some(r => r.type === 'title') ? '<p class="hj-reveal-note">New titles appear in ✨ Customize → 👑 Title.</p>' : ''}
+        ${STATE.hjReveal.results.some(r => r.type === 'frame') ? '<p class="hj-reveal-note">New frames appear in My Items → Frames.</p>' : ''}
+        <button class="today-go-btn" id="hj-reveal-ok">Awesome!</button>
+      </div>
+    </div>` : '';
+
+  return `<div class="screen hub-screen hj-screen">
+    ${starsHTML()}
+    <div class="hj-wrap">
+      <div class="hj-top">
+        <button class="btn-back" id="hj-back">← Back to Hub</button>
+        <h1 class="hj-title">⚔️ Hero's Journey</h1>
+      </div>
+      <section class="hj-hero">
+        <img class="hj-avatar" src="${heroAvatarSrc(student)}" alt="${getCharName(student)}" width="96" height="96" onerror="this.src='/avatars/avatar_blankchibi.png'"/>
+        <div class="hj-hero-info">
+          <div class="hj-name">${getCharName(student)}</div>
+          <div class="hj-class">${cls} · <b>Level ${level}</b></div>
+          <div class="hj-xp-track" role="progressbar" aria-valuemin="0" aria-valuemax="${xpNext}" aria-valuenow="${xp}" aria-label="XP toward next level"><div class="hj-xp-fill" style="width:${pct}%"></div></div>
+          <div class="hj-xp-lbl">${xp} / ${xpNext} XP · ${Math.max(0, xpNext - xp)} XP to Level ${level + 1}</div>
+        </div>
+        <div class="hj-next-ms">
+          <div class="hj-next-ms-lbl">Next milestone</div>
+          <div class="hj-next-ms-lvl">Level ${nextMs}</div>
+          <div class="hj-next-ms-what">${rewardsForLevel(nextMs).filter(p => p.type !== 'autoFrame').map(p => `${partIcon(p)} ${partLabel(p)}`).join('<br>')}</div>
+        </div>
+      </section>
+      ${!live ? `<div class="hj-notice">🔒 The Realm's guardians are still sealing the treasure vault. Every reward you've earned is saved here — claiming opens soon!${ready.length ? ` <b>${ready.length} reward${ready.length !== 1 ? 's' : ''} waiting for you.</b>` : ''}</div>`
+              : ready.length ? `<div class="hj-notice hj-notice-ready">🎁 You have <b>${ready.length}</b> reward${ready.length !== 1 ? 's' : ''} ready to claim!</div>` : ''}
+      <h2 class="hj-h2">🗺️ Reward Track</h2>
+      <div class="hj-track">${cards}</div>
+      <h2 class="hj-h2">✨ Character Abilities</h2>
+      <p class="hj-sub">Abilities unlock as you level up and work automatically — nothing to equip.</p>
+      <ul class="hj-abilities">${abilities}</ul>
+    </div>
+    ${reveal}
+  </div>`;
+}
+// Compact hub panel: level, next reward, ready indicator, button.
+function renderHubJourneyStrip(student) {
+  const level = getStudentLevel(student);
+  const ready = claimableLevels(level, getLevelRewardClaims(student)).length;
+  const next = nextRewardLevel(level);
+  const nextParts = rewardsForLevel(next).filter(p => p.type !== 'autoFrame');
+  return `<div class="hj-hub">
+    <div class="hj-hub-lvl">⭐ Level ${level}</div>
+    <div class="hj-hub-next">Next at Lv ${next}: ${nextParts.map(p => `${partIcon(p)} ${partLabel(p)}`).join(', ')}</div>
+    <button class="hj-hub-btn" id="open-hj-btn">⚔️ Hero's Journey${ready ? `<span class="hj-badge">${ready} ${rewardClaimsEnabled() ? 'ready' : 'waiting'}</span>` : ''}</button>
+  </div>`;
+}
+// LEVEL UP! celebration — shown once per new level (persisted in levelCelebratedThrough).
+function renderLevelUpOverlay() {
+  const student = STATE.student;
+  if (!student || !['hub', 'quest-map'].includes(STATE.screen)) return '';
+  ensureCelebrationMarker(student);
+  if (STATE.sg0GuildReveal || STATE.helpModalOpen || STATE.customizeOpen || STATE.sideQuestModalOpen || STATE.npcOpen) return '';
+  const levels = pendingCelebrationLevels(student);
+  if (!levels.length) return '';
+  const top = levels[levels.length - 1];
+  const big = levels.some(L => L % 5 === 0);
+  const rows = levels.map(L => {
+    const parts = rewardsForLevel(L);
+    return `<li class="lu-row${L % 5 === 0 ? ' lu-row-ms' : ''}"><span class="lu-row-lvl">Lv ${L}</span><span>${parts.map(p => `${partIcon(p)} ${partLabel(p)}`).join(' · ')}</span></li>`;
+  }).join('');
+  return `<div class="lu-overlay" id="lu-overlay" role="dialog" aria-modal="true" aria-label="Level up">
+    <div class="lu-card${big ? ' lu-milestone' : ''}">
+      <div class="lu-rays" aria-hidden="true"></div>
+      ${big ? `<div class="lu-ribbon">${levels.some(L => L % 10 === 0) ? '★ MAJOR MILESTONE ★' : '✨ NEW ABILITY ✨'}</div>` : ''}
+      <img class="lu-avatar" src="${heroAvatarSrc(student)}" alt="" width="104" height="104" onerror="this.src='/avatars/avatar_blankchibi.png'"/>
+      <div class="lu-name">${getCharName(student)}</div>
+      <div class="lu-head">LEVEL UP!</div>
+      <div class="lu-level">${levels.length > 1 ? `Level ${levels[0] - 1} → ` : ''}Level ${top}</div>
+      <ul class="lu-rows">${rows}</ul>
+      <p class="lu-hint">${rewardClaimsEnabled() ? 'Claim your rewards in Hero\'s Journey.' : 'Your rewards are saved in Hero\'s Journey.'}</p>
+      <div class="lu-btns">
+        <button class="today-map-btn" id="lu-journey">⚔️ Hero's Journey</button>
+        <button class="today-go-btn" id="lu-continue">Continue</button>
+      </div>
+    </div>
+  </div>`;
+}
+function bindLevelUpOverlay() {
+  const $ = id => document.getElementById(id);
+  const done = () => {
+    const st = STATE.student; if (!st) return;
+    saveStudentOverride(st.id, { levelCelebratedThrough: getStudentLevel(st) });
+  };
+  $("lu-continue") && $("lu-continue").addEventListener("click", () => { done(); mount(); });
+  $("lu-journey") && $("lu-journey").addEventListener("click", () => { done(); STATE.screen = "heros-journey"; STATE.hjReveal = null; mount(); window.scrollTo(0, 0); });
+}
+
 /* ─── MOUNT & EVENTS ─── */
 function mount() {
   const root = document.getElementById("root");
@@ -9325,6 +9603,7 @@ function mount() {
   if (STATE.screen === "naming")         root.innerHTML = renderNaming();
   if (STATE.screen === "hub")            root.innerHTML = renderHub();
   if (STATE.screen === "achievements")   root.innerHTML = renderAchievements();
+  if (STATE.screen === "heros-journey")  root.innerHTML = renderHerosJourney();
   if (STATE.screen === "teacher-login")  root.innerHTML = renderTeacherLogin();
   if (STATE.screen === "teacher-dash")   root.innerHTML = renderTeacherDashboard();
   if (STATE.screen === "teacher-edit")   root.innerHTML = renderTeacherEdit();
@@ -9558,6 +9837,20 @@ function bindEvents() {
   }
 
   /* HUB */
+  /* HERO'S JOURNEY */
+  if (STATE.screen === "heros-journey") {
+    $("hj-back") && $("hj-back").addEventListener("click", () => { STATE.screen = "hub"; STATE.hjReveal = null; mount(); });
+    $("hj-reveal-ok") && $("hj-reveal-ok").addEventListener("click", () => { STATE.hjReveal = null; mount(); });
+    document.querySelectorAll("[data-claim-level]").forEach(btn => btn.addEventListener("click", async () => {
+      if (btn.disabled) return;
+      document.querySelectorAll("[data-claim-level]").forEach(b => { b.disabled = true; });
+      btn.textContent = "Opening the chest…";
+      const res = await claimLevelReward(STATE.student, Number(btn.dataset.claimLevel));
+      if (res.ok) STATE.hjReveal = { level: res.level, results: res.results };
+      mount();
+    }));
+  }
+
   /* ACHIEVEMENTS — its own block: these handlers used to be nested inside the hub block,
      so they never ran on the Achievements screen and its buttons did nothing. */
   if (STATE.screen === "achievements") {
@@ -9568,6 +9861,8 @@ function bindEvents() {
   }
 
   if (STATE.screen === "hub") {
+    $("open-hj-btn") && $("open-hj-btn").addEventListener("click", () => { STATE.screen = "heros-journey"; STATE.hjReveal = null; mount(); window.scrollTo(0, 0); });
+    bindLevelUpOverlay();
     bindHouseSelection();
     $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; STATE.genName = null; STATE.genEpithet = null; STATE.namingOptions = null; STATE.epithetOptions = null; STATE._namingReturnScreen = null; mount(); });
     // Trophy mastery trial request — tap an available trophy
@@ -10714,6 +11009,7 @@ function bindEvents() {
   /* QUEST MAP */
   if (STATE.screen === "quest-map") {
     $("qm-back") && $("qm-back").addEventListener("click", () => { STATE.screen = "hub"; mount(); });
+    bindLevelUpOverlay();
     $("qm-help-btn") && $("qm-help-btn").addEventListener("click", () => {
       if (STATE.helpFlagged) return;
       STATE.helpModalOpen = true; mount();
