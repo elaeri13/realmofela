@@ -2053,13 +2053,18 @@ function saveTileLinksBulk(landId, tiles, field, urls) {
   _settings.tileLinks[lid] = current;
   set(ref(db, `settings/tileLinks/${lid}`), current).catch(console.error);
 }
+// Links can be entered on two teacher screens: Content Links (settings/tileLinks) and the
+// Lesson Schedule table (settings/lessonSchedule). Students' buttons used to read only the
+// first, so links typed into Lesson Schedule never reached them. Read both.
 function getEffectiveWayground(land, tile) {
   const stored = (getStoredTileLinks(land.id)[String(tile.id)] || {}).wayground;
-  return normalizeLink(stored != null ? stored : (tile.video || ''));
+  const sched  = getLessonScheduleEntry(land.id, tile.id).wayground;
+  return normalizeLink(stored || sched || tile.video || '');
 }
 function getEffectivePear(land, tile) {
   const stored = (getStoredTileLinks(land.id)[String(tile.id)] || {}).pear;
-  if (stored != null) return normalizeLink(stored);
+  const sched  = getLessonScheduleEntry(land.id, tile.id).pear;
+  if (stored || sched) return normalizeLink(stored || sched);
   const bs = BOSS_SCHEDULE[String(tile.id)];
   return normalizeLink(tile.pearUrl || (bs && (bs.assessmentUrl || bs.pearUrl)) || '');
 }
@@ -7433,8 +7438,8 @@ function renderTeacherContentLinks() {
     const isDung  = dungeonSet.has(t.id);
     const isBossSess = !!BOSS_SCHEDULE[String(t.id)];
     const badge   = isGate ? ' <span class="tcl-badge tcl-badge-gate">Gate</span>' : isBossSess ? ' <span class="tcl-badge tcl-badge-boss">Boss Day</span>' : isDung ? ' <span class="tcl-badge tcl-badge-dung">Final Boss</span>' : '';
-    const wgVal   = (stored[String(t.id)] || {}).wayground ?? (t.video || '');
-    const pearVal = (stored[String(t.id)] || {}).pear ?? getEffectivePear(land, t);
+    const wgVal   = getEffectiveWayground(land, t);
+    const pearVal = getEffectivePear(land, t);
     const label   = `${sessionLabel(t)} <span class="tcl-land-tag">${land.name}</span>`;
     return `<div class="tcl-row" data-row-idx="${i}">
       <div class="tcl-row-label"><span class="tcl-row-num">${i + 1}</span>${label}${badge}</div>
@@ -7496,7 +7501,7 @@ function renderTeacherContentLinks() {
   </div>`;
 }
 function renderTeacherLessonSchedule() {
-  const landId = STATE.tlsLandId || 1;
+  const landId = STATE.tlsLandId || getMostCommonStudentLand().id;
   const land   = LANDS.find(l => l.id === landId) || LANDS[0];
   const order  = land.pathOrder || [];
   const tileMap = {};
@@ -7519,7 +7524,10 @@ function renderTeacherLessonSchedule() {
     if (!tile || (tile.type !== 'lesson' && tile.type !== 'arrival')) return '';
     const entry = getLessonScheduleEntry(landId, tid);
     const fields = FIELDS.map(f => {
-      const val = entry[f.key] || '';
+      const _land = LANDS.find(l => l.id === landId);
+      const val = f.key === 'wayground' ? getEffectiveWayground(_land, tile)
+                : f.key === 'pear'      ? getEffectivePear(_land, tile)
+                : (entry[f.key] || '');
       const inputId = `tls-${tid}-${f.key}`;
       if (f.type === 'textarea') {
         return `<td class="tls-cell"><textarea id="${inputId}" class="tls-input tls-ta" rows="2" placeholder="${f.ph}" data-tid="${tid}" data-field="${f.key}">${val}</textarea></td>`;
@@ -7542,6 +7550,7 @@ function renderTeacherLessonSchedule() {
           ${landOpts}
         </select>
       </div>
+      <div class="tcl-land-banner">🗺️ You are editing the schedule for <b>${land.name}</b>. Wayground and Pear links saved here also appear in Content Links.</div>
       <p class="tls-hint">Set release dates and links for each session. Students can't open a tile until its release date arrives.</p>
       <div class="tls-table-wrap">
         <table class="tls-table">
@@ -10070,7 +10079,7 @@ function bindEvents() {
     });
     $("t-lesson-schedule-btn") && $("t-lesson-schedule-btn").addEventListener("click", () => {
       STATE.screen = "teacher-lesson-schedule";
-      STATE.tlsLandId = STATE.tlsLandId || 1;
+      STATE.tlsLandId = STATE.tlsLandId || getMostCommonStudentLand().id;
       mount();
     });
 
@@ -11326,7 +11335,10 @@ function bindEvents() {
         row.querySelectorAll("[data-tid][data-field]").forEach(inp => {
           const field = inp.dataset.field;
           const val   = inp.value.trim();
-          saveLessonScheduleField(STATE.tlsLandId || 1, tid, field, val || null);
+          const _lid = STATE.tlsLandId || getMostCommonStudentLand().id;
+          saveLessonScheduleField(_lid, tid, field, val || null);
+          // Lesson links also go to Content Links, which is what students' buttons use.
+          if (field === 'wayground' || field === 'pear') saveTileLink(_lid, tid, field, val || null);
         });
         btn.textContent = '✓ Saved';
         setTimeout(() => { btn.textContent = 'Save'; }, 2000);
