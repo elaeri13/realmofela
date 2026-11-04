@@ -2321,8 +2321,7 @@ function completeSideQuest(student, key) {
 const GUILD_TO_HOUSE = { ember:'altruismo', tide:'amistad', thorn:'rêveur', storm:'isibindi' };
 
 function getStudentHouse(ov) {
-  if (ov.house) return ov.house;
-  if (ov.guild && GUILD_TO_HOUSE[ov.guild]) return GUILD_TO_HOUSE[ov.guild];
+  if (ov.house && ov.houseConfirmed) return ov.house;
   return null;
 }
 function getHouseData(houseKey) {
@@ -2373,67 +2372,80 @@ const GUILD_BLURBS = HOUSE_BLURBS;
 
 function renderGuildReveal() {
   const step = STATE.sg0GuildReveal;
+  const houses = CLASS_DATA && CLASS_DATA.houses;
+  if (!houses) return "";
 
   if (step === "intro") {
     return `<div class="guild-reveal-overlay" id="guild-intro-overlay">
       <div class="guild-reveal-inner guild-intro-inner">
         <div class="guild-intro-modal">
-          <div class="guild-intro-header">🏫 Your School House</div>
+          <div class="guild-intro-header">🏫 Choose Your House</div>
           <div class="guild-intro-body">
-            <p>Every scholar-adventurer belongs somewhere. In the Realm, that place is your School House — the community that will stand with you through every trial, every tile, every challenge. Your House isn't about being better than anyone else. It's about being part of something bigger than yourself.</p>
-            <p>Altruismo. Amistad. Rêveur. Isibindi. Four Houses, one Realm. Yours is waiting to welcome you.</p>
+            <p>Your school has four Houses: Altruismo, Amistad, Rêveur, and Isibindi. In the Realm, your House is your team — the community that stands with you through every challenge.</p>
+            <p>Select the House you've been placed in at school. Once you confirm, your choice is saved. If there's a mistake, ask your teacher to fix it.</p>
           </div>
           <div class="guild-intro-footer">
-            <button class="btn btn-gold" id="guild-intro-btn">I'm Ready to Join →</button>
+            <button class="btn btn-gold" id="guild-intro-btn">Choose My House →</button>
           </div>
         </div>
       </div>
     </div>`;
   }
 
-  const ov = getOverrides().students[String(STATE.student.id)] || {};
-  const houseKey = getStudentHouse(ov);
-  const houses = CLASS_DATA && CLASS_DATA.houses;
-  if (!houses || !houseKey || !houses[houseKey]) return "";
-  const house = houses[houseKey];
-  const allKeys = Object.keys(houses);
-
-  if (step === "spinning") {
-    const crests = allKeys.map(k =>
-      `<img class="guild-crest-dim" src="${houses[k].crest}" alt="${houses[k].name}" width="80" height="80"
-        onerror="this.style.opacity='.15';this.style.fontSize='40px';this.style.lineHeight='80px'"/>`
+  if (step === "select") {
+    const cards = Object.entries(houses).map(([k, h]) =>
+      `<button class="house-select-card" data-house-pick="${k}" style="border-color:${h.color}44">
+        <img class="house-select-crest" src="${h.crest}" alt="${h.name}" onerror="this.style.display='none'"/>
+        <div class="house-select-name" style="color:${h.color}">${h.name}</div>
+        <div class="house-select-motto">${h.motto}</div>
+      </button>`
     ).join("");
     return `<div class="guild-reveal-overlay">
-      <div class="guild-reveal-inner">
-        <div class="guild-spin-title">✦ THE REALM IS PLACING YOU ✦</div>
-        <div class="guild-crest-grid">${crests}</div>
-        <div class="guild-spin-hint">Your path is being written...</div>
+      <div class="guild-reveal-inner guild-intro-inner">
+        <div class="guild-intro-modal">
+          <div class="guild-intro-header" style="margin-bottom:16px">Which House are you in?</div>
+          <div class="house-select-grid">${cards}</div>
+        </div>
       </div>
     </div>`;
   }
 
-  if (step === "watching") {
+  const selectedKey = STATE.sg0SelectedHouse;
+  const selectedHouse = selectedKey && houses[selectedKey];
+
+  if (step === "confirm" && selectedHouse) {
+    const blurb = HOUSE_BLURBS[selectedHouse.name.toLowerCase()] || HOUSE_BLURBS[selectedKey] || "";
     return `<div class="guild-reveal-overlay">
-      <div class="guild-reveal-inner">
-        <div class="guild-watching-text">The Realm has been watching you since you arrived.<br>Now, it has made its choice.</div>
+      <div class="guild-reveal-inner guild-intro-inner">
+        <div class="guild-intro-modal" style="max-width:420px">
+          <div class="guild-intro-header" style="color:${selectedHouse.color};margin-bottom:8px">${selectedHouse.name}</div>
+          <img src="${selectedHouse.crest}" alt="${selectedHouse.name}" width="80" height="80" style="display:block;margin:0 auto 10px;object-fit:contain" onerror="this.style.display='none'"/>
+          <div style="font-size:13px;font-style:italic;color:rgba(0,0,0,.55);margin-bottom:10px;text-align:center">"${selectedHouse.motto}"</div>
+          ${blurb ? `<div style="font-size:12px;color:rgba(0,0,0,.5);line-height:1.6;margin-bottom:16px;text-align:center">${blurb}</div>` : ''}
+          <div style="font-size:13px;font-weight:700;color:rgba(0,0,0,.7);text-align:center;margin-bottom:16px">Is this your House?</div>
+          <div class="guild-confirm-row">
+            <button class="guild-back-btn" id="guild-back-btn" style="color:rgba(0,0,0,.55);border-color:rgba(0,0,0,.2)">← Change</button>
+            <button class="btn btn-gold" id="guild-confirm-btn">Yes, I'm in ${selectedHouse.name} →</button>
+          </div>
+        </div>
       </div>
     </div>`;
   }
 
-  if (step === "chosen") {
-    const blurb = HOUSE_BLURBS[house.name.toLowerCase()] || HOUSE_BLURBS[houseKey] || "";
+  if (step === "chosen" && selectedHouse) {
+    const blurb = HOUSE_BLURBS[selectedHouse.name.toLowerCase()] || HOUSE_BLURBS[selectedKey] || "";
     return `<div class="guild-reveal-overlay">
-      <div class="guild-color-flash" style="background:${house.color}"></div>
+      <div class="guild-color-flash" style="background:${selectedHouse.color}"></div>
       <div class="guild-reveal-inner">
-        <div class="guild-chosen-eyebrow">YOU HAVE BEEN WELCOMED INTO</div>
-        <img class="guild-chosen-crest" src="${house.crest}" alt="${house.name}" width="170" height="170"
-          style="--gc:${house.color}"
+        <div class="guild-chosen-eyebrow">WELCOME TO</div>
+        <img class="guild-chosen-crest" src="${selectedHouse.crest}" alt="${selectedHouse.name}" width="170" height="170"
+          style="--gc:${selectedHouse.color}"
           onerror="this.style.fontSize='80px';this.style.lineHeight='1'"/>
-        <div class="guild-chosen-name" style="color:${house.color}">${house.name.toUpperCase()}</div>
-        <div class="guild-chosen-motto">"${house.motto}"</div>
+        <div class="guild-chosen-name" style="color:${selectedHouse.color}">${selectedHouse.name.toUpperCase()}</div>
+        <div class="guild-chosen-motto">"${selectedHouse.motto}"</div>
         ${blurb ? `<div class="guild-chosen-blurb">${blurb}</div>` : ''}
         <button class="guild-continue-btn" id="guild-continue-btn"
-          style="background:${house.color};color:#fff;animation-delay:.9s">Begin Your Journey →</button>
+          style="background:${selectedHouse.color};color:#fff;animation-delay:.9s">Begin Your Journey →</button>
       </div>
     </div>`;
   }
@@ -3202,7 +3214,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               lessonOpenedAt:null,
               npcOpen:false, currentNpcKey:null,
               sg0Open:false, sg0Tile:null,
-              sg0GuildReveal:null,
+              sg0GuildReveal:null, sg0SelectedHouse:null,
               teacherResetConfirm:false,
               scribeIntroOpen: false, bossIntroOpen: false,
               writingHoldIdx: 0, bossHoldIdx: 0,
@@ -3990,35 +4002,30 @@ function renderHub() {
     const tlStd = tl.standardBosses || {};
     const tlGate = tl.gateBosses || {};
 
-    // Standard boss cells: show medal + optional seal
+    // Standard boss cells: medal-icon display (no trophy images)
     const stdCells = Object.entries(tlStd).map(([bk, boss]) => {
-      const st = _stdBossState[bk] || {};
-      // Medal: auto-awarded on last session; backward-compat: any status past 'sighted' counts
-      const medalEarned = !!(st.medalAwarded || ['mastery_available','mastery_requested','defeated'].includes(st.status));
-      const sealEarned  = st.status === 'defeated';
-      const sealReq     = st.status === 'mastery_requested';
-      const sealAvail   = st.status === 'mastery_available';
-      const bkTitle     = bk.charAt(0).toUpperCase() + bk.slice(1);
-      const tapAttr     = sealAvail ? ` data-trophy-req="${bk}"` : '';
-      const medalLevel  = getMedalLevel(st);
-      const cellClass   = sealEarned ? 'trophy-earned' : sealReq ? 'trophy-requested' : sealAvail ? 'trophy-available' : 'trophy-locked';
-      const imgSrc      = `/trophies/trophy_${bk}.jpeg`;
-      const medalBadgeHTML = medalLevel
-        ? `<div class="trophy-medal-badge" title="${medalLevel} medal">${MEDAL_EMOJI[medalLevel]}</div>`
-        : (medalEarned && !sealEarned && !sealReq && !sealAvail ? '<div class="trophy-medal-badge" title="Medal earned">🏅</div>' : '');
-      return `<div class="trophy-cell ${cellClass}"${tapAttr}>
-        <div class="trophy-img-wrap" style="position:relative">
-          <img src="${imgSrc}" class="trophy-img" alt="${bkTitle}" onerror="this.style.display='none'"/>
-          ${!medalEarned && !medalLevel ? '<div class="trophy-lock">🔒</div>' : ''}
-          ${medalBadgeHTML}
-          ${sealAvail ? '<div class="trophy-lock" style="font-size:16px">✦</div>' : ''}
-          ${sealReq  ? '<div class="trophy-pending-badge">Pending…</div>' : ''}
-          ${sealEarned ? '<div class="trophy-seal-badge" title="Mastery Seal">⭐</div>' : ''}
-        </div>
-        <div class="trophy-name">${bkTitle}</div>
-        ${boss.standard ? `<div class="trophy-std-tag">${boss.standard}</div>` : ''}
-        ${sealAvail ? `<div class="trophy-std-tag" style="color:rgba(251,191,36,.9)">Request Seal</div>` : ''}
-        ${sealReq   ? `<div class="trophy-std-tag" style="color:rgba(147,197,253,.85)">Seal Requested</div>` : ''}
+      const st         = _stdBossState[bk] || {};
+      const medalLevel = getMedalLevel(st);
+      const sealEarned = st.status === 'defeated';
+      const sealReq    = st.status === 'mastery_requested';
+      const sealAvail  = st.status === 'mastery_available';
+      const bkTitle    = bk.charAt(0).toUpperCase() + bk.slice(1);
+      const tapAttr    = sealAvail ? ` data-trophy-req="${bk}"` : '';
+      const displayLevel = sealEarned ? 'gold' : medalLevel;
+      const cellClass  = displayLevel ? `medal-cell medal-${displayLevel}` : 'medal-cell medal-locked';
+      const tierLabel  = sealEarned  ? 'Seal Earned ⭐'
+        : sealReq    ? 'Seal Requested'
+        : sealAvail  ? 'Request Seal ✦'
+        : medalLevel ? (medalLevel.charAt(0).toUpperCase() + medalLevel.slice(1))
+        : 'Unearned';
+      const iconHTML   = displayLevel
+        ? `<span class="medal-emoji">${MEDAL_EMOJI[displayLevel]}</span>`
+        : `<span class="medal-locked-icon">🏅</span>`;
+      return `<div class="${cellClass}"${tapAttr}>
+        <div class="medal-icon-wrap">${iconHTML}</div>
+        <div class="medal-name">${bkTitle}</div>
+        ${boss.standard ? `<div class="medal-std">${boss.standard}</div>` : ''}
+        <div class="medal-tier">${tierLabel}</div>
       </div>`;
     }).join('');
 
@@ -4199,10 +4206,36 @@ function renderHub() {
       </div>
       <div class="hub-panel boss-panel-wrap enter" style="animation-delay:.16s">
         <div class="panel-title">🏆 Achievements</div>
-        ${trophyGridHTML}
-        <div style="margin-top:12px;text-align:center">
-          <button class="btn btn-outline-sm" id="open-achievements-btn" style="width:100%">🏅 Mastery Medals &amp; Trophies →</button>
-        </div>
+        ${(() => {
+          const _achOv = _overrides[String(s.id)] || {};
+          const _achStd = _achOv.standardBossState || {};
+          const _achGate = _achOv.gateBossState || {};
+          const _achBoss = _achOv.bossStatus || {};
+          let medalCount = 0, trophyCount = 0;
+          LANDS.forEach(l => {
+            Object.keys(l.standardBosses || {}).forEach(bk => {
+              if (getMedalLevel(_achStd[bk] || {})) medalCount++;
+            });
+            Object.keys(l.gateBosses || {}).forEach(bk => {
+              if ((_achGate[bk] || {}).trophyEarned) trophyCount++;
+            });
+            const dt = l.tiles && l.tiles.find(t => t.type === 'dungeon');
+            if (dt && _achBoss[`${l.id}_${dt.id}`] === 'confirmed') trophyCount++;
+          });
+          return `<div class="hub-ach-compact">
+            <div class="hub-ach-counts">
+              <div class="hub-ach-count-pill">
+                <div class="hub-ach-count-num">${medalCount}</div>
+                <div class="hub-ach-count-lbl">Medals</div>
+              </div>
+              <div class="hub-ach-count-pill">
+                <div class="hub-ach-count-num">${trophyCount}</div>
+                <div class="hub-ach-count-lbl">Trophies</div>
+              </div>
+            </div>
+            <button class="btn btn-outline-sm" id="open-achievements-btn" style="width:100%;margin-top:4px">View Achievements →</button>
+          </div>`;
+        })()}
       </div>
         ${(() => {
           const activeSQ = getActiveSideQuests(STATE.student);
@@ -10527,7 +10560,7 @@ function bindEvents() {
         currentLand: landVal,
         currentTile: tileVal,
         completedTiles: compTiles,
-        ...(houseVal !== undefined ? { house: houseVal || null } : {}),
+        ...(houseVal !== undefined ? { house: houseVal || null, houseConfirmed: houseVal ? true : false } : {}),
         ...extraOverrides,
       });
       // Unlock land frames for any lands the student has now passed
@@ -10687,8 +10720,9 @@ function bindEvents() {
         // Tile 3: Guild Hall — trigger reveal animation for first-timers
         if (tile.id === 3) {
           const _gOv = getOverrides().students[String(STATE.student.id)] || {};
-          if (!getStudentHouse(_gOv)) {
+          if (!_gOv.houseConfirmed) {
             STATE.sg0GuildReveal = "intro";
+            STATE.sg0SelectedHouse = null;
             STATE.sg0Tile = tile;
             mount();
             return;
@@ -10761,29 +10795,39 @@ function bindEvents() {
     $("npc-close")     && $("npc-close").addEventListener("click", closeNpc);
     $("npc-close-btn") && $("npc-close-btn").addEventListener("click", closeNpc);
     $("npc-overlay")   && $("npc-overlay").addEventListener("click", e => { if (e.target === $("npc-overlay")) closeNpc(); });
-    // Guild intro — "I'm Ready to Join" triggers the sorting animation
+    // House selection — intro → select
     $("guild-intro-btn") && $("guild-intro-btn").addEventListener("click", () => {
-      assignGuild(STATE.student.id);
-      STATE.sg0GuildReveal = "spinning";
+      STATE.sg0GuildReveal = "select";
       mount();
-      setTimeout(() => {
-        if (STATE.sg0GuildReveal === "spinning") {
-          STATE.sg0GuildReveal = "watching";
-          mount();
-          setTimeout(() => {
-            if (STATE.sg0GuildReveal === "watching") {
-              STATE.sg0GuildReveal = "chosen";
-              mount();
-            }
-          }, 900);
-        }
-      }, 2500);
     });
-    // Guild reveal — continue button advances tile 3
+    // House selection — pick a house card → confirm
+    document.querySelectorAll("[data-house-pick]").forEach(card => {
+      card.addEventListener("click", () => {
+        STATE.sg0SelectedHouse = card.dataset.housePick;
+        STATE.sg0GuildReveal = "confirm";
+        mount();
+      });
+    });
+    // House confirm — back → select
+    $("guild-back-btn") && $("guild-back-btn").addEventListener("click", () => {
+      STATE.sg0GuildReveal = "select";
+      mount();
+    });
+    // House confirm — confirmed → save + celebration
+    $("guild-confirm-btn") && $("guild-confirm-btn").addEventListener("click", () => {
+      const chosen = STATE.sg0SelectedHouse;
+      if (!chosen) return;
+      saveStudentOverride(STATE.student.id, { house: chosen, houseConfirmed: true });
+      unlockCosmeticsForGuild(STATE.student.id, chosen);
+      STATE.sg0GuildReveal = "chosen";
+      mount();
+    });
+    // House reveal — continue button advances tile 3
     $("guild-continue-btn") && $("guild-continue-btn").addEventListener("click", () => {
       const tile = STATE.sg0Tile;
       if (tile) advanceSg0Tile(STATE.student, tile.id);
       STATE.sg0GuildReveal = null;
+      STATE.sg0SelectedHouse = null;
       STATE.sg0Tile = null;
       mount();
     });
@@ -12323,16 +12367,6 @@ async function seedAndMigrate() {
       if (Object.keys(_guildWrites).length) await update(ref(db), _guildWrites);
     }
 
-    // One-time house migration: for students with a legacy guild key (ember/tide/thorn/storm)
-    // but no house field yet, write house = GUILD_TO_HOUSE[guild] so the new field is set.
-    // This preserves the legacy guild field untouched.
-    const _houseMigrations = {};
-    for (const [_id, _s] of Object.entries(_allStudents)) {
-      if (_s && _s.guild && !_s.house && GUILD_TO_HOUSE[_s.guild]) {
-        _houseMigrations[`students/${_id}/house`] = GUILD_TO_HOUSE[_s.guild];
-      }
-    }
-    if (Object.keys(_houseMigrations).length) await update(ref(db), _houseMigrations);
   }
 
   // Migrate legacy overrides/ records to students/{number}
