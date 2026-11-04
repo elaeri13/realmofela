@@ -210,6 +210,21 @@ input  { font-family: var(--font-body); }
 .num-del:hover { background: linear-gradient(135deg,#FECACA,#FCA5A5); }
 .num-del:disabled { opacity:.3; cursor:not-allowed; transform:none; }
 .num-empty { pointer-events: none; }
+/* Create-a-new-PIN screen: deliberately unlike the login PIN card */
+.setpin-card { background: linear-gradient(180deg,#FFFBEB,#FEF3C7); border: 4px solid #F59E0B; border-radius: 20px; padding: 0 22px 26px; overflow: hidden; box-shadow: 0 0 0 6px rgba(245,158,11,.25), 0 12px 40px rgba(0,0,0,.35); animation: setpinGlow 2.2s ease-in-out infinite; }
+@keyframes setpinGlow { 0%,100% { box-shadow: 0 0 0 6px rgba(245,158,11,.25), 0 12px 40px rgba(0,0,0,.35); } 50% { box-shadow: 0 0 0 12px rgba(245,158,11,.12), 0 12px 40px rgba(0,0,0,.35); } }
+.setpin-banner { margin: 0 -22px 14px; padding: 14px 10px; background: linear-gradient(135deg,#F59E0B,#D97706); color: #fff; font-family: var(--font-display); font-size: 22px; font-weight: 900; letter-spacing: 1.5px; text-shadow: 0 2px 4px rgba(0,0,0,.25); }
+.setpin-steps { display: flex; justify-content: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.setpin-step { padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 900; background: rgba(0,0,0,.06); color: #92400E; opacity: .6; }
+.setpin-step.on { background: #7C2D12; color: #FDE68A; opacity: 1; transform: scale(1.06); }
+.setpin-step.done { background: #059669; color: #fff; opacity: .9; }
+.setpin-who { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; font-weight: 800; color: #78350F; }
+.setpin-who img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 3px solid #F59E0B; background: #fff; }
+.setpin-big { font-family: var(--font-display); font-size: 24px; font-weight: 900; line-height: 1.2; color: #7C2D12; margin: 4px 0 6px; }
+.setpin-sub { font-size: 15px; font-weight: 800; color: #92400E; margin: 0 0 14px; }
+.setpin-dots .pin-dot { width: 22px; height: 22px; border-color: #F59E0B; }
+.setpin-dots .pin-dot.on { background: #D97706; border-color: #7C2D12; }
+.setpin-card .num-btn:not(.num-del) { background: linear-gradient(135deg,#FFFBEB,#FDE68A); border-color: #F59E0B; color: #7C2D12; box-shadow: 0 3px 0 #F59E0B; }
 
 /* ── CHARACTER HUB ── */
 .hub-screen { padding: 16px 12px 36px; overflow-x: hidden; box-sizing: border-box; }
@@ -301,12 +316,18 @@ input  { font-family: var(--font-body); }
 /* Actions */
 .hub-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 /* Today's lesson entry (primary) + overworld map (secondary) */
-.today-entry { flex: 1 1 320px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.today-entry-label { font-family: var(--font-display); font-size: 15px; font-weight: 900; color: #FDE68A; letter-spacing: .3px; text-shadow: 0 1px 4px rgba(0,0,0,.55); }
+.today-quest { flex: 1 1 100%; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.today-entry-label { font-family: var(--font-display); font-size: 16px; font-weight: 900; color: #FDE68A; letter-spacing: .3px; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
 .today-entry-done { font-size: 12px; color: #A7F3D0; margin-left: 6px; }
-.today-entry-btn { width: 100%; min-height: 60px; font-size: 20px; }
-.today-entry-note { font-size: 14px; font-weight: 700; line-height: 1.45; color: #fff; background: rgba(15,10,40,.55); border: 1.5px solid rgba(251,191,36,.45); border-radius: 14px; padding: 12px 16px; }
-.hub-map-btn { flex: 0 0 auto; min-height: 44px; align-self: flex-end; }
+.today-row { display: flex; gap: 12px; align-items: flex-end; }
+.today-main { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.today-go-btn { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 64px; padding: 14px 24px; border-radius: 16px; border: 2px solid #B45309; background: linear-gradient(135deg,#FCD34D 0%,#F5B90B 55%,#D4A017 100%); color: #3B2300; font-family: var(--font-display); font-size: 22px; font-weight: 900; letter-spacing: .3px; cursor: pointer; box-shadow: 0 5px 0 #92400E, 0 10px 24px rgba(212,160,23,.45); transition: transform .12s, box-shadow .12s; }
+.today-go-btn:hover { transform: translateY(-2px); box-shadow: 0 7px 0 #92400E, 0 14px 28px rgba(212,160,23,.55); }
+.today-go-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #92400E, 0 6px 14px rgba(212,160,23,.4); }
+.today-map-btn { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 64px; padding: 0 20px; border-radius: 16px; border: 2px solid rgba(255,255,255,.75); background: rgba(255,255,255,.82); color: var(--purple-dark); font-size: 15px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.18); transition: background .15s, transform .12s; }
+.today-map-btn:hover { background: #fff; transform: translateY(-1px); }
+.today-entry-note { flex: 1 1 auto; align-self: stretch; display: flex; align-items: center; font-size: 15px; font-weight: 700; line-height: 1.45; color: #fff; background: rgba(15,10,40,.62); border: 1.5px solid rgba(251,191,36,.5); border-radius: 16px; padding: 12px 16px; }
+.today-entry-note-sm { font-size: 13px; padding: 8px 12px; }
 .toast {
   position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
   background: linear-gradient(135deg,var(--teal),var(--teal-dark));
@@ -323,8 +344,9 @@ input  { font-family: var(--font-body); }
   .id-panel { flex-direction: column; text-align: center; gap: 12px; }
   .id-lvl, .id-title { margin: 0 auto; }
   .hub-actions { flex-direction: column; align-items: stretch; }
-  .today-entry { flex-basis: auto; }
-  .hub-map-btn { align-self: stretch; }
+  .today-row { flex-direction: column; align-items: stretch; }
+  .today-go-btn { font-size: 19px; }
+  .today-map-btn { min-height: 48px; }
   .btn-gold, .btn-red { width: 100%; }
   .name-grid { grid-template-columns: repeat(2,1fr); }
 }
@@ -1075,6 +1097,8 @@ input  { font-family: var(--font-body); }
 .jt-s-name { font-weight:700; color:#111827; }
 .jt-s-id { font-size:11px; color:#9CA3AF; margin-left:6px; }
 .jt-cur-tile { font-size:12px; color:#6B7280; }
+.jt-row-off { opacity:.5; }
+.jt-row-off .jt-cur-tile { font-style:italic; }
 .jt-sel-all-btn { font-size:11px; font-weight:700; color:#6366F1; background:none; border:none; cursor:pointer; padding:0; white-space:nowrap; }
 .jt-footer { display:flex; flex-direction:column; gap:6px; }
 .jt-jump-btn { width:100%; padding:12px; background:#6366F1; color:#fff; font-weight:800; font-size:14px; border:none; border-radius:8px; cursor:pointer; transition:background .12s; }
