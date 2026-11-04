@@ -4057,7 +4057,7 @@ function renderHub() {
       const imgSrc  = `/trophies/trophy_final_${tl.id}.png`;
       return `<div class="trophy-cell ${dStatus ? 'trophy-earned' : 'trophy-locked'}">
         <div class="trophy-img-wrap" style="position:relative">
-          <img src="${imgSrc}" class="trophy-img" alt="${dungeonTile.name||'Final Boss'}" onerror="this.style.opacity='0.2'"/>
+          <img src="${imgSrc}" class="trophy-img" alt="${dungeonTile.name||'Final Boss'}" onerror="this.style.display='none'"/>
           ${!dStatus ? '<div class="trophy-lock">🔒</div>' : ''}
         </div>
         <div class="trophy-name">${dungeonTile.name || 'Final Boss'}</div>
@@ -9165,7 +9165,7 @@ function renderAchievements() {
       const imgSrc = `/trophies/trophy_final_${tl.id}.png`;
       return `<div class="ach-cell ${earned ? 'ach-unlocked' : 'ach-locked'}">
         <div class="ach-img-wrap">
-          <img src="${imgSrc}" class="trophy-img" alt="${dungeonTile.name||'Final Boss'}" onerror="this.style.opacity='0.2'"/>
+          <img src="${imgSrc}" class="trophy-img" alt="${dungeonTile.name||'Final Boss'}" onerror="this.style.display='none'"/>
           ${!earned ? '<div class="trophy-lock">🔒</div>' : ''}
         </div>
         <div class="ach-name">${dungeonTile.name || 'Final Boss'}</div>
@@ -9197,19 +9197,26 @@ function renderAchievements() {
       </div>
     </div>
     <style>
-      .ach-screen-wrap { background:rgba(255,255,255,.04); border-radius:14px; padding:20px; }
+      .ach-screen-wrap { background:rgba(18,10,40,.86); border:1.5px solid rgba(182,160,228,.35); border-radius:16px; padding:20px; }
       .ach-tabs { display:flex; gap:10px; margin-bottom:20px; }
-      .ach-tab { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:8px; padding:10px 20px; cursor:pointer; color:rgba(255,255,255,.7); font-size:14px; font-weight:600; }
-      .ach-tab:hover { background:rgba(255,255,255,.14); }
-      .ach-tab.ach-tab-active { background:rgba(255,255,255,.18); border-color:rgba(255,255,255,.35); color:#fff; }
-      .ach-body { }
-      .ach-cell { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:10px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; }
-      .ach-cell.ach-locked { opacity:.45; filter:grayscale(.6); }
-      .ach-cell.ach-unlocked { border-color:rgba(251,191,36,.4); background:rgba(251,191,36,.06); }
-      .ach-img-wrap { position:relative; width:80px; height:80px; }
+      .ach-tab { flex:1 1 0; min-height:48px; border-radius:12px; padding:8px 14px; cursor:pointer; font-size:15px; font-weight:800; font-family:inherit;
+                 background:#EAE3FF; border:2px solid #B6A0E4; color:#352255; box-shadow:0 2px 8px rgba(20,10,40,.22); transition:background-color .15s; }
+      .ach-tab:hover { background:#F3EEFF; }
+      .ach-tab.ach-tab-active { background:#F8D477; border-color:#DCA83C; color:#251442; }
+      .ach-tab:focus-visible { outline:3px solid #fff; outline-offset:3px; }
+      .ach-body .trophy-land-label { color:#F8D477; }
+      .ach-cell { background:#241A45; border:1.5px solid rgba(182,160,228,.35); border-radius:12px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center; }
+      .ach-cell.ach-unlocked { border-color:#DCA83C; background:#2E2350; }
+      /* Locked: dim only the picture, keep the name and standard readable */
+      .ach-cell.ach-locked .trophy-img { opacity:.35; filter:grayscale(1); }
+      .ach-cell.ach-locked .ach-name { color:#CFC6EE; }
+      .ach-cell .trophy-std-tag { color:#F8D477; opacity:1; }
+      .ach-cell.ach-locked .trophy-std-tag { color:#B6A0E4; }
+      .ach-img-wrap { position:relative; width:80px; height:80px; border-radius:8px; background:rgba(255,255,255,.06); }
       .ach-img-wrap .trophy-img { width:80px; height:80px; border-radius:8px; object-fit:cover; }
-      .ach-name { font-size:12px; font-weight:700; color:#F9FAFB; }
+      .ach-name { font-size:13px; font-weight:800; color:#FFFFFF; }
       .ach-medal-badge { font-size:11px; border-radius:999px; padding:2px 10px; font-weight:700; }
+      @media (prefers-reduced-motion: reduce) { .ach-tab { transition:none; } }
     </style>
   </div>`;
 }
