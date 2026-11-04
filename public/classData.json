@@ -281,42 +281,45 @@
       ]
     }
   },
-  "guilds": {
-    "ember": {
-      "name": "Ember",
-      "element": "Fire",
+  "houses": {
+    "altruismo": {
+      "name": "Altruismo",
       "color": "#C0392B",
       "crest": "/guilds/guild_ember.png",
-      "motto": "A spark is enough.",
-      "values": "Courage · Energy · Initiative",
-      "chant": "EMBER, EMBER — WATCH US RISE!"
+      "motto": "We rise by lifting others.",
+      "values": "Courage · Generosity · Initiative",
+      "chant": "ALTRUISMO — WE RISE TOGETHER!"
     },
-    "tide": {
-      "name": "Tide",
-      "element": "Water",
+    "amistad": {
+      "name": "Amistad",
       "color": "#1E5AA8",
       "crest": "/guilds/guild_tide.png",
-      "motto": "The tide always returns.",
-      "values": "Perseverance · Resilience · Consistency",
-      "chant": "TIDE, TIDE — WE COME BACK!"
+      "motto": "Friendship is the tide that returns.",
+      "values": "Loyalty · Resilience · Consistency",
+      "chant": "AMISTAD — WE COME BACK!"
     },
-    "thorn": {
-      "name": "Thorn",
-      "element": "Earth",
+    "rêveur": {
+      "name": "Rêveur",
       "color": "#2E7D46",
       "crest": "/guilds/guild_thorn.png",
-      "motto": "We grow through hard ground.",
-      "values": "Grit · Discipline · Loyalty",
-      "chant": "THORN, THORN — HOLD THE LINE!"
+      "motto": "Dream it. Do it. Become it.",
+      "values": "Imagination · Grit · Discipline",
+      "chant": "RÊVEUR — HOLD THE DREAM!"
     },
-    "storm": {
-      "name": "Storm",
-      "element": "Air",
+    "isibindi": {
+      "name": "Isibindi",
       "color": "#C9A227",
       "crest": "/guilds/guild_storm.png",
-      "motto": "Nothing stands still.",
-      "values": "Speed · Adaptability · Boldness",
-      "chant": "STORM, STORM — HERE WE COME!"
+      "motto": "Courage is the first step.",
+      "values": "Bravery · Adaptability · Boldness",
+      "chant": "ISIBINDI — HERE WE COME!"
     }
+  },
+  "_guilds_legacy": {
+    "_note": "Legacy guild keys preserved for backward compatibility — do not delete",
+    "ember": "altruismo",
+    "tide": "amistad",
+    "thorn": "rêveur",
+    "storm": "isibindi"
   }
 }
