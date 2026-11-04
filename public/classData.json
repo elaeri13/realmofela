@@ -285,7 +285,7 @@
     "altruismo": {
       "name": "Altruismo",
       "color": "#1A1A2E",
-      "crest": "/guilds/guild_ember.png",
+      "crest": "/houses/house_altruismo.webp",
       "motto": "We rise by lifting others.",
       "values": "Courage · Generosity · Initiative",
       "chant": "ALTRUISMO — WE RISE TOGETHER!"
@@ -293,7 +293,7 @@
     "amistad": {
       "name": "Amistad",
       "color": "#C0392B",
-      "crest": "/guilds/guild_tide.png",
+      "crest": "/houses/house_amistad.webp",
       "motto": "Friendship is the tide that returns.",
       "values": "Loyalty · Resilience · Consistency",
       "chant": "AMISTAD — WE COME BACK!"
@@ -301,7 +301,7 @@
     "rêveur": {
       "name": "Rêveur",
       "color": "#1E5AA8",
-      "crest": "/guilds/guild_thorn.png",
+      "crest": "/houses/house_reveur.webp",
       "motto": "Dream it. Do it. Become it.",
       "values": "Imagination · Grit · Discipline",
       "chant": "RÊVEUR — HOLD THE DREAM!"
@@ -309,7 +309,7 @@
     "isibindi": {
       "name": "Isibindi",
       "color": "#2E7D46",
-      "crest": "/guilds/guild_storm.png",
+      "crest": "/houses/house_isibindi.webp",
       "motto": "Courage is the first step.",
       "values": "Bravery · Adaptability · Boldness",
       "chant": "ISIBINDI — HERE WE COME!"
