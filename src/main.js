@@ -2019,6 +2019,16 @@ function getLandContentTiles(land) {
   const tileById = Object.fromEntries((land.tiles || []).map(t => [t.id, t]));
   return (land.pathOrder || []).map(id => tileById[id]).filter(t => t && CONTENT_TYPES.has(t.type));
 }
+// Pasted links sometimes lack "https://" (e.g. "wayground.com/join?gc=123"); browsers then
+// treat them as a page on realmofela.com. Add the scheme when the text looks like a web address.
+function normalizeLink(url) {
+  const u = String(url == null ? '' : url).trim();
+  if (!u) return '';
+  if (/^https?:\/\//i.test(u)) return u;
+  if (/^\/\//.test(u)) return 'https:' + u;
+  if (/^[\w-]+(\.[\w-]+)+([/?#:]|$)/.test(u) && !/\s/.test(u)) return 'https://' + u;
+  return u;
+}
 function getStoredTileLinks(landId) {
   return ((_settings.tileLinks || {})[String(landId)] || {});
 }
@@ -2027,6 +2037,7 @@ function saveTileLink(landId, tileId, field, url) {
   const lid = String(landId), tid = String(tileId);
   if (!_settings.tileLinks[lid]) _settings.tileLinks[lid] = {};
   if (!_settings.tileLinks[lid][tid]) _settings.tileLinks[lid][tid] = {};
+  url = normalizeLink(url);
   _settings.tileLinks[lid][tid][field] = url || null;
   set(ref(db, `settings/tileLinks/${lid}/${tid}/${field}`), url || null).catch(console.error);
 }
@@ -2037,20 +2048,20 @@ function saveTileLinksBulk(landId, tiles, field, urls) {
   tiles.forEach((tile, i) => {
     const tid = String(tile.id);
     if (!current[tid]) current[tid] = {};
-    current[tid] = Object.assign({}, current[tid], { [field]: urls[i] || null });
+    current[tid] = Object.assign({}, current[tid], { [field]: normalizeLink(urls[i]) || null });
   });
   _settings.tileLinks[lid] = current;
   set(ref(db, `settings/tileLinks/${lid}`), current).catch(console.error);
 }
 function getEffectiveWayground(land, tile) {
   const stored = (getStoredTileLinks(land.id)[String(tile.id)] || {}).wayground;
-  return stored != null ? stored : (tile.video || '');
+  return normalizeLink(stored != null ? stored : (tile.video || ''));
 }
 function getEffectivePear(land, tile) {
   const stored = (getStoredTileLinks(land.id)[String(tile.id)] || {}).pear;
-  if (stored != null) return stored;
+  if (stored != null) return normalizeLink(stored);
   const bs = BOSS_SCHEDULE[String(tile.id)];
-  return tile.pearUrl || (bs && (bs.assessmentUrl || bs.pearUrl)) || '';
+  return normalizeLink(tile.pearUrl || (bs && (bs.assessmentUrl || bs.pearUrl)) || '');
 }
 // ── Lesson Schedule ──────────────────────────────────────────────────────────
 // Firebase path: settings/lessonSchedule/{landId}/{tileId}
@@ -2369,6 +2380,54 @@ const HOUSE_BLURBS = {
 };
 // Backward compat
 const GUILD_BLURBS = HOUSE_BLURBS;
+
+// "Choose Your House" flow buttons — used on the Starting Grounds map (tile 3) and on the hub.
+function bindHouseSelection() {
+  const $ = id => document.getElementById(id);
+  // House selection — intro → select
+  $("guild-intro-btn") && $("guild-intro-btn").addEventListener("click", () => {
+    STATE.sg0GuildReveal = "select";
+    mount();
+  });
+  // House selection — pick a house card → confirm
+  document.querySelectorAll("[data-house-pick]").forEach(card => {
+    card.addEventListener("click", () => {
+      STATE.sg0SelectedHouse = card.dataset.housePick;
+      STATE.sg0GuildReveal = "confirm";
+      mount();
+    });
+  });
+  // House confirm — back → select
+  $("guild-back-btn") && $("guild-back-btn").addEventListener("click", () => {
+    STATE.sg0GuildReveal = "select";
+    mount();
+  });
+  // House confirm — confirmed → save + celebration
+  $("guild-confirm-btn") && $("guild-confirm-btn").addEventListener("click", () => {
+    const chosen = STATE.sg0SelectedHouse;
+    if (!chosen) return;
+    saveStudentOverride(STATE.student.id, { house: chosen, houseConfirmed: true });
+    unlockCosmeticsForGuild(STATE.student.id, chosen);
+    STATE.sg0GuildReveal = "chosen";
+    mount();
+  });
+  // House reveal — continue button advances tile 3
+  $("guild-continue-btn") && $("guild-continue-btn").addEventListener("click", () => {
+    const tile = STATE.sg0Tile;
+    if (tile) advanceSg0Tile(STATE.student, tile.id);
+    STATE.sg0GuildReveal = null;
+    STATE.sg0SelectedHouse = null;
+    STATE.sg0Tile = null;
+    mount();
+  });
+}
+// Students past the Starting Grounds who never confirmed a house (e.g. everyone who started
+// before houses existed) can't reach tile 3 again, so the hub shows the same flow.
+function needsHouseOnHub(student) {
+  if (!student || !(CLASS_DATA && CLASS_DATA.houses)) return false;
+  const ov = _overrides[String(student.id)] || {};
+  return !ov.houseConfirmed && getLandPos(student).land >= 1;
+}
 
 function renderGuildReveal() {
   const step = STATE.sg0GuildReveal;
@@ -3224,7 +3283,7 @@ let STATE = { screen:"loading", student:null, currentPeriod:null, pin:"", pinErr
               travelDestDesc: null, classSettingsOpen: false, jumpToolOpen: false, clearFlagPending: null, clearAllFlagPending: null, cardMenuSid: null, capMessageOpen: false,
               teacherViewStudent: null, genName: null, genEpithet: null,
               namingOptions: null, epithetOptions: null, _namingReturnScreen: null,
-              teacherLinksLandId: 1,
+              teacherLinksLandId: null,
               newPinStep: 'enter', newPinEntry: '', newPinFirst: '', revealedPinSids: {},
               reteachAssignSid: null, reteachAssignTileId: null,
               achievementsTab: 'medals' };
@@ -3592,6 +3651,16 @@ function getExpectedTileUiLand(periods) {
   const best = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
   return pick(Number(best)) || pick(1) || LANDS[0];
 }
+// The land where most claimed students currently are (teacher screens default to it).
+function getMostCommonStudentLand() {
+  const counts = {};
+  ((CLASS_DATA && CLASS_DATA.periods) || []).forEach(p => (p.students || []).forEach(st => {
+    if (!(_overrides[String(st.id)] || {}).claimed) return;
+    const l = getLandPos(st).land; if (l) counts[l] = (counts[l] || 0) + 1;
+  }));
+  const best = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+  return LANDS.find(l => l.id === Number(best)) || LANDS.find(l => l.id === 1) || LANDS[0];
+}
 // Jump Tool land: teacher's pick, else the land most claimed students in this period are in.
 function getJumpToolLand(students) {
   const chosen = STATE.jtLandId && LANDS.find(l => l.id === STATE.jtLandId);
@@ -3722,6 +3791,10 @@ function openTodaysLesson(useFallback) {
 
 function renderHub() {
   const s = getMergedStudent(STATE.student);
+  // Existing students who never picked a house: open "Choose Your House" over the hub.
+  if (needsHouseOnHub(STATE.student) && !STATE.sg0GuildReveal) {
+    STATE.sg0GuildReveal = "intro"; STATE.sg0SelectedHouse = null; STATE.sg0Tile = null;
+  }
 
   // Init picker from saved data on first visit
   if (STATE.avClass === null) {
@@ -4520,6 +4593,7 @@ function renderHub() {
     ${renderPartnerPickerModal()}
     ${STATE.sqInviteNotifOpen ? renderInviteNotifModal() : ''}
     ${renderHelpModal()}
+    ${renderGuildReveal()}
     ${STATE.studentCompanionOpen ? `
     <div class="equip-picker-overlay" id="student-companion-overlay">
       <div class="equip-picker-box" style="max-width:520px">
@@ -6111,7 +6185,7 @@ function renderLessonStop() {
           <div class="cu-step-body">
             <div class="cu-step-label">${sessLabel}: Skill Video</div>
             ${skillVideo
-              ? `<a class="cu-link-btn" href="${skillVideo}" target="_blank" rel="noopener noreferrer">▶ ${sessLabel}: Watch the Skill Video</a>`
+              ? `<a class="cu-link-btn" href="${normalizeLink(skillVideo)}" target="_blank" rel="noopener noreferrer">▶ ${sessLabel}: Watch the Skill Video</a>`
               : `<span class="cu-link-empty">Video link coming soon</span>`}
           </div>
         </div>
@@ -6166,6 +6240,7 @@ function renderLessonStop() {
         ${etLabel}
       </button>
       ${!exitTicketReady && !tileIsLocked ? `<p class="ls-pear-hint">Click "${sessLabel}: Read and Learn" first to unlock the Exit Ticket.</p>` : ''}
+      ${!waygroundUrl && !tileIsLocked ? `<p class="ls-pear-hint">The Read and Learn link for ${sessLabel} hasn't been added yet. Let ${getClassTeacherName()} know.</p>` : ''}
       ${exitTicketReady && !pearUrl && !tileIsLocked ? '<p class="ls-pear-hint">Exit ticket link coming soon.</p>' : ''}
       ` : ''}
       ${showOutcome ? `<p class="ls-outcome-prompt">How did it go?</p>
@@ -7342,7 +7417,7 @@ function renderTeacherLogin() {
 }
 
 function renderTeacherContentLinks() {
-  const landId   = STATE.teacherLinksLandId || 1;
+  const landId   = STATE.teacherLinksLandId || getMostCommonStudentLand().id;
   const land     = LANDS.find(l => l.id === landId) || LANDS[0];
   const tiles    = getLandContentTiles(land);
   const stored   = getStoredTileLinks(landId);
@@ -7360,7 +7435,7 @@ function renderTeacherContentLinks() {
     const badge   = isGate ? ' <span class="tcl-badge tcl-badge-gate">Gate</span>' : isBossSess ? ' <span class="tcl-badge tcl-badge-boss">Boss Day</span>' : isDung ? ' <span class="tcl-badge tcl-badge-dung">Final Boss</span>' : '';
     const wgVal   = (stored[String(t.id)] || {}).wayground ?? (t.video || '');
     const pearVal = (stored[String(t.id)] || {}).pear ?? getEffectivePear(land, t);
-    const label   = t.sessionTitle ? `${t.name} — ${t.sessionTitle}` : t.name;
+    const label   = `${sessionLabel(t)} <span class="tcl-land-tag">${land.name}</span>`;
     return `<div class="tcl-row" data-row-idx="${i}">
       <div class="tcl-row-label"><span class="tcl-row-num">${i + 1}</span>${label}${badge}</div>
       <div class="tcl-row-fields">
@@ -7392,6 +7467,7 @@ function renderTeacherContentLinks() {
         <span class="tcl-title">📚 Content Links</span>
         <select id="tcl-land-sel" class="tcl-land-sel">${landOptions}</select>
       </div>
+      <div class="tcl-land-banner">🗺️ You are editing links for <b>${land.name}</b>. Links only appear in the land you save them to — use the menu above to switch lands.</div>
 
       <div class="tcl-bulk-card">
         <div class="tcl-bulk-title">Bulk Import</div>
@@ -9476,6 +9552,7 @@ function bindEvents() {
   }
 
   if (STATE.screen === "hub") {
+    bindHouseSelection();
     $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; STATE.genName = null; STATE.genEpithet = null; STATE.namingOptions = null; STATE.epithetOptions = null; STATE._namingReturnScreen = null; mount(); });
     // Trophy mastery trial request — tap an available trophy
     document.querySelectorAll("[data-trophy-req]").forEach(cell => {
@@ -10804,42 +10881,7 @@ function bindEvents() {
     $("npc-close")     && $("npc-close").addEventListener("click", closeNpc);
     $("npc-close-btn") && $("npc-close-btn").addEventListener("click", closeNpc);
     $("npc-overlay")   && $("npc-overlay").addEventListener("click", e => { if (e.target === $("npc-overlay")) closeNpc(); });
-    // House selection — intro → select
-    $("guild-intro-btn") && $("guild-intro-btn").addEventListener("click", () => {
-      STATE.sg0GuildReveal = "select";
-      mount();
-    });
-    // House selection — pick a house card → confirm
-    document.querySelectorAll("[data-house-pick]").forEach(card => {
-      card.addEventListener("click", () => {
-        STATE.sg0SelectedHouse = card.dataset.housePick;
-        STATE.sg0GuildReveal = "confirm";
-        mount();
-      });
-    });
-    // House confirm — back → select
-    $("guild-back-btn") && $("guild-back-btn").addEventListener("click", () => {
-      STATE.sg0GuildReveal = "select";
-      mount();
-    });
-    // House confirm — confirmed → save + celebration
-    $("guild-confirm-btn") && $("guild-confirm-btn").addEventListener("click", () => {
-      const chosen = STATE.sg0SelectedHouse;
-      if (!chosen) return;
-      saveStudentOverride(STATE.student.id, { house: chosen, houseConfirmed: true });
-      unlockCosmeticsForGuild(STATE.student.id, chosen);
-      STATE.sg0GuildReveal = "chosen";
-      mount();
-    });
-    // House reveal — continue button advances tile 3
-    $("guild-continue-btn") && $("guild-continue-btn").addEventListener("click", () => {
-      const tile = STATE.sg0Tile;
-      if (tile) advanceSg0Tile(STATE.student, tile.id);
-      STATE.sg0GuildReveal = null;
-      STATE.sg0SelectedHouse = null;
-      STATE.sg0Tile = null;
-      mount();
-    });
+    bindHouseSelection();
     // Land 0 sg modal — Tile 1 NPC dialogue (Lumielle intro)
     $("tg-lumielle") && $("tg-lumielle").addEventListener("click", () => { STATE.tgDialogueOpen = true; mount(); });
     if (STATE.tgDialogueOpen) {
@@ -11188,7 +11230,7 @@ function bindEvents() {
       mount();
     });
 
-    const _tclLand = LANDS.find(l => l.id === (STATE.teacherLinksLandId || 1)) || LANDS[0];
+    const _tclLand = LANDS.find(l => l.id === (STATE.teacherLinksLandId || getMostCommonStudentLand().id)) || LANDS[0];
     const _tclTiles = getLandContentTiles(_tclLand);
     const N = _tclTiles.length;
 
