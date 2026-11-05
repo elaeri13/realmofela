@@ -7,7 +7,11 @@
 //  • Opening Wayground / Pear Deck only records "Opened". The student separately confirms they finished.
 //    The Realm never claims it checked work done on another site.
 //  • Submitting completes the tile (so the student can keep moving) but is labelled
-//    "Submitted — awaiting review", never mastery.
+//    "Submitted — awaiting review", never mastery. Teacher Accept confirms COMPLETION only.
+//  • Starting the lesson in class is not proof of learning: those students still see the recap and
+//    example and choose "Review" or "Skip" for each (absent students always review them).
+//  • Recap/example text reaches students only after the teacher approves it. Unapproved drafts are
+//    never shown to students.
 //  • The catch-up XP/Gold is granted once, on the first submission. Send-back + resubmit never grants again.
 
 export const CATCHUP_PILOT_TILES = new Set(['2_2']); // Land 2 · Session 2 (expand once the pilot is approved)
@@ -48,6 +52,8 @@ export function catchUpContent(landId, tileId, scheduleEntry = {}) {
     exampleSteps: parseExampleSteps(stepsText),
     isFinal: scheduleEntry.cuContentStatus === 'final',
     usesDraft: !scheduleEntry.recapText || !scheduleEntry.cuExamplePassage || !scheduleEntry.cuExampleSteps,
+    // Students see recap/example ONLY when approved and complete. Drafts never reach students.
+    ready: scheduleEntry.cuContentStatus === 'final' && !!recap.trim() && !!examplePassage.trim() && parseExampleSteps(stepsText).length > 0,
   };
 }
 // One step per line: "Question | Answer". A line without "|" is shown as a plain step.
@@ -60,8 +66,8 @@ export function parseExampleSteps(text) {
 
 // ── View model ──────────────────────────────────────────────────────────────
 // legacy = the tile's existing taskProgress (from the original lesson day), so work already opened
-// in class shows as "Opened" and the recap/example become optional for that student.
-export function catchUpView(rec, legacy = {}) {
+// in class shows as "Opened (in class)". contentReady = teacher-approved recap/example exist.
+export function catchUpView(rec, legacy = {}, { contentReady = true } = {}) {
   const r = rec || {};
   const legacyRL = !!(legacy.wayground || [])[0];
   const legacyET = !!(legacy.exitTicketOpened || [])[0];
@@ -69,31 +75,35 @@ export function catchUpView(rec, legacy = {}) {
   const startedInClass = (legacyRL && !r.rlOpenedAt) || (legacyET && !r.etOpenedAt) || !!r.startedInClass;
   const rl = { opened: !!r.rlOpenedAt || legacyRL, openedInClass: legacyRL && !r.rlOpenedAt, confirmed: !!r.rlConfirmedAt };
   const et = { opened: !!r.etOpenedAt || legacyET, openedInClass: legacyET && !r.etOpenedAt, confirmed: !!r.etConfirmedAt, unlocked: !!r.rlConfirmedAt };
-  const recap = { done: !!r.recapAt, optional: startedInClass };
-  const example = { done: !!r.exampleAt, optional: startedInClass };
+  // Each learning step is: done (reviewed), skipped (student chose to skip — only offered to students
+  // who started in class), or unavailable (no approved content yet). It stays open to review either way.
+  const learn = (at, skippedAt) => ({ done: !!at, skipped: !at && !!skippedAt, unavailable: !contentReady, canSkip: startedInClass && !at,
+                                      settled: !!at || !!skippedAt || !contentReady });
+  const recap = learn(r.recapAt, r.recapSkippedAt);
+  const example = learn(r.exampleAt, r.exampleSkippedAt);
   const status = r.status || (hasAnyProgress(r) ? 'in_progress' : 'not_started');
   const locked = status === 'submitted' || status === 'accepted';
-  const learnReady = (recap.done || recap.optional) && (example.done || example.optional);
+  const learnReady = recap.settled && example.settled;
   const canSubmit = !locked && status !== 'returned' && rl.confirmed && et.confirmed;
   const canResubmit = status === 'returned' && !!r.correctionConfirmedAt;
   let step;
   if (locked || status === 'returned') step = 'status';
-  else if (!recap.done && !recap.optional) step = 'recap';
-  else if (!example.done && !example.optional) step = 'example';
+  else if (!recap.settled) step = 'recap';
+  else if (!example.settled) step = 'example';
   else if (!(rl.confirmed && et.confirmed)) step = 'work';
   else step = 'submit';
   return { status, label: statusLabel(status), step, recap, example, rl, et, learnReady, canSubmit, canResubmit,
            startedInClass, locked, returnNote: r.returnNote || '', submitCount: r.submitCount || 0,
            correctionConfirmed: !!r.correctionConfirmedAt, resumed: hasAnyProgress(r) && !locked && status !== 'returned' };
 }
-function hasAnyProgress(r) { return !!(r.recapAt || r.exampleAt || r.rlOpenedAt || r.rlConfirmedAt || r.etOpenedAt || r.etConfirmedAt); }
+function hasAnyProgress(r) { return !!(r.recapAt || r.exampleAt || r.recapSkippedAt || r.exampleSkippedAt || r.rlOpenedAt || r.rlConfirmedAt || r.etOpenedAt || r.etConfirmedAt); }
 export function statusLabel(status) {
   return {
     not_started: 'Not started',
     in_progress: 'In progress',
     submitted: 'Submitted — awaiting review',
     returned: 'Sent back — correction needed',
-    accepted: 'Reviewed — accepted by your teacher',
+    accepted: 'Completion confirmed by your teacher',
   }[status] || 'Not started';
 }
 
@@ -102,19 +112,21 @@ export function statusLabel(status) {
 // effects.completeTile   — mark the tile complete (first submission only)
 // effects.grantReward    — give the catch-up XP/Gold (only if never granted before)
 // effects.acceptedReview — teacher accepted: apply any boss progress that waited for review
-const STUDENT_ACTIONS = new Set(['recap', 'example', 'openRL', 'confirmRL', 'openET', 'confirmET', 'submit', 'confirmCorrection', 'resubmit']);
-export function applyCatchUp(rec, action, { now = new Date().toISOString(), note = '', legacy = {}, by = 'student' } = {}) {
+const STUDENT_ACTIONS = new Set(['recap', 'example', 'skipRecap', 'skipExample', 'openRL', 'confirmRL', 'openET', 'confirmET', 'submit', 'confirmCorrection', 'resubmit']);
+export function applyCatchUp(rec, action, { now = new Date().toISOString(), note = '', legacy = {}, by = 'student', contentReady = true } = {}) {
   const r = JSON.parse(JSON.stringify(rec || {}));
-  const v = catchUpView(r, legacy);
+  const v = catchUpView(r, legacy, { contentReady });
   const fail = reason => ({ ok: false, rec: rec || {}, effects: {}, reason });
   const effects = {};
   if (STUDENT_ACTIONS.has(action) && v.locked && !['openRL', 'openET'].includes(action)) return fail('locked');
   if (!r.startedAt && STUDENT_ACTIONS.has(action)) { r.startedAt = now; if (v.startedInClass) r.startedInClass = true; }
   switch (action) {
-    case 'recap': if (!r.recapAt) r.recapAt = now; break;
-    case 'example': if (!r.exampleAt) r.exampleAt = now; break;
+    case 'recap': if (!contentReady) return fail('no-content'); if (!r.recapAt) r.recapAt = now; break;
+    case 'example': if (!contentReady) return fail('no-content'); if (!r.exampleAt) r.exampleAt = now; break;
+    case 'skipRecap': if (!v.recap.canSkip) return fail('skip-not-offered'); r.recapSkippedAt = r.recapSkippedAt || now; break;
+    case 'skipExample': if (!v.example.canSkip) return fail('skip-not-offered'); r.exampleSkippedAt = r.exampleSkippedAt || now; break;
     case 'openRL': r.rlOpenedAt = r.rlOpenedAt || now; break;
-    case 'confirmRL': if (!v.rl.opened) return fail('open-first'); r.rlConfirmedAt = r.rlConfirmedAt || now; break;
+    case 'confirmRL': if (!v.learnReady) return fail('learn-first'); if (!v.rl.opened) return fail('open-first'); r.rlConfirmedAt = r.rlConfirmedAt || now; break;
     case 'openET': if (!v.et.unlocked) return fail('finish-read-first'); r.etOpenedAt = r.etOpenedAt || now; break;
     case 'confirmET': if (!v.et.opened || !v.et.unlocked) return fail('open-first'); r.etConfirmedAt = r.etConfirmedAt || now; break;
     case 'submit':

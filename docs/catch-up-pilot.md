@@ -24,10 +24,14 @@ _Branch `claude/session2-catchup-pilot` (from `main`, separate from PR #17). Not
 - Every step is saved to `students/{id}/catchUp/{land}_{tile}`.
 - Reopening the tile resumes at the next unfinished step, with a "Welcome back" note.
 - **Work opened on the lesson day** (the existing `taskProgress` flags) shows as **"Opened (in class)"**. The student still confirms it themselves.
-  - For those students the recap and example are optional, so they don't repeat them.
+- **Opening a lesson in class is not proof of learning.** Those students still see the recap and example first, with an explicit choice:
+  - **Review** ("Got it") or **Skip — I learned this in class**.
+  - A skipped step stays available ("Skipped — tap to review").
+  - The teacher's review list shows "skipped recap / skipped example".
+  - Absent students aren't offered Skip.
 
 ## Teacher review (Teacher Dashboard → "Catch-Up Work to Review")
-- **Accept:** status becomes "Reviewed — accepted by Ms. Odom".
+- **Accept confirms completion only.** The student sees "Completion confirmed by Ms. Odom".
 - **Send Back:** needs a correction note, which the student sees on the tile and in a map banner.
   - Nothing is erased: the tile stays complete, and XP, Gold, achievements and confirmations are kept.
   - The student taps **I made the correction**, then **Resubmit**.
@@ -48,6 +52,11 @@ Completing a tile never sets those, and catch-up doesn't change that.
   - so is the "request a Mastery Seal" option it unlocks
   - the boss record is marked `medalAwaitingReview`
 - **On Accept:** the held-back Medal is applied. It never downgrades a higher status, and the Seal itself is still awarded only in Judgment Hall.
+
+**What the held-back "🏅 Medal" is:** the plain *encounter medal* the app already gives every student who completes all of a boss's encounter sessions. It's an attendance/completion badge, shown as "🏅 Medal" with no level.
+- It is **not** Bronze, Silver or Gold. Those come only from the demonstration count you set.
+- It is **not** the Mastery Seal.
+- Accept never reads or writes the demonstration count or the Seal. Tests confirm a Silver student stays Silver, and a Gold + Seal student is untouched.
 - **On Send Back:** nothing is applied or removed.
 - **Teacher-set demonstration counts** are always kept.
 
@@ -59,19 +68,22 @@ Completing a tile never sets those, and catch-up doesn't change that.
 - **The "Catch-up pilot — Session 2" box** holds the skill recap, the example passage, and the example steps (one per line: `Question | Answer`).
 - **Saving the recap** also updates the existing Recap Text column for Session 2.
 - **Draft badge:** the box shows **Draft — not yet approved** until you press **Approve as final**. Approving saves the text on screen first.
-- **Students see the draft** on this branch; nothing is deployed.
+- **Students never see unapproved text.** Until you approve, the tile has no recap or example steps and starts at Your Work. The draft text isn't in the student's page at all.
+- **"Save as draft"** puts edited content back into Draft, so changes can't go live until you approve them again.
 
 ## Security note
 Like everything today, these records are writable by anyone while the database rules are open. When the secure rules are adopted, `catchUp/*/status` values `accepted` and `returned`, and `returnNote`, should be teacher-only, and `rewardGrantedAt` should be server-only.
 
 ## Tests
-- `npm test`: catch-up logic, 13 tests (21 total).
-- **Browser pilot suite (in-memory database): 52/52.** It covers:
+- `npm test`: catch-up logic, 15 tests (23 total).
+- **Browser pilot suite (in-memory database): 67/67.** It covers:
   - the full flow and resume
   - Opened vs. confirmed
   - submit, send back, resubmit and accept
   - the once-only reward, including a two-tab race
-  - work started in class
+  - work started in class, with review/skip
+  - drafts hidden from students
+  - Accept never changes medal levels or Seals
   - other missed tiles unchanged
   - the boss safeguard
   - the editor and approval

@@ -35,7 +35,7 @@ test('opening a link is only "Opened"; confirming is separate', () => {
   assert.equal(v.rl.opened, true);
   assert.equal(v.rl.confirmed, false);
   assert.equal(v.canSubmit, false);
-  assert.equal(applyCatchUp({}, 'confirmRL').reason, 'open-first');
+  assert.equal(applyCatchUp(run(['recap', 'example']).rec, 'confirmRL').reason, 'open-first');
 });
 
 test('exit ticket unlocks only after Read and Learn is confirmed', () => {
@@ -53,16 +53,41 @@ test('saved progress resumes at the next unfinished step', () => {
   assert.equal(v.et.opened, false);
 });
 
-test('work started on the lesson day is kept; recap/example become optional', () => {
+test('starting in class is not proof of learning: recap/example stay, with an explicit Review or Skip', () => {
   const legacy = { wayground: [true] };
   const v = catchUpView({}, legacy);
   assert.equal(v.startedInClass, true);
   assert.equal(v.rl.opened, true);
   assert.equal(v.rl.openedInClass, true);
   assert.equal(v.rl.confirmed, false);         // still needs the student's own confirmation
-  assert.equal(v.step, 'work');                 // no repeating recap/example
-  const { rec } = run(['confirmRL', 'openET', 'confirmET'], {}, legacy);
+  assert.equal(v.step, 'recap');               // recap is still shown first
+  assert.equal(v.recap.canSkip, true);
+  // the student must choose: confirming work before deciding is refused
+  assert.equal(applyCatchUp({}, 'confirmRL', { legacy }).reason, 'learn-first');
+  const skipped = run(['skipRecap'], {}, legacy).rec;
+  assert.equal(catchUpView(skipped, legacy).recap.skipped, true);
+  assert.equal(catchUpView(skipped, legacy).step, 'example');
+  // a skipped recap can still be reviewed later
+  const reviewed = run(['recap'], skipped, legacy).rec;
+  assert.equal(catchUpView(reviewed, legacy).recap.done, true);
+  const { rec } = run(['skipExample', 'confirmRL', 'openET', 'confirmET'], skipped, legacy);
   assert.equal(catchUpView(rec, legacy).canSubmit, true);
+});
+
+test('absent students are not offered Skip', () => {
+  assert.equal(catchUpView({}).recap.canSkip, false);
+  assert.equal(applyCatchUp({}, 'skipRecap').reason, 'skip-not-offered');
+  assert.equal(applyCatchUp(run(['recap']).rec, 'skipExample').reason, 'skip-not-offered');
+});
+
+test('without approved content, students go straight to Your Work and never see draft text', () => {
+  const v = catchUpView({}, {}, { contentReady: false });
+  assert.equal(v.recap.unavailable, true);
+  assert.equal(v.step, 'work');
+  assert.equal(applyCatchUp({}, 'recap', { contentReady: false }).reason, 'no-content');
+  assert.equal(catchUpContent(2, 2, {}).ready, false);                            // sample draft only
+  assert.equal(catchUpContent(2, 2, { recapText: 'Mine', cuExamplePassage: 'P', cuExampleSteps: 'Q | A' }).ready, false); // saved, not approved
+  assert.equal(catchUpContent(2, 2, { recapText: 'Mine', cuExamplePassage: 'P', cuExampleSteps: 'Q | A', cuContentStatus: 'final' }).ready, true);
 });
 
 test('submit completes the tile and grants the reward once', () => {
@@ -103,6 +128,7 @@ test('teacher-only review actions and their rules', () => {
   assert.equal(acc.rec.status, 'accepted');
   assert.deepEqual(acc.effects, { acceptedReview: true });
   assert.ok(!/mastery/i.test(statusLabel('accepted')));
+  assert.match(statusLabel('accepted'), /Completion confirmed/);
   assert.equal(applyCatchUp(acc.rec, 'sendBack', { by: 'teacher', note: 'x' }).reason, 'not-submitted');
 });
 
@@ -135,6 +161,6 @@ test('opening links during catch-up is not mistaken for starting in class', () =
   assert.equal(v.rl.openedInClass, false);
   // but a real in-class start is remembered after catch-up begins
   const legacy = { wayground: [true] };
-  const r2 = run(['confirmRL', 'openET'], {}, legacy).rec;
+  const r2 = run(['skipRecap', 'skipExample', 'confirmRL', 'openET'], {}, legacy).rec;
   assert.equal(catchUpView(r2, { wayground: [true], exitTicketOpened: [true] }).startedInClass, true);
 });
