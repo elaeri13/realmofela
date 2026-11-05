@@ -2,6 +2,7 @@ import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, run
 import { NAMES, EPITHETS } from './data/characterNames.js'
 import { CHARACTER_ABILITIES, LEVEL10_FRAME_ID, XP_PER_LEVEL, rewardsForLevel, levelStatus, claimableLevels, trackLevels, nextRewardLevel, nextMilestoneLevel, abilityStatus, levelsToCelebrate, isMilestone, isAbilityLevel, isClaimablePart, partLabel, partIcon } from './levelRewards.js'
 import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession } from './currentSession.js'
+import { isCatchUpPilot, catchUpKey, catchUpContent, catchUpView, applyCatchUp } from './catchUp.js'
 
 /* ═══════════════════════════════════════════════
    REALM OF ELA  —  Pure Vanilla JS
@@ -1574,7 +1575,10 @@ function setGateBossState(studentId, bossKey, stateObj) {
   _overrides[sid].gateBossState[bossKey] = stateObj;
   update(ref(db, `students/${sid}/gateBossState`), { [bossKey]: stateObj }).catch(console.error);
 }
-function updateBossStateOnTileComplete(student, tileId, land) {
+// opts.awaitingReview: the tile was completed by a catch-up SUBMISSION. Encounter progress still
+// counts, but the final-encounter Medal (and the Mastery Seal request it unlocks) waits for the
+// teacher to Accept the catch-up work — see applyAcceptedCatchUpBoss.
+function updateBossStateOnTileComplete(student, tileId, land, opts = {}) {
   const sid = String(student.id);
   if (!land) return;
   if (land.standardBosses) {
@@ -1589,7 +1593,15 @@ function updateBossStateOnTileComplete(student, tileId, land) {
         }
       } else {
         const isLastSession = sessionIdx === boss.sessions.length - 1;
-        if (isLastSession) {
+        if (isLastSession && opts.awaitingReview) {
+          setStdBossState(sid, bk, {
+            ...cur,
+            status: cur.status === 'not_started' ? 'sighted' : cur.status,
+            encounterCount: Math.max(cur.encounterCount || 0, sessionIdx + 1),
+            lastAttemptSession:tileId, failedAt:null,
+            medalAwaitingReview: tileId,
+          });
+        } else if (isLastSession) {
           // All encounters done — auto-award medal; teacher can later award Mastery Seal
           setStdBossState(sid, bk, {
             status:'mastery_available',
@@ -2194,6 +2206,178 @@ function getMissedTiles(student, land) {
 }
 function isTileMissed(student, land, tileId) {
   return getMissedTiles(student, land).includes(tileId);
+}
+/* ─── CATCH-UP PILOT: Recap → Example → Your Work → Submit (logic in src/catchUp.js) ─── */
+const CU_XP = 3, CU_GOLD = 3; // the existing catch-up reward, granted once per tile
+const escHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+function getAllCatchUpRecords(studentId) { return (_overrides[String(studentId)] || {}).catchUp || {}; }
+function getCatchUpRecord(studentId, landId, tileId) { return getAllCatchUpRecords(studentId)[catchUpKey(landId, tileId)] || null; }
+// Submitted / sent back / accepted work stays reachable from the map even though the tile is complete.
+function hasCatchUpReview(studentId, landId, tileId) {
+  const r = getCatchUpRecord(studentId, landId, tileId);
+  return !!(r && ['submitted', 'returned', 'accepted'].includes(r.status));
+}
+function storeCatchUpRecord(studentId, landId, tileId, rec) {
+  const sid = String(studentId), key = catchUpKey(landId, tileId);
+  if (!_overrides[sid]) _overrides[sid] = {};
+  const prev = (_overrides[sid].catchUp || {})[key] || {};
+  _overrides[sid].catchUp = Object.assign({}, _overrides[sid].catchUp || {}, { [key]: { ...rec, rewardGrantedAt: prev.rewardGrantedAt || rec.rewardGrantedAt || null } });
+  const out = {};
+  for (const [k, v] of Object.entries(rec)) if (k !== 'rewardGrantedAt') out[k] = v === undefined ? null : v; // reward marker is written only by its transaction
+  update(ref(db, `students/${sid}/catchUp/${key}`), out).catch(console.error);
+}
+// Same completion steps as the existing catch-up button, minus the reward (granted separately, once).
+function completeCatchUpTile(student, land, tile) {
+  const pos = getLandPos(student);
+  recordCompletionMode(student.id, tile.id, 'catchUp');
+  saveTaskCheck(student.id, tile.id, 'outcomeRecorded', 0, true);
+  saveTaskCheck(student.id, tile.id, 'outcomeFail', 0, false);
+  saveStudentOverride(student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
+  saveTileCompletion(student.id, tile.id, STATE.lessonOpenedAt ? Math.round((Date.now() - STATE.lessonOpenedAt) / 1000) : null);
+  updateBossStateOnTileComplete(student, tile.id, land, { awaitingReview: true });
+}
+// XP/Gold at most once per tile, even across tabs/devices: a transaction claims the reward marker first.
+async function grantCatchUpRewardOnce(student, land, tile) {
+  const sid = String(student.id), key = catchUpKey(land.id, tile.id), now = new Date().toISOString();
+  try {
+    const tx = await runTransaction(ref(db, `students/${sid}/catchUp/${key}/rewardGrantedAt`), cur => (cur ? undefined : now));
+    if (!tx || !tx.committed) return false;
+  } catch (e) { console.error(e); return false; }
+  const rec = getCatchUpRecord(sid, land.id, tile.id);
+  if (rec) rec.rewardGrantedAt = now;
+  const lvl = awardXP(student, CU_XP);
+  awardGold(student, CU_GOLD);
+  logActivity(sid, '📚', `Catch-up submitted: ${tile.name} (+${CU_XP} XP, +${CU_GOLD} 🪙)`);
+  if (lvl.levelsGained > 0) logActivity(sid, '⬆️', `Reached Level ${lvl.newLevel}!`);
+  showXPCelebration(CU_XP, lvl.levelsGained, lvl.newLevel, () => showGoldToast(CU_GOLD, () => mount()));
+  return true;
+}
+// Teacher accepted (= completion confirmed): apply the held-back ENCOUNTER medal — the plain "🏅 Medal"
+// every student gets for completing all of a boss's encounter sessions. It is NOT a mastery result:
+// Bronze/Silver/Gold come only from the teacher's demonstration count and the Mastery Seal only from
+// Judgment Hall; neither is read or written here. Never downgrades anything.
+function applyAcceptedCatchUpBoss(student, land, tileId) {
+  if (!land || !land.standardBosses) return;
+  const sid = String(student.id);
+  Object.entries(land.standardBosses).forEach(([bk, boss]) => {
+    if (boss.sessions[boss.sessions.length - 1] !== tileId) return;
+    const cur = getStdBossState(sid, bk);
+    if (cur.medalAwaitingReview !== tileId) return;
+    if (['mastery_available', 'mastery_requested', 'defeated'].includes(cur.status)) { setStdBossState(sid, bk, { ...cur, medalAwaitingReview: null }); return; }
+    setStdBossState(sid, bk, { ...cur, status: 'mastery_available', medalAwarded: true, medalAt: new Date().toISOString(), medalAwaitingReview: null });
+    logActivity(sid, '🏅', `Medal earned after teacher review: ${bk}`);
+  });
+}
+// Recap/example text reaches students only after the teacher approves it (never the unapproved draft).
+function catchUpContentFor(land, tile) { return catchUpContent(land.id, tile.id, getLessonScheduleEntry(land.id, tile.id)); }
+function runCatchUpAction(student, land, tile, action, opts = {}) {
+  const res = applyCatchUp(getCatchUpRecord(student.id, land.id, tile.id), action,
+    { legacy: getTaskProgress(student.id, tile.id), contentReady: catchUpContentFor(land, tile).ready, ...opts });
+  if (!res.ok) return res;
+  storeCatchUpRecord(student.id, land.id, tile.id, res.rec);
+  const fx = res.effects;
+  if (fx.completeTile) completeCatchUpTile(student, land, tile);
+  if (fx.grantReward) grantCatchUpRewardOnce(student, land, tile);
+  if (fx.acceptedReview) applyAcceptedCatchUpBoss(student, land, tile.id);
+  const label = sessionLabel(tile).split(' · ')[0];
+  if (action === 'submit' && !fx.grantReward) logActivity(student.id, '📬', `Catch-up submitted for review: ${label}`);
+  if (action === 'resubmit') logActivity(student.id, '📬', `Catch-up resubmitted for review: ${label}`);
+  if (action === 'accept') logActivity(student.id, '✅', `Catch-up accepted by teacher: ${label}`);
+  if (action === 'sendBack') logActivity(student.id, '↩️', `Catch-up sent back: ${label} — ${res.rec.returnNote}`);
+  return res;
+}
+function renderCatchUpPilot(student, land, tile, waygroundUrl, pearUrl) {
+  const c = catchUpContentFor(land, tile);
+  const v = catchUpView(getCatchUpRecord(student.id, land.id, tile.id), getTaskProgress(student.id, tile.id), { contentReady: c.ready });
+  const sess = sessionLabel(tile).split(' · ')[0];
+  const teacher = getClassTeacherName(student);
+  const nl = t => escHtml(t).replace(/\n/g, '<br>');
+  const chip = { not_started:'cu2-chip-new', in_progress:'cu2-chip-prog', submitted:'cu2-chip-sub', returned:'cu2-chip-ret', accepted:'cu2-chip-acc' }[v.status];
+  const stepState = k => {
+    if (k === 'recap')   return v.recap.done ? 'done' : v.recap.skipped ? 'skipped' : (v.step === 'recap' ? 'current' : 'todo');
+    if (k === 'example') return v.example.done ? 'done' : v.example.skipped ? 'skipped' : (v.step === 'example' ? 'current' : 'todo');
+    if (k === 'work')    return (v.rl.confirmed && v.et.confirmed) ? 'done' : (v.step === 'work' ? 'current' : 'todo');
+    return v.submitCount > 0 ? 'done' : (v.step === 'submit' ? 'current' : 'todo');
+  };
+  // Without approved recap/example content, those steps are left out entirely (no draft text, no placeholders).
+  const stepList = (c.ready ? [['recap','Recap'],['example','Example']] : []).concat([['work','Your Work'],['submit','Submit']]);
+  const pills = stepList.map(([k, l], i) =>
+    `<div class="cu2-pill cu2-pill-${stepState(k)}"><span>${stepState(k) === 'done' ? '✓' : stepState(k) === 'skipped' ? '⏭' : i + 1}</span>${l}</div>`).join('<div class="cu2-pill-sep"></div>');
+  const openStep = STATE.cu2Peek || v.step;
+  const revealKey = catchUpKey(land.id, tile.id);
+  if (STATE.cu2RevealKey !== revealKey) { STATE.cu2RevealKey = revealKey; STATE.cu2Reveal = v.example.done ? c.exampleSteps.length : 0; STATE.cu2Peek = null; }
+  // "Welcome back" only when the tile is reopened with saved progress, not after every tap.
+  if (STATE.cu2OpenedAt !== STATE.lessonOpenedAt) { STATE.cu2OpenedAt = STATE.lessonOpenedAt; STATE.cu2WelcomeBack = v.resumed; }
+  const reveal = Math.min(STATE.cu2Reveal || 0, c.exampleSteps.length);
+  const section = (k, num, title, body, doneNote) => {
+    const st = stepState(k), open = openStep === k;
+    return `<div class="cu2-step cu2-step-${st}${open ? ' cu2-open' : ''}">
+      <button class="cu2-step-hdr" data-cu2-peek="${k}"><span class="cu2-num">${st === 'done' ? '✓' : num}</span><span class="cu2-step-title">${title}</span>
+        <span class="cu2-step-tag">${st === 'done' ? (doneNote || 'Reviewed') : st === 'skipped' ? 'Skipped — tap to review' : st === 'current' ? 'Up next' : (k === 'work' && !v.learnReady ? 'After the recap and example' : '')}</span></button>
+      ${open ? `<div class="cu2-step-body">${body}</div>` : ''}
+    </div>`;
+  };
+  const choice = (k, item, reviewBtn) => item.done ? '' : `
+    ${item.canSkip && !item.skipped ? `<p class="cu2-choice">You started this lesson in class. Do you want to review this, or skip it?</p>` : ''}
+    <div class="cu2-choice-btns">${reviewBtn}
+      ${item.canSkip && !item.skipped ? `<button class="cu2-btn cu2-btn-skip" data-cu2="${k === 'recap' ? 'skipRecap' : 'skipExample'}">⏭ Skip — I learned this in class</button>` : ''}</div>`;
+  const recapBody = `<div class="cu2-recap">${nl(c.recap)}</div>
+    ${choice('recap', v.recap, `<button class="cu2-btn" data-cu2="recap">${v.recap.skipped ? '✓ I reviewed it' : 'Got it — next: the example →'}</button>`)}`;
+  const steps = c.exampleSteps.map((st, i) => i < reveal
+    ? `<div class="cu2-ex-step"><div class="cu2-ex-q">${i + 1}. ${escHtml(st.label)}</div>${st.text ? `<div class="cu2-ex-a">${escHtml(st.text)}</div>` : ''}</div>` : '').join('');
+  const exampleBody = `<div class="cu2-passage">${nl(c.examplePassage)}</div>
+    <div class="cu2-ex-steps">${steps}</div>
+    ${choice('example', v.example, reveal < c.exampleSteps.length
+      ? `<button class="cu2-btn cu2-btn-soft" id="cu2-reveal">Show step ${reveal + 1} of ${c.exampleSteps.length}</button>`
+      : `<button class="cu2-btn" data-cu2="example">${v.example.skipped ? '✓ I reviewed it' : 'I understand the example — next: my work →'}</button>`)}`;
+  const linkRow = (which, n, label, url, item, unlocked, lockMsg) => {
+    const opened = item.opened, confirmed = item.confirmed;
+    const status = confirmed ? `<span class="cu2-tag cu2-tag-conf">☑ You marked this finished</span>`
+      : opened ? `<span class="cu2-tag cu2-tag-open">Opened${item.openedInClass ? ' (in class)' : ''}</span>` : `<span class="cu2-tag">Not opened yet</span>`;
+    const canOpen = unlocked && url && !v.locked;
+    return `<div class="cu2-work${!unlocked ? ' cu2-work-locked' : ''}">
+      <div class="cu2-work-top"><span class="cu2-work-n">${n}</span><span class="cu2-work-label">${label}</span>${status}</div>
+      ${!unlocked ? `<p class="cu2-hint">🔒 ${lockMsg}</p>` : !url ? `<p class="cu2-hint">The link hasn't been added yet. Let ${teacher} know.</p>` : ''}
+      ${canOpen ? `<a class="cu2-link" href="${url}" target="_blank" rel="noopener noreferrer" data-cu2-open="${which}">${opened ? '↗ Open again' : '↗ Open'} ${label}</a>` : ''}
+      ${unlocked && !confirmed && !v.locked ? `<button class="cu2-btn cu2-confirm" data-cu2="confirm${which}" ${opened ? '' : 'disabled'}>☑ I finished ${label}</button>
+        ${!opened ? `<p class="cu2-hint">Open it first, then come back and tap this.</p>` : ''}` : ''}
+    </div>`;
+  };
+  const workBody = `<p class="cu2-dir"><b>What's left for ${escHtml(sess)}:</b> read the lesson in Wayground, then answer the Exit Ticket in Pear Deck — that's where your gist statement goes. Come back here after each one and tap "I finished."</p>
+    ${linkRow('RL', '①', 'Read and Learn', waygroundUrl, v.rl, v.learnReady, 'Review or skip the recap and example first.')}
+    ${linkRow('ET', '②', 'Exit Ticket', pearUrl, v.et, v.et.unlocked, 'Finish Read and Learn first.')}
+    <p class="cu2-fine">The Realm can't see your work in Wayground or Pear Deck — ${teacher} checks it there.</p>`;
+  const submitBody = v.status === 'not_started' || v.status === 'in_progress'
+    ? `<p class="cu2-dir">Submitting completes this tile so you can keep going on the map. ${teacher} will review your Exit Ticket.</p>
+       <button class="cu2-btn cu2-submit" data-cu2="submit" ${v.canSubmit ? '' : 'disabled'}>📬 Submit for review</button>
+       ${v.canSubmit ? '' : `<p class="cu2-hint">Finish both parts of Your Work first.</p>`}`
+    : '';
+  const statusCard = v.status === 'submitted'
+    ? `<div class="cu2-status cu2-status-sub"><b>📬 Submitted — awaiting review</b><p>Your tile is complete so you can keep going. This is not a mastery result yet — ${teacher} will check your Exit Ticket.</p></div>`
+    : v.status === 'returned'
+    ? `<div class="cu2-status cu2-status-ret"><b>↩ ${teacher} sent this back</b>
+        <p class="cu2-note">“${escHtml(v.returnNote)}”</p>
+        <p>Fix it in Pear Deck (your answer is there). Your earlier progress is saved.</p>
+        ${pearUrl ? `<a class="cu2-link" href="${pearUrl}" target="_blank" rel="noopener noreferrer" data-cu2-open="ET">↗ Open the Exit Ticket</a>` : ''}
+        ${v.correctionConfirmed
+          ? `<button class="cu2-btn cu2-submit" data-cu2="resubmit">📬 Resubmit for review</button>`
+          : `<button class="cu2-btn cu2-confirm" data-cu2="confirmCorrection">☑ I made the correction</button>`}
+      </div>`
+    : v.status === 'accepted'
+    ? `<div class="cu2-status cu2-status-acc"><b>✅ Completion confirmed by ${teacher}</b><p>Nice work catching up on ${escHtml(sess)}.</p></div>` : '';
+  const showSteps = !v.locked && v.status !== 'returned';
+  return `<div class="cu2" id="cu2">
+    <div class="cu2-hdr">
+      <div class="cu2-title">📚 Catch up — ${escHtml(sess)}${c.skill ? `<span class="cu2-skill">${escHtml(c.skill)}${c.standard ? ` · ${escHtml(c.standard)}` : ''}</span>` : ''}</div>
+      <span class="cu2-chip ${chip}">${escHtml(v.label)}</span>
+    </div>
+    <div class="cu2-pills">${pills}</div>
+    ${v.resumed && STATE.cu2WelcomeBack ? `<p class="cu2-resume">👋 Welcome back — your progress is saved. Pick up at <b>${{ recap:'Recap', example:'Example', work:'Your Work', submit:'Submit' }[v.step]}</b>.</p>` : ''}
+    ${statusCard}
+    ${showSteps ? (c.ready ? section('recap', 1, 'Skill Recap', recapBody) + section('example', 2, 'Worked Example', exampleBody) : '')
+      + section('work', c.ready ? 3 : 1, 'Your Work', workBody, 'Finished')
+      + section('submit', c.ready ? 4 : 2, 'Submit', submitBody, 'Submitted') : ''}
+  </div>`;
 }
 // Auto-advance student to the schedule-based current tile (silently on map open).
 // Only advances forward, never back. Writes to Firebase.
@@ -6261,6 +6445,26 @@ function renderLessonStop() {
     // ── Missed tile detection ─────────────────────────────────────────────
     const tileMissed = student ? isTileMissed(student, land, tile.id) : false;
 
+    // ── Catch-up pilot (Land 2 · Session 2): Recap → Example → Your Work → Submit ──
+    if (student && isCatchUpPilot(land.id, tile.id) && (tileMissed || hasCatchUpReview(student.id, land.id, tile.id))) {
+      return `
+  <div class="screen ls-screen">
+    <div class="ls-card enter">
+      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
+      <div class="ls-breadcrumb" style="padding-right:28px;margin-bottom:4px">
+        <button class="ls-bc-back ls-back-btn">← Quest Map</button>
+        <span class="ls-bc-sep" style="margin:0 4px;opacity:.35">|</span>
+        <span class="ls-bc-land">${land.name}</span>
+        <span class="ls-bc-sep">›</span>
+        <span class="ls-bc-tile">${sessLabel}${releaseDateStr ? ` · ${releaseDateStr}` : ''}</span>
+      </div>
+      ${tileMissed ? `<div class="st-missed-badge">⚠️ Missed — catch up below</div>` : ''}
+      ${renderCatchUpPilot(student, land, tile, getEffectiveWayground(land, tile), pearUrl)}
+    </div>
+    ${_overlays}
+  </div>`;
+    }
+
     // ── Lesson schedule entry ─────────────────────────────────────────────
     const schedEntry     = getLessonScheduleEntry(land.id, tile.id);
     const waygroundUrl   = getEffectiveWayground(land, tile);
@@ -7094,6 +7298,10 @@ function renderQuestMap() {
 
   // Missed-session count for banner
   const missedSessions = (STATE.student && land) ? getMissedTiles(STATE.student, land) : [];
+  const _cuReturned = (STATE.student && land) ? Object.entries(getAllCatchUpRecords(STATE.student.id))
+    .filter(([k, r]) => r && r.status === 'returned' && k.startsWith(`${land.id}_`)).map(([k]) => Number(k.split('_')[1])) : [];
+  const cuReturnedBannerHtml = _cuReturned.length
+    ? `<div class="qm-missed-banner qm-cu-returned">↩ ${getClassTeacherName(STATE.student)} sent back catch-up work: ${_cuReturned.map(tid => { const t = land.tiles.find(x => x.id === tid); return t ? `<button class="cu-missed-link" data-open-cu-returned="${tid}">${sessionLabel(t).split(' · ')[0]}</button>` : ''; }).join(' ')}</div>` : '';
   const missedBannerHtml = missedSessions.length > 0
     ? `<div class="qm-missed-banner" id="qm-missed-banner">📋 You have ${missedSessions.length} missed session${missedSessions.length!==1?'s':''} — tap a gray tile to catch up</div>`
     : '';
@@ -7161,6 +7369,7 @@ function renderQuestMap() {
       <div class="lm-lands">${landDots}</div>
       <span style="font-size:12px;font-weight:800;color:rgba(255,255,255,.55)">Lv.${student.level}</span>
     </div>
+    ${cuReturnedBannerHtml}
     ${missedBannerHtml}
     <div class="lm-svg-wrap">
       <div class="lm-map-bg" ${land.bgImage ? `style="background-image:url('${land.bgImage}')"` : ""}></div>
@@ -7701,6 +7910,28 @@ function renderTeacherLessonSchedule() {
           <tbody>${sessionRows}</tbody>
         </table>
       </div>
+      ${order.filter(tid => isCatchUpPilot(landId, tid)).map(tid => {
+        const c = catchUpContent(landId, tid, getLessonScheduleEntry(landId, tid));
+        const t = tileMap[tid];
+        return `<div class="tls-cu" data-cu-tid="${tid}">
+          <div class="tls-cu-hdr">🧭 Catch-up pilot — ${t ? sessionLabel(t).split(' · ')[0] : 'Session ' + tid} content
+            <span class="tls-cu-badge ${c.isFinal ? 'tls-cu-final' : 'tls-cu-draft'}">${c.isFinal ? '✅ Approved' : '📝 Draft — not yet approved'}</span></div>
+          <p class="tls-hint">${c.isFinal
+            ? 'Students see this recap and example inside the missed-lesson tile.'
+            : '<b>Students do not see this text yet.</b> Until you approve it, the tile skips straight to Your Work.'}
+            ${c.usesDraft ? ' Fields you haven\'t saved show the sample draft.' : ''} Saving changes puts the content back into Draft until you approve it again.</p>
+          <label class="tls-cu-lbl">Skill recap</label>
+          <textarea class="tls-input tls-cu-ta" rows="6" data-cu-field="recapText">${escHtml(c.recap)}</textarea>
+          <label class="tls-cu-lbl">Worked example — passage</label>
+          <textarea class="tls-input tls-cu-ta" rows="6" data-cu-field="cuExamplePassage">${escHtml(c.examplePassage)}</textarea>
+          <label class="tls-cu-lbl">Worked example — steps (one per line: <i>Question | Answer</i>)</label>
+          <textarea class="tls-input tls-cu-ta" rows="6" data-cu-field="cuExampleSteps">${escHtml(c.stepsText)}</textarea>
+          <div class="tls-cu-btns">
+            <button class="tls-save-btn" data-cu-save="${tid}">Save as draft</button>
+            <button class="tls-save-btn" data-cu-approve="${tid}" data-approved="${c.isFinal ? '1' : ''}">${c.isFinal ? 'Mark as draft again' : 'Approve as final'}</button>
+          </div>
+        </div>`;
+      }).join('')}
     </div>
   </div>`;
 }
@@ -8091,6 +8322,46 @@ function renderTeacherDashboard() {
           }).join("")}
         </div>` : ""}
       ${(() => {
+        // Catch-up review (pilot): submitted work to Accept / Send Back, and work waiting on the student
+        const _cuAll = periods.flatMap(p => p.students.map(s => ({ student: s, period: p })));
+        const _cuItems = [];
+        _cuAll.forEach(({ student, period }) => {
+          Object.entries(getAllCatchUpRecords(student.id)).forEach(([key, rec]) => {
+            if (!rec || !['submitted', 'returned'].includes(rec.status)) return;
+            const [lid, tid] = key.split('_').map(Number);
+            const land = LANDS.find(l => l.id === lid); const tile = land && land.tiles.find(t => t.id === tid);
+            if (!tile) return;
+            _cuItems.push({ student, period, land, tile, rec, key: `${student.id}|${key}`, rName: _roster[String(student.id)] || getCharName(student) });
+          });
+        });
+        const _cuReview = _cuItems.filter(x => x.rec.status === 'submitted').sort((a, b) => String(a.rec.submittedAt).localeCompare(String(b.rec.submittedAt)));
+        const _cuWaiting = _cuItems.filter(x => x.rec.status === 'returned');
+        const _cuSkips = rec => [rec.recapSkippedAt && !rec.recapAt ? 'skipped recap' : '', rec.exampleSkippedAt && !rec.exampleAt ? 'skipped example' : ''].filter(Boolean);
+        const _cuWhen = iso => { try { return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric' }); } catch (e) { return ''; } };
+        const _cuReviewHtml = (_cuReview.length || _cuWaiting.length) ? `<div class="t-catchup-section t-cu-review">
+          <div class="t-catchup-hdr">📬 Catch-Up Work to Review (${_cuReview.length})</div>
+          <p class="t-cu-sub">Students confirmed they finished the Pear Deck Exit Ticket. Check it there, then Accept or Send Back. <b>Accept confirms completion only</b> — it never awards or upgrades a Bronze/Silver/Gold medal level or a Mastery Seal.</p>
+          <div class="t-catchup-list">
+            ${_cuReview.map(x => `<div class="t-catchup-row t-cu-row">
+              <span class="t-catchup-name">${escHtml(x.rName)}</span>
+              <span class="t-catchup-period">${x.period.periodName}</span>
+              <span class="t-catchup-missed">${x.land.name} · ${sessionLabel(x.tile).split(' · ')[0]}${(x.rec.submitCount || 1) > 1 ? ' · <b>resubmitted</b>' : ''}${_cuSkips(x.rec).length ? ` · <i>${_cuSkips(x.rec).join(', ')}</i>` : ''}</span>
+              <span class="t-catchup-count">Submitted ${_cuWhen(x.rec.submittedAt)}</span>
+              <button class="btn btn-outline-sm t-cu-accept" data-cu-accept="${x.key}" ${STATE.cuSendBackKey === x.key ? 'hidden' : ''}>✅ Accept</button>
+              ${STATE.cuSendBackKey === x.key
+                ? `<div class="t-cu-sb"><textarea id="t-cu-sb-note" rows="2" placeholder="What needs fixing? (the student sees this)"></textarea>
+                   <button class="btn btn-outline-sm" data-cu-sb-confirm="${x.key}">↩ Send back</button>
+                   <button class="btn btn-outline-sm" data-cu-sb-cancel="1">Cancel</button></div>`
+                : `<button class="btn btn-outline-sm" data-cu-sendback="${x.key}">↩ Send Back</button>`}
+            </div>`).join('')}
+            ${_cuWaiting.map(x => `<div class="t-catchup-row t-cu-row t-cu-waiting">
+              <span class="t-catchup-name">${escHtml(x.rName)}</span>
+              <span class="t-catchup-period">${x.period.periodName}</span>
+              <span class="t-catchup-missed">${x.land.name} · ${sessionLabel(x.tile).split(' · ')[0]} — sent back: “${escHtml(x.rec.returnNote || '')}”</span>
+              <span class="t-catchup-count">Waiting on student</span>
+            </div>`).join('')}
+          </div>
+        </div>` : '';
         // Catch-up list: students with missed sessions, sorted by most missed
         const allStudents = periods.flatMap(p => p.students.map(s => ({ student: s, period: p })));
         const catchUpRows = allStudents.map(({ student, period }) => {
@@ -8103,8 +8374,8 @@ function renderTeacherDashboard() {
           return { student, period, missed, missedNames, rName };
         }).filter(Boolean).sort((a,b) => b.missed.length - a.missed.length);
 
-        if (catchUpRows.length === 0) return '';
-        return `<div class="t-catchup-section">
+        if (catchUpRows.length === 0) return _cuReviewHtml;
+        return _cuReviewHtml + `<div class="t-catchup-section">
           <div class="t-catchup-hdr">📋 Catch-Up Needed (${catchUpRows.length} student${catchUpRows.length!==1?'s':''})</div>
           <div class="t-catchup-list">
             ${catchUpRows.map(({ student, period, missedNames, rName }) => `
@@ -10357,6 +10628,25 @@ function bindEvents() {
 
   /* TEACHER DASHBOARD */
   if (STATE.screen === "teacher-dash") {
+    const _cuFind = key => {
+      const [sid, lid, tid] = key.split(/[|_]/).map(Number);
+      const student = CLASS_DATA.periods.flatMap(p => p.students).find(s => s.id === sid);
+      const land = LANDS.find(l => l.id === lid); const tile = land && land.tiles.find(t => t.id === tid);
+      return { student, land, tile };
+    };
+    document.querySelectorAll("[data-cu-accept]").forEach(b => b.addEventListener("click", () => {
+      const { student, land, tile } = _cuFind(b.dataset.cuAccept); if (!tile) return;
+      runCatchUpAction(student, land, tile, 'accept', { by: 'teacher' }); mount();
+    }));
+    document.querySelectorAll("[data-cu-sendback]").forEach(b => b.addEventListener("click", () => { STATE.cuSendBackKey = b.dataset.cuSendback; mount(); }));
+    document.querySelectorAll("[data-cu-sb-cancel]").forEach(b => b.addEventListener("click", () => { STATE.cuSendBackKey = null; mount(); }));
+    document.querySelectorAll("[data-cu-sb-confirm]").forEach(b => b.addEventListener("click", () => {
+      const note = ($("t-cu-sb-note") || {}).value || '';
+      if (!note.trim()) { const ta = $("t-cu-sb-note"); if (ta) { ta.placeholder = 'Please write what needs fixing first.'; ta.focus(); } return; }
+      const { student, land, tile } = _cuFind(b.dataset.cuSbConfirm); if (!tile) return;
+      runCatchUpAction(student, land, tile, 'sendBack', { by: 'teacher', note });
+      STATE.cuSendBackKey = null; mount();
+    }));
     $("t-dash-logout") && $("t-dash-logout").addEventListener("click", () => { STATE.screen = "code"; mount(); });
     $("t-board-view") && $("t-board-view").addEventListener("click", () => { STATE.screen = "board-view"; mount(); });
     $("t-gold-shop-btn") && $("t-gold-shop-btn").addEventListener("click", () => { STATE.teacherGoldShopOpen = true; mount(); });
@@ -11008,6 +11298,12 @@ function bindEvents() {
 
   /* QUEST MAP */
   if (STATE.screen === "quest-map") {
+    document.querySelectorAll("[data-open-cu-returned]").forEach(b => b.addEventListener("click", () => {
+      const land = getLandData(getLandPos(STATE.student).land);
+      const tile = land && land.tiles.find(t => t.id === Number(b.dataset.openCuReturned));
+      if (!tile) return;
+      STATE.lessonTile = tile; STATE.lessonLand = land; STATE.lessonOpenedAt = Date.now(); STATE.screen = "lesson-stop"; mount();
+    }));
     $("qm-back") && $("qm-back").addEventListener("click", () => { STATE.screen = "hub"; mount(); });
     bindLevelUpOverlay();
     $("qm-help-btn") && $("qm-help-btn").addEventListener("click", () => {
@@ -11103,7 +11399,7 @@ function bindEvents() {
       if (_ts === "locked") {
         // Allow navigation to missed lesson tiles so the catch-up panel opens as primary content
         const LESSON_TYPES = new Set(["lesson","forge","studyHall","camp"]);
-        if (LESSON_TYPES.has(tile.type) && isTileMissed(STATE.student, land, tile.id)) {
+        if (LESSON_TYPES.has(tile.type) && (isTileMissed(STATE.student, land, tile.id) || hasCatchUpReview(STATE.student.id, land.id, tile.id))) {
           STATE.lessonTile = tile;
           STATE.lessonLand = land;
           STATE.lessonOpenedAt = Date.now();
@@ -11630,7 +11926,23 @@ function bindEvents() {
       STATE.tlsLandId = Number(e.target.value) || 1;
       mount();
     });
-    document.querySelectorAll(".tls-save-btn").forEach(btn => {
+    document.querySelectorAll("[data-cu-save]").forEach(btn => btn.addEventListener("click", () => {
+      const box = btn.closest("[data-cu-tid]"); const tid = Number(btn.dataset.cuSave);
+      const _lid = STATE.tlsLandId || getMostCommonStudentLand().id;
+      box.querySelectorAll("[data-cu-field]").forEach(ta => saveLessonScheduleField(_lid, tid, ta.dataset.cuField, ta.value.trim() || null));
+      // Edited text is a draft again until it is re-approved, so changes can't go live by accident.
+      saveLessonScheduleField(_lid, tid, 'cuContentStatus', null);
+      mount();
+    }));
+    document.querySelectorAll("[data-cu-approve]").forEach(btn => btn.addEventListener("click", () => {
+      const tid = Number(btn.dataset.cuApprove); const _lid = STATE.tlsLandId || getMostCommonStudentLand().id;
+      const box = btn.closest("[data-cu-tid]");
+      // Approving also saves what's on screen, so the approved text is exactly what you read.
+      if (!btn.dataset.approved) box.querySelectorAll("[data-cu-field]").forEach(ta => saveLessonScheduleField(_lid, tid, ta.dataset.cuField, ta.value.trim() || null));
+      saveLessonScheduleField(_lid, tid, 'cuContentStatus', btn.dataset.approved ? null : 'final');
+      mount();
+    }));
+    document.querySelectorAll(".tls-save-btn[data-save-tid]").forEach(btn => {
       btn.addEventListener("click", () => {
         const tid = Number(btn.dataset.saveTid);
         const row = btn.closest("tr[data-tid]");
@@ -12343,6 +12655,31 @@ function bindEvents() {
         mount();
       } }, 0);
     });
+
+    // Catch-up pilot
+    if ($("cu2")) {
+      const _cuCtx = () => ({ student: STATE.student, land: STATE.lessonLand || LANDS[0], tile: STATE.lessonTile });
+      document.querySelectorAll("[data-cu2]").forEach(b => b.addEventListener("click", () => {
+        const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
+        const res = runCatchUpAction(student, land, tile, b.dataset.cu2);
+        if (res.ok) STATE.cu2Peek = null;
+        mount();
+      }));
+      document.querySelectorAll("[data-cu2-open]").forEach(a => a.addEventListener("click", () => {
+        const which = a.dataset.cu2Open;
+        setTimeout(() => {
+          const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
+          runCatchUpAction(student, land, tile, which === 'RL' ? 'openRL' : 'openET');
+          // keep the lesson's own "opened" flags in step, as the normal lesson buttons do
+          saveTaskCheck(student.id, tile.id, which === 'RL' ? 'wayground' : 'exitTicketOpened', 0, true);
+          mount();
+        }, 0);
+      }));
+      document.querySelectorAll("[data-cu2-peek]").forEach(b => b.addEventListener("click", () => {
+        const k = b.dataset.cu2Peek; STATE.cu2Peek = STATE.cu2Peek === k ? null : k; mount();
+      }));
+      $("cu2-reveal") && $("cu2-reveal").addEventListener("click", () => { STATE.cu2Reveal = (STATE.cu2Reveal || 0) + 1; mount(); });
+    }
 
     // Catch-up panel open
     $("cu-open-btn") && $("cu-open-btn").addEventListener("click", () => {
