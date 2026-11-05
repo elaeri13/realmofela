@@ -1,7 +1,7 @@
 import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, runTransaction, signInAnonymously } from './firebaseClient.js'
-import { isCatchUpPilot, catchUpKey, catchUpContent, catchUpView, applyCatchUp } from './catchUp.js'
 import { NAMES, EPITHETS } from './data/characterNames.js'
 import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession } from './currentSession.js'
+import { isCatchUpPilot, catchUpKey, catchUpContent, catchUpView, applyCatchUp } from './catchUp.js'
 
 /* ═══════════════════════════════════════════════
    REALM OF ELA  —  Pure Vanilla JS
