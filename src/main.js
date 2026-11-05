@@ -2,7 +2,7 @@ import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, run
 import { NAMES, EPITHETS } from './data/characterNames.js'
 import { CHARACTER_ABILITIES, LEVEL10_FRAME_ID, XP_PER_LEVEL, rewardsForLevel, levelStatus, claimableLevels, trackLevels, nextRewardLevel, nextMilestoneLevel, abilityStatus, levelsToCelebrate, isMilestone, isAbilityLevel, isClaimablePart, partLabel, partIcon } from './levelRewards.js'
 import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession } from './currentSession.js'
-import { isCatchUpPilot, catchUpKey, catchUpView, applyCatchUp, sessionContent, gradePractice, practiceDone } from './catchUp.js'
+import { isCatchUpPilot, catchUpKey, catchUpView, applyCatchUp, sessionContent, gradePractice, attempts as cuAttempts, PASS_MIN } from './catchUp.js'
 
 /* ═══════════════════════════════════════════════
    REALM OF ELA  —  Pure Vanilla JS
@@ -2247,7 +2247,7 @@ async function grantCatchUpRewardOnce(student, land, tile) {
   if (rec) rec.rewardGrantedAt = now;
   const lvl = awardXP(student, CU_XP);
   awardGold(student, CU_GOLD);
-  logActivity(sid, '📚', `Catch-up submitted: ${tile.name} (+${CU_XP} XP, +${CU_GOLD} 🪙)`);
+  logActivity(sid, '📚', `Catch-up reward: ${tile.name} (+${CU_XP} XP, +${CU_GOLD} 🪙)`);
   if (lvl.levelsGained > 0) logActivity(sid, '⬆️', `Reached Level ${lvl.newLevel}!`);
   showXPCelebration(CU_XP, lvl.levelsGained, lvl.newLevel, () => showGoldToast(CU_GOLD, () => mount()));
   return true;
@@ -2268,20 +2268,16 @@ function applyAcceptedCatchUpBoss(student, land, tileId) {
     logActivity(sid, '🏅', `Medal earned after teacher review: ${bk}`);
   });
 }
-// Recap/example text reaches students only after the teacher approves it (never the unapproved draft).
 // Practice answers live only in the page (STATE.cu3), never in the database.
+// result = the last graded attempt in this visit, used to show feedback.
 function cu3State(land, tile) {
   const key = catchUpKey(land.id, tile.id);
-  if (!STATE.cu3 || STATE.cu3.key !== key || STATE.cu3.openedAt !== STATE.lessonOpenedAt) STATE.cu3 = { key, openedAt: STATE.lessonOpenedAt, answers: {}, checked: false };
+  if (!STATE.cu3 || STATE.cu3.key !== key || STATE.cu3.openedAt !== STATE.lessonOpenedAt) STATE.cu3 = { key, openedAt: STATE.lessonOpenedAt, answers: {}, result: null };
   return STATE.cu3;
-}
-function cu3PracticeComplete(land, tile) {
-  const st = cu3State(land, tile);
-  return practiceDone(sessionContent(land.id, tile.id), st.answers, st.checked);
 }
 function runCatchUpAction(student, land, tile, action, opts = {}) {
   const res = applyCatchUp(getCatchUpRecord(student.id, land.id, tile.id), action,
-    { practiceComplete: cu3PracticeComplete(land, tile), ...opts });
+    { content: sessionContent(land.id, tile.id), ...opts });
   if (!res.ok) return res;
   storeCatchUpRecord(student.id, land.id, tile.id, res.rec);
   const fx = res.effects;
@@ -2289,8 +2285,9 @@ function runCatchUpAction(student, land, tile, action, opts = {}) {
   if (fx.grantReward) grantCatchUpRewardOnce(student, land, tile);
   if (fx.acceptedReview) applyAcceptedCatchUpBoss(student, land, tile.id);
   const label = sessionLabel(tile).split(' · ')[0];
-  if (action === 'submit' && !fx.grantReward) logActivity(student.id, '📬', `Catch-up submitted for review: ${label}`);
-  if (action === 'resubmit') logActivity(student.id, '📬', `Catch-up resubmitted for review: ${label}`);
+  if (action === 'grade') logActivity(student.id, res.grade.passed ? '✅' : '📝',
+    res.grade.passed ? `${label} catch-up passed automatically: ${res.grade.correctCount} of ${res.grade.total} correct — complete`
+                     : `${label} catch-up check: ${res.grade.correctCount} of ${res.grade.total} correct — not passed yet (needs ${PASS_MIN})`);
   if (action === 'accept') logActivity(student.id, '✅', `Catch-up accepted by teacher: ${label}`);
   if (action === 'sendBack') logActivity(student.id, '↩️', `Catch-up sent back: ${label} — ${res.rec.returnNote}`);
   return res;
@@ -2299,78 +2296,81 @@ function renderCatchUpPilot(student, land, tile) {
   const c = sessionContent(land.id, tile.id);
   const rec = getCatchUpRecord(student.id, land.id, tile.id) || {};
   const st = cu3State(land, tile);
-  const grade = gradePractice(c, st.answers);
-  const v = catchUpView(rec, { practiceComplete: practiceDone(c, st.answers, st.checked) });
+  const v = catchUpView(rec);
+  const res = st.result;                               // shown only right after Submit, in this visit
+  const answeredAll = gradePractice(c, st.answers).answeredAll;
   const sess = sessionLabel(tile).split(' · ')[0];
   const teacher = getClassTeacherName(student);
   const chip = { not_started:'cu2-chip-new', in_progress:'cu2-chip-prog', submitted:'cu2-chip-sub', returned:'cu2-chip-ret', accepted:'cu2-chip-acc' }[v.status];
-  const statusCard = v.status === 'submitted'
-    ? `<div class="cu2-status cu2-status-sub"><b>📬 Submitted — awaiting review</b><p>Your tile is complete so you can keep going. This is not a mastery result — ${teacher} will review your catch-up.</p></div>`
-    : v.status === 'returned'
-    ? `<div class="cu2-status cu2-status-ret"><b>↩ ${teacher} sent this back</b>
-        <p class="cu2-note">“${escHtml(v.returnNote)}”</p>
-        <p>Look over the review and answer the practice questions again below, then resubmit.</p></div>`
-    : v.status === 'accepted'
-    ? `<div class="cu2-status cu2-status-acc"><b>✅ Completion confirmed by ${teacher}</b><p>Nice work catching up on ${escHtml(sess)}.</p></div>` : '';
   const header = `<div class="cu2-hdr">
       <div class="cu2-title">📚 Catch up — ${escHtml(sess)}<span class="cu2-skill">${escHtml(c.skill)} · ${escHtml(c.standard)}</span></div>
       <span class="cu2-chip ${chip}">${escHtml(v.label)}</span>
     </div>`;
-  if (v.locked) return `<div class="cu2" id="cu2">${header}${statusCard}</div>`;
-  const gradeOf = id => grade.items.find(i => i.id === id) || {};
-  const part = (p, q) => {
-    const pick = st.answers[p.id], g = gradeOf(p.id);
-    return `<fieldset class="cu3-part">
+  const resultItems = r => `<ul class="cu3-results">${c.questions.flatMap(q => q.parts.map(p => {
+      const g = r.items.find(i => i.id === p.id) || {};
+      const name = `${q.title}${p.label ? ' ' + p.label : ''}`;
+      return `<li class="${g.correct ? 'cu3-ok' : 'cu3-no'}"><b>${g.correct ? '✓' : '✗'} ${escHtml(name)}:</b> ${escHtml(g.feedback)}</li>`;
+    })).join('')}</ul>`;
+  // Passed (automatically) or confirmed by the teacher under an earlier version
+  if (v.locked) {
+    const passedNow = res && res.passed;
+    const score = passedNow ? { got: res.correctCount, of: res.total } : v.passAttempt ? { got: v.passAttempt.correct, of: v.passAttempt.total } : null;
+    const card = score
+      ? `<div class="cu2-status cu2-status-acc"><b>✅ Complete! You got ${score.got} of ${score.of} correct.</b>
+          <p>Your ${escHtml(sess)} catch-up is done and your tile is complete. ${passedNow ? 'Here is how you did:' : ''}</p>
+          ${passedNow ? resultItems(res) : ''}</div>`
+      : v.status === 'submitted'
+      ? `<div class="cu2-status cu2-status-sub"><b>📬 Submitted — awaiting review</b><p>Your tile is complete so you can keep going. ${teacher} will review your catch-up.</p></div>`
+      : `<div class="cu2-status cu2-status-acc"><b>✅ Completion confirmed by ${teacher}</b><p>Nice work catching up on ${escHtml(sess)}.</p></div>`;
+    return `<div class="cu2" id="cu2">${header}${card}</div>`;
+  }
+  const failCard = res && !res.passed
+    ? `<div class="cu2-status cu2-status-ret" role="status"><b>You got ${res.correctCount} of ${res.total} correct. You need ${PASS_MIN} to pass.</b>
+        <p>Read the hints, reread the short readings, change your answers, and submit again. There is no penalty for trying again.</p>
+        <ul class="cu3-results">${res.items.filter(i => !i.correct).map(i => {
+          const q = c.questions.find(q => q.parts.some(p => p.id === i.id)); const p = q.parts.find(p => p.id === i.id);
+          return `<li class="cu3-no"><b>✗ ${escHtml(q.title)}${p.label ? ' ' + p.label : ''}:</b> ${escHtml(i.feedback)}</li>`;
+        }).join('')}</ul></div>`
+    : v.status === 'returned'
+    ? `<div class="cu2-status cu2-status-ret"><b>↩ ${teacher} sent this back</b><p class="cu2-note">“${escHtml(v.returnNote)}”</p><p>Answer the questions below and submit. You need ${PASS_MIN} of 4 to finish.</p></div>`
+    : v.tries ? `<p class="cu2-resume">Last try: ${v.last.correct} of ${v.last.total}. You need ${PASS_MIN} of 4 to finish.</p>` : '';
+  const wrongIds = new Set(res && !res.passed ? res.items.filter(i => !i.correct).map(i => i.id) : []);
+  const part = p => {
+    const pick = st.answers[p.id];
+    return `<fieldset class="cu3-part${wrongIds.has(p.id) ? ' cu3-part-wrong' : ''}">
       <legend class="cu3-prompt">${p.label ? `<span class="cu3-partlbl">${p.label}</span> ` : ''}${escHtml(p.prompt)}</legend>
-      <div class="cu2-opts">${p.choices.map((ch, i) => {
-        const picked = pick === i;
-        const cls = picked && st.checked ? (ch.correct ? ' cu2-opt-right' : ' cu2-opt-wrong') : picked ? ' cu3-opt-picked' : '';
-        return `<button type="button" class="cu2-opt${cls}" data-cu3-part="${p.id}" data-cu3-choice="${i}" aria-pressed="${picked}">
-          <span class="cu2-opt-letter">${'ABCD'[i]}</span><span>${escHtml(ch.text)}</span></button>`;
-      }).join('')}</div>
-      ${st.checked && g.answered ? `<div class="cu2-fb ${g.correct ? 'cu2-fb-right' : 'cu2-fb-wrong'}" role="status"><b>${g.correct ? '✓ Correct.' : 'Not quite.'}</b> ${escHtml(g.feedback)}</div>` : ''}
-      ${st.checked && !g.answered ? `<div class="cu2-fb cu2-fb-wrong">Choose an answer.</div>` : ''}
+      <div class="cu2-opts">${p.choices.map((ch, i) => `<button type="button" class="cu2-opt${pick === i ? ' cu3-opt-picked' : ''}" data-cu3-part="${p.id}" data-cu3-choice="${i}" aria-pressed="${pick === i}">
+          <span class="cu2-opt-letter">${'ABCD'[i]}</span><span>${escHtml(ch.text)}</span></button>`).join('')}</div>
     </fieldset>`;
   };
-  const questions = c.questions.map((q, qi) => `<div class="cu3-q">
+  const questions = c.questions.map(q => `<div class="cu3-q">
       <div class="cu3-qtitle">${escHtml(q.title)}${q.partAB ? ' <span class="cu3-sub">(Part A and Part B)</span>' : ''}</div>
-      ${q.context ? `<p class="cu3-context">${escHtml(q.context)}</p>` : ''}
-      ${q.parts.map(p => part(p, q)).join('')}
+      <div class="cu3-read"><div class="cu3-read-h">Read: ${escHtml(q.readingTitle)}</div><p>${escHtml(q.reading)}</p></div>
+      ${q.parts.map(part).join('')}
     </div>`).join('');
-  const submitArea = v.status === 'returned'
-    ? (v.correctionConfirmed
-        ? `<button class="cu2-btn cu2-submit" data-cu2="resubmit" ${v.canResubmit ? '' : 'disabled'}>📬 Resubmit</button>`
-        : `<button class="cu2-btn cu2-confirm" data-cu2="confirmCorrection" ${st.checked && grade.answeredAll ? '' : 'disabled'}>☑ I reviewed and fixed my answers</button>`)
-    : `<button class="cu2-btn cu2-submit" data-cu2="submit" ${v.canSubmit ? '' : 'disabled'}>📬 Submit</button>`;
   return `<div class="cu2 cu3" id="cu2">
-    ${header}${statusCard}
+    ${header}${failCard}
     <section class="cu3-sec">
       <h3 class="cu3-h">What is a gist statement?</h3>
       ${c.explain.map(t => `<p class="cu2-recap">${escHtml(t)}</p>`).join('')}
       <ol class="cu3-steps">${c.steps.map(t => `<li>${escHtml(t)}</li>`).join('')}</ol>
     </section>
     <section class="cu3-sec">
-      <h3 class="cu3-h">The reading: “${escHtml(c.textTitle)}” <span class="cu3-sub">by ${escHtml(c.author)}</span></h3>
-      <p class="cu3-hint">Here is what the reading says, in short.</p>
-      ${c.reading.map(r => `<div class="cu3-read"><div class="cu3-read-h">${escHtml(r.heading)}</div><p>${escHtml(r.text)}</p></div>`).join('')}
-    </section>
-    <section class="cu3-sec">
-      <h3 class="cu3-h">Worked example: ${escHtml(c.example.label)}</h3>
+      <h3 class="cu3-h">Worked example: ${escHtml(c.example.label)} <span class="cu3-sub">from “${escHtml(c.textTitle)}” by ${escHtml(c.author)}</span></h3>
+      <div class="cu3-read"><div class="cu3-read-h">Read</div><p>${escHtml(c.example.reading)}</p></div>
       <div class="cu3-ex"><span class="cu3-exn">1</span><div><b>Topic:</b> ${escHtml(c.example.topic)}</div></div>
       <div class="cu3-ex"><span class="cu3-exn">2</span><div><b>Most important ideas:</b><ul>${c.example.ideas.map(t => `<li>${escHtml(t)}</li>`).join('')}</ul></div></div>
       <div class="cu3-ex"><span class="cu3-exn">3</span><div class="cu2-gist"><div class="cu2-gist-lbl">Gist statement</div>${escHtml(c.example.gist)}</div></div>
       <p class="cu3-hint">${escHtml(c.example.note)}</p>
     </section>
     <section class="cu3-sec">
-      <h3 class="cu3-h">Practice</h3>
-      <p class="cu3-hint">Answer all three questions, then check your answers. You can change an answer and check again.</p>
+      <h3 class="cu3-h">Your turn</h3>
+      <p class="cu3-hint">Read each short section, then choose the best answer. Get ${PASS_MIN} of 4 right to finish this catch-up.</p>
       ${questions}
-      <button class="cu2-btn cu2-btn-soft" id="cu3-check">${st.checked ? 'Check my answers again' : 'Check my answers'}</button>
-      ${st.checked ? `<p class="cu3-score" role="status">${grade.answeredAll ? `You got <b>${grade.correctCount} of ${grade.total}</b> correct.${grade.correctCount < grade.total ? ' Read the feedback, then try again if you like.' : ''}` : 'Answer every question first.'}</p>` : ''}
     </section>
     <section class="cu3-sec cu3-submit">
-      <p class="cu3-hint">Submitting completes this tile so you can keep going. ${teacher} will review your catch-up.</p>
-      ${submitArea}
+      <button class="cu2-btn cu2-submit" data-cu2="grade" ${answeredAll ? '' : 'disabled'}>📬 Submit</button>
+      ${answeredAll ? '' : `<p class="cu3-hint">Answer all four parts to submit.</p>`}
     </section>
   </div>`;
 }
@@ -8314,7 +8314,7 @@ function renderTeacherDashboard() {
         const _cuWhen = iso => { try { return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric' }); } catch (e) { return ''; } };
         const _cuReviewHtml = (_cuReview.length || _cuWaiting.length) ? `<div class="t-catchup-section t-cu-review">
           <div class="t-catchup-hdr">📬 Catch-Up Work to Review (${_cuReview.length})</div>
-          <p class="t-cu-sub">Students read the review and answered the practice questions in the Realm (their score is in the activity log). Accept or Send Back. <b>Accept confirms completion only</b> — it never awards or upgrades a Bronze/Silver/Gold medal level or a Mastery Seal.</p>
+          <p class="t-cu-sub">Catch-up work submitted for review. Accept or Send Back. <b>Accept confirms completion only</b> — it never awards or upgrades a Bronze/Silver/Gold medal level or a Mastery Seal.</p>
           <div class="t-catchup-list">
             ${_cuReview.map(x => `<div class="t-catchup-row t-cu-row">
               <span class="t-catchup-name">${escHtml(x.rName)}</span>
@@ -8348,8 +8348,31 @@ function renderTeacherDashboard() {
           return { student, period, missed, missedNames, rName };
         }).filter(Boolean).sort((a,b) => b.missed.length - a.missed.length);
 
-        if (catchUpRows.length === 0) return _cuReviewHtml;
-        return _cuReviewHtml + `<div class="t-catchup-section">
+        // Session 2 pilot: auto-graded catch-up — scores and completion (no approval needed)
+        const _cuAuto = [];
+        _cuAll.forEach(({ student, period }) => {
+          Object.entries(getAllCatchUpRecords(student.id)).forEach(([key, rec]) => {
+            const [lid, tid] = key.split('_').map(Number);
+            if (!isCatchUpPilot(lid, tid)) return;
+            const tries = cuAttempts(rec); if (!tries.length) return;
+            const land = LANDS.find(l => l.id === lid); const tile = land && land.tiles.find(t => t.id === tid); if (!tile) return;
+            const pass = tries.find(a => a.passed), last = tries[tries.length - 1];
+            _cuAuto.push({ rName: _roster[String(student.id)] || getCharName(student), period, land, tile, pass, last, n: tries.length });
+          });
+        });
+        _cuAuto.sort((a, b) => (a.pass ? 1 : 0) - (b.pass ? 1 : 0));
+        const _cuAutoHtml = _cuAuto.length ? `<div class="t-catchup-section t-cu-auto">
+          <div class="t-catchup-hdr">📊 Session 2 Catch-Up — Auto-Graded (${_cuAuto.filter(x => x.pass).length} complete, ${_cuAuto.filter(x => !x.pass).length} not passed yet)</div>
+          <p class="t-cu-sub">Students pass with ${PASS_MIN} of 4 correct. Passing completes the tile and gives the catch-up reward automatically — no approval needed.</p>
+          <div class="t-catchup-list">${_cuAuto.map(x => `<div class="t-catchup-row t-cu-row">
+              <span class="t-catchup-name">${escHtml(x.rName)}</span>
+              <span class="t-catchup-period">${x.period.periodName}</span>
+              <span class="t-catchup-missed">${x.land.name} · ${sessionLabel(x.tile).split(' · ')[0]}</span>
+              <span class="t-catchup-count">${x.pass ? `✅ Complete — ${x.pass.correct}/${x.pass.total}` : `⏳ Not passed yet — last ${x.last.correct}/${x.last.total}`} · ${x.n} ${x.n === 1 ? 'try' : 'tries'}</span>
+            </div>`).join('')}</div>
+        </div>` : '';
+        if (catchUpRows.length === 0) return _cuReviewHtml + _cuAutoHtml;
+        return _cuReviewHtml + _cuAutoHtml + `<div class="t-catchup-section">
           <div class="t-catchup-hdr">📋 Catch-Up Needed (${catchUpRows.length} student${catchUpRows.length!==1?'s':''})</div>
           <div class="t-catchup-list">
             ${catchUpRows.map(({ student, period, missedNames, rName }) => `
@@ -12614,30 +12637,23 @@ function bindEvents() {
       } }, 0);
     });
 
-    // Catch-up pilot (one page: review + practice + submit)
+    // Catch-up pilot (one page, auto-graded)
     if ($("cu2")) {
       const _cuCtx = () => ({ student: STATE.student, land: STATE.lessonLand || LANDS[0], tile: STATE.lessonTile });
       document.querySelectorAll("[data-cu3-choice]").forEach(b => b.addEventListener("click", () => {
         const { land, tile } = _cuCtx(); if (!tile) return;
         const st = cu3State(land, tile);
         st.answers = Object.assign({}, st.answers, { [b.dataset.cu3Part]: Number(b.dataset.cu3Choice) });
-        st.checked = false;            // changing an answer means checking again
         const y = window.scrollY; mount(); window.scrollTo(0, y);
       }));
-      $("cu3-check") && $("cu3-check").addEventListener("click", () => {
-        const { land, tile } = _cuCtx(); if (!tile) return;
-        cu3State(land, tile).checked = true;
-        const y = window.scrollY; mount(); window.scrollTo(0, y);
-      });
-      document.querySelectorAll("[data-cu2]").forEach(b => b.addEventListener("click", () => {
+      document.querySelectorAll('[data-cu2="grade"]').forEach(b => b.addEventListener("click", () => {
         const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
-        const action = b.dataset.cu2;
-        const res = runCatchUpAction(student, land, tile, action);
-        if (res.ok && (action === 'submit' || action === 'resubmit')) {
-          const g = gradePractice(sessionContent(land.id, tile.id), cu3State(land, tile).answers);
-          logActivity(student.id, '📝', `${sessionLabel(tile).split(' · ')[0]} catch-up practice: ${g.correctCount} of ${g.total} correct`);
-        }
+        if (b.disabled) return; b.disabled = true;                 // one submit per click
+        const st = cu3State(land, tile);
+        const res = runCatchUpAction(student, land, tile, 'grade', { answers: st.answers });
+        if (res.grade) st.result = res.grade;
         mount();
+        const top = $("cu2"); top && top.scrollIntoView({ block: 'start' });
       }));
     }
 

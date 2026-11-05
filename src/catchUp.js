@@ -1,19 +1,23 @@
 // Missed-lesson catch-up (pilot) — pure logic, no Firebase. Unit-tested in tests/catchUp.test.js.
 //
-// Session 2 pilot: ONE page inside the Realm — review, worked example, three practice questions, Submit.
-// No videos, workbook pages, external links or extra steps.
-// Source of truth: Unit 2, Module 1, Session 2 teacher guide ("Race to the Moon . . . and Beyond" and
-// "The Path to the Moon", RI.5.2 gist statement). The review is written in our own words; only single
-// sentences are quoted from the text where an answer choice needs them.
+// Session 2 pilot: ONE page inside the Realm, AUTO-GRADED.
+//   Review (what a gist is + a worked example on paragraphs 1–5) → three practice questions, each with
+//   its own short reading (four scored parts, incl. a LEAP-style Part A/Part B) → Submit once.
+//   3 of 4 or better: the catch-up is complete automatically (tile complete, existing XP/Gold once).
+//   Below 3: the student sees their score and hints, and can retry. No completion, no reward.
+// Source: Unit 2, Module 1, Session 2 teacher guide ("Race to the Moon . . . and Beyond" / "The Path to
+// the Moon", RI.5.2). Readings are retold in our own words; Part B quotes single sentences from the text.
+// Each practice reading gives the section's details but never states its gist, and the worked example
+// covers a different section, so students have to find the gist themselves.
 //
-// Data: practice answers stay in the browser. Submitting uses the existing catch-up record fields
-// (status, submittedAt, submitCount, history, rewardGrantedAt …) — no new database fields.
-// Rules kept from the earlier pilot: submit completes the tile ("Submitted — awaiting review", not mastery);
-// the catch-up XP/Gold is paid once; teacher Accept confirms completion only; Send Back → Resubmit never pays again.
+// Data: only fields that already exist in catch-up records are written. A pass sets status 'accepted'
+// (an existing value) and every graded attempt adds an entry to the existing `history` list
+// ({ at, event: 'autoPass' | 'autoFail', note: '3/4' }). Practice answers are not stored.
 
 export const CATCHUP_PILOT_TILES = new Set(['2_2']); // Land 2 (Unit 2) · Session 2
 export const catchUpKey = (landId, tileId) => `${landId}_${tileId}`;
 export const isCatchUpPilot = (landId, tileId) => CATCHUP_PILOT_TILES.has(catchUpKey(landId, tileId));
+export const PASS_MIN = 3;   // of 4 scored parts (75%)
 
 export const SESSION_CONTENT = {
   '2_2': {
@@ -29,18 +33,9 @@ export const SESSION_CONTENT = {
       'Identify the most important ideas about the topic. Leave out small details.',
       'Combine the topic and the most important ideas into a gist statement of a sentence or two, in your own words.',
     ],
-    reading: [
-      { heading: 'The Path to the Moon (paragraphs 1–5)',
-        text: 'In the 1950s, the United States and the Soviet Union competed to explore space. This was called the Space Race. In 1958, the U.S. created NASA to handle air and space science. In 1961, President Kennedy challenged NASA to land a person on the moon and bring them home safely before the decade ended. NASA reached that goal in 1969 with the help of more than 400,000 workers.' },
-      { heading: 'Get with the Programs (paragraphs 6–8)',
-        text: 'Project Mercury (1958–1963) sent one astronaut at a time into orbit and showed that people could survive in space. Project Gemini (1962–1966) sent two-person crews and tested skills NASA would need for longer trips to the moon. Project Apollo (1961–1972) sent three-person crews and landed astronauts on the moon. Six Apollo missions landed there.' },
-      { heading: 'Shooting for the Stars (paragraphs 9–15)',
-        text: 'NASA is still studying moon samples from the Apollo missions. Now it has new goals: building housing on the moon by 2040, and sending humans to Mars. A Mars trip would take about seven months, so scientists are first studying how a long trip far from Earth affects astronauts.' },
-      { heading: 'The Path to the Moon (timeline)',
-        text: 'The timeline shows key events in order, from the Soviet satellite Sputnik in 1957, to Apollo 11 landing on the moon in 1969, to 1975, when the U.S. and the Soviet Union flew a joint mission together, and later the International Space Station.' },
-    ],
     example: {
-      label: 'Gist of “Race to the Moon . . . and Beyond”',
+      label: '“The Path to the Moon” (paragraphs 1–5)',
+      reading: 'In the 1950s, the United States and the Soviet Union competed over space exploration. This contest was called the Space Race. In 1958, the U.S. created a new agency, NASA, for air and space science. In 1961, President John F. Kennedy challenged NASA to land a man on the moon and return him safely to Earth before the decade was out. That spring, both countries had already sent people on short trips into space. In 1969, NASA reached Kennedy’s goal. More than 400,000 workers helped.',
       topic: 'the Space Race',
       ideas: [
         'President Kennedy was determined to send astronauts to the moon.',
@@ -52,38 +47,43 @@ export const SESSION_CONTENT = {
     },
     questions: [
       { id: 'q1', title: 'Question 1',
-        parts: [{ id: 'q1', prompt: 'Which sentence is the best gist statement for the section “Get with the Programs” (paragraphs 6–8)?',
+        readingTitle: '“Get with the Programs” (paragraphs 6–8)',
+        reading: 'Project Mercury (1958–1963) launched one astronaut at a time into orbit around Earth. Its first astronauts, test pilots called the Mercury Seven, showed that people could survive in space. Project Gemini (1962–1966) used a new spacecraft for two-person crews. It tested skills like landing and docking spacecraft, and how longer trips affect astronauts. Project Apollo (1961–1972) launched three-person crews. Of eleven crewed Apollo flights, six landed on the moon. Apollo 13 had to cancel its landing after its spacecraft developed problems.',
+        parts: [{ id: 'q1', prompt: 'Which sentence is the best gist statement for this section?',
           choices: [
             { text: 'Project Gemini used a new craft to launch a two-person crew into space.', feedback: 'That is one detail about Gemini. A gist covers the whole section — Mercury, Gemini and Apollo.' },
-            { text: 'It took years and many steps for NASA to finally land people on the moon.', correct: true, feedback: 'Yes! The section shows three programs, one after another, that led to the moon landing.' },
+            { text: 'It took years and many steps for NASA to finally land people on the moon.', correct: true, feedback: 'The section shows three programs, one after another, that led to the moon landing.' },
             { text: 'Apollo 13 had to cancel its planned moon landing.', feedback: 'That is a small detail from one mission. It is not what the whole section is mostly about.' },
             { text: 'The first astronauts were experienced test pilots called the Mercury Seven.', feedback: 'That is a detail about Project Mercury only. Think about what all three programs add up to.' },
           ] }] },
       { id: 'q2', title: 'Question 2', partAB: true,
+        readingTitle: '“Shooting for the Stars” (paragraphs 10–15)',
+        reading: 'NASA wants to build houses on the moon by the year 2040. The plan is to send a 3-D printer to the moon and print buildings from concrete made of moon dust and rock. NASA is also planning to send humans to Mars, a trip of about seven months. First, scientists will copy spaceflight conditions in labs on Earth. Next, they will study astronauts on the International Space Station to learn how being far from Earth affects them. Later missions will test how people might handle another world’s temperatures and how to give medical care in space.',
         parts: [
-          { id: 'q2a', label: 'Part A', prompt: 'What is the gist of paragraphs 10–15 in “Shooting for the Stars”?',
+          { id: 'q2a', label: 'Part A', prompt: 'What is the gist of this section?',
             choices: [
               { text: 'A trip to Mars would take about seven months.', feedback: 'That is a supporting detail. The gist should cover all of NASA’s new plans.' },
-              { text: 'NASA is still studying rock samples from the Apollo missions.', feedback: 'That comes from paragraph 9, and it is about the past. Paragraphs 10–15 are about NASA’s new goals.' },
-              { text: 'NASA’s new goals are to send people farther into space for longer periods of time.', correct: true, feedback: 'Yes! Houses on the moon and trips to Mars both mean going farther and staying longer.' },
+              { text: 'NASA is still studying rock samples from the Apollo missions.', feedback: 'That is about NASA’s past missions. This section is about what NASA plans to do next.' },
+              { text: 'NASA’s new goals are to send people farther into space for longer periods of time.', correct: true, feedback: 'Houses on the moon and trips to Mars both mean going farther and staying longer.' },
               { text: 'Scientists will use a 3-D printer to build houses on the moon.', feedback: 'That explains how one goal might work. It is a detail, not the gist.' },
             ] },
           { id: 'q2b', label: 'Part B', prompt: 'Which sentence from the text best supports the answer to Part A?',
             choices: [
-              { text: '“NASA is also planning for what was once unthinkable: humans traveling to Mars.”', correct: true, feedback: 'Yes! Sending humans to Mars is a goal of going farther into space for a longer time.' },
+              { text: '“NASA is also planning for what was once unthinkable: humans traveling to Mars.”', correct: true, feedback: 'Sending humans to Mars is a goal of going farther into space for a longer time.' },
               { text: '“NASA is still learning from samples gathered from the Apollo missions over 50 years ago.”', feedback: 'This is about what NASA learned from past missions, not its new goals.' },
               { text: '“The first is to mimic spaceflight conditions at labs on Earth.”', feedback: 'This describes a first research step on Earth. It does not show the goal of going farther into space.' },
               { text: '“Scientists also need to consider how to provide medical care in space.”', feedback: 'This is a problem scientists must solve — a detail — not the new goal itself.' },
             ] },
         ] },
       { id: 'q3', title: 'Question 3',
-        context: 'In the timeline “The Path to the Moon,” the entry for July 15, 1975 tells about the Apollo–Soyuz Test Project, a joint space flight by the United States and the Soviet Union. (Joint means shared.)',
-        parts: [{ id: 'q3', prompt: 'Which sentence is the best gist of the July 15, 1975 entry?',
+        readingTitle: 'Timeline: July 15, 1975',
+        reading: 'An American spacecraft and a Soviet spacecraft launched for the Apollo–Soyuz Test Project. In orbit around Earth, the two crafts joined, and the crews worked on the flight together. The flight was a joint (shared) mission between the two countries that had spent years racing to reach space “firsts.”',
+        parts: [{ id: 'q3', prompt: 'Which sentence is the best gist of this timeline entry?',
           choices: [
             { text: 'The Apollo–Soyuz spacecraft orbited Earth.', feedback: 'That is true, but it is a detail. Why was this flight important?' },
-            { text: 'The Soviet Union won the Space Race.', feedback: 'The entry does not say anyone won. It says the two countries worked together.' },
-            { text: 'The Space Shuttle could carry up to eight astronauts.', feedback: 'That comes from a different timeline entry (1981).' },
-            { text: 'The United States and the Soviet Union stopped competing and began exploring space together.', correct: true, feedback: 'Yes! A joint (shared) flight marked the end of the Space Race and the start of working together.' },
+            { text: 'The Soviet Union won the Space Race.', feedback: 'The entry does not say anyone won. Look at what the two countries did together.' },
+            { text: 'The Space Shuttle could carry up to eight astronauts.', feedback: 'That is not in this entry — it comes from a different part of the timeline (1981).' },
+            { text: 'The United States and the Soviet Union stopped competing and began exploring space together.', correct: true, feedback: 'A joint (shared) flight marked the end of the Space Race and the start of working together.' },
           ] }] },
     ],
   },
@@ -101,57 +101,74 @@ export function gradePractice(content, answers = {}) {
     return { id: p.id, answered, correct: !!(choice && choice.correct), feedback: choice ? choice.feedback : '' };
   });
   const correctCount = items.filter(i => i.correct).length;
-  return { items, total: parts.length, correctCount, answeredAll: items.length > 0 && items.every(i => i.answered) };
+  const answeredAll = items.length > 0 && items.every(i => i.answered);
+  return { items, total: parts.length, correctCount, answeredAll, passed: answeredAll && correctCount >= PASS_MIN };
 }
-// Practice is "done" when every part is answered and the student has checked their answers.
-export const practiceDone = (content, answers, checked) => !!checked && gradePractice(content, answers).answeredAll;
+
+// ── Attempts (from the existing `history` list) ─────────────────────────────
+const SCORE_RE = /^(\d+)\/(\d+)$/;
+export function attempts(rec) {
+  return (Array.isArray((rec || {}).history) ? rec.history : [])
+    .filter(h => h && (h.event === 'autoPass' || h.event === 'autoFail'))
+    .map(h => { const m = SCORE_RE.exec(String(h.note || '')); return { at: h.at, passed: h.event === 'autoPass', correct: m ? +m[1] : 0, total: m ? +m[2] : 0 }; });
+}
+export const isAutoPassed = rec => (rec || {}).status === 'accepted' && attempts(rec).some(a => a.passed);
 
 // ── View model ──────────────────────────────────────────────────────────────
-export function catchUpView(rec, { practiceComplete = false } = {}) {
+export function catchUpView(rec) {
   const r = rec || {};
-  const status = r.status || 'not_started';
+  const tries = attempts(r);
+  const status = r.status || (tries.length ? 'in_progress' : 'not_started');
   const locked = status === 'submitted' || status === 'accepted';
+  const last = tries[tries.length - 1] || null;
+  const passAttempt = tries.find(a => a.passed) || null;
   return {
-    status, label: statusLabel(status), locked,
-    canSubmit: !locked && status !== 'returned' && practiceComplete,
-    canResubmit: status === 'returned' && !!r.correctionConfirmedAt && practiceComplete,
-    returnNote: r.returnNote || '', submitCount: r.submitCount || 0, correctionConfirmed: !!r.correctionConfirmedAt,
+    status, locked, tries: tries.length, last, passAttempt, autoPassed: isAutoPassed(r),
+    label: isAutoPassed(r) ? `Complete — passed (${passAttempt.correct} of ${passAttempt.total})` : statusLabel(status),
+    returnNote: r.returnNote || '',
   };
 }
 export function statusLabel(status) {
   return {
     not_started: 'Not started',
-    in_progress: 'In progress',
+    in_progress: 'Not passed yet',
     submitted: 'Submitted — awaiting review',
-    returned: 'Sent back — correction needed',
+    returned: 'Sent back — try again',
     accepted: 'Completion confirmed by your teacher',
   }[status] || 'Not started';
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────────
-// applyCatchUp(rec, action, opts) → { ok, rec, effects, reason }
-// Only fields that already exist in catch-up records are written.
-export function applyCatchUp(rec, action, { now = new Date().toISOString(), note = '', by = 'student', practiceComplete = false } = {}) {
+// applyCatchUp(rec, action, opts) → { ok, rec, effects, reason, grade? }
+//   'grade'  (student, Session 2): grades opts.answers against opts.content.
+//            pass → status 'accepted', tile completed (if not already), reward once.
+//            fail → history entry only.
+//   'accept' / 'sendBack' (teacher): unchanged, for submissions made under earlier pilot versions.
+export function applyCatchUp(rec, action, { now = new Date().toISOString(), note = '', by = 'student', content = null, answers = {} } = {}) {
   const r = JSON.parse(JSON.stringify(rec || {}));
-  const v = catchUpView(r, { practiceComplete });
+  const v = catchUpView(r);
   const fail = reason => ({ ok: false, rec: rec || {}, effects: {}, reason });
   const effects = {};
-  const student = ['submit', 'confirmCorrection', 'resubmit'].includes(action);
-  if (student && v.locked) return fail('locked');
-  if (student && !r.startedAt) r.startedAt = now;
+  let grade = null;
   switch (action) {
-    case 'submit':
-      if (!v.canSubmit) return fail(v.status === 'returned' ? 'use-resubmit' : 'not-ready');
-      r.status = 'submitted'; r.submittedAt = now; r.submitCount = (r.submitCount || 0) + 1;
-      effects.completeTile = r.submitCount === 1;
-      effects.grantReward = !r.rewardGrantedAt;
-      break;
-    case 'confirmCorrection': if (v.status !== 'returned') return fail('not-returned'); r.correctionConfirmedAt = now; break;
-    case 'resubmit':
-      if (!v.canResubmit) return fail(v.status !== 'returned' ? 'not-returned' : !r.correctionConfirmedAt ? 'confirm-correction-first' : 'not-ready');
-      r.status = 'submitted'; r.submittedAt = now; r.submitCount = (r.submitCount || 0) + 1;
-      effects.grantReward = !r.rewardGrantedAt;
-      break;
+    case 'grade': {
+      if (v.locked) return fail('locked');
+      if (!content) return fail('no-content');
+      grade = gradePractice(content, answers);
+      if (!grade.answeredAll) return { ok: false, rec: rec || {}, effects: {}, reason: 'answer-all', grade };
+      if (!r.startedAt) r.startedAt = now;
+      const score = `${grade.correctCount}/${grade.total}`;
+      if (grade.passed) {
+        const alreadyComplete = (r.submitCount || 0) > 0;   // tile was completed by an earlier-version submission
+        r.status = 'accepted'; r.acceptedAt = now; r.returnNote = null;
+        effects.completeTile = !alreadyComplete;
+        effects.grantReward = !r.rewardGrantedAt;
+        effects.acceptedReview = true;
+      }
+      r.updatedAt = now;
+      r.history = [...(Array.isArray(r.history) ? r.history : []), { at: now, event: grade.passed ? 'autoPass' : 'autoFail', note: score }].slice(-20);
+      return { ok: true, rec: r, effects, grade };
+    }
     case 'accept':
       if (by !== 'teacher') return fail('teacher-only');
       if (v.status !== 'submitted') return fail('not-submitted');
