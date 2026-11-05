@@ -21,3 +21,11 @@ Thumbs.db
 # Teacher roster — maps student numbers to real names; never commit
 roster.local.json
 public/roster.local.json
+
+# Database exports contain student data — never commit them
+backup_*.json
+*-export.json
+
+# Cloud Functions dependencies
+functions/node_modules/
+*-debug.log

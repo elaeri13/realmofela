@@ -1,0 +1,38 @@
+{
+  "database": [
+    {
+      "instance": "demo-realm",
+      "rules": "firebase/database.rules.secure.json"
+    }
+  ],
+  "emulators": {
+    "hub": {
+      "host": "127.0.0.1",
+      "port": 4400
+    },
+    "logging": {
+      "host": "127.0.0.1",
+      "port": 4500
+    },
+    "database": {
+      "host": "127.0.0.1",
+      "port": 9000
+    },
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 9099
+    },
+    "functions": {
+      "host": "127.0.0.1",
+      "port": 5001
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  }
+}

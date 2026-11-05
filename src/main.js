@@ -1,4 +1,7 @@
-import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, runTransaction, signInAnonymously } from './firebaseClient.js'
+import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, runTransaction, orderByChild, equalTo, signInAnonymously, signInWithCustomToken, signInWithEmailAndPassword, signOut, callFn } from './firebaseClient.js'
+// Secure mode (see docs/security): real teacher accounts, server-checked PINs, server reward claims.
+// Off by default; turned on with VITE_SECURITY_MODE=secure. Replaced at build time, so unused code is dropped.
+const SECURE = import.meta.env.VITE_SECURITY_MODE === 'secure';
 import { NAMES, EPITHETS } from './data/characterNames.js'
 import { CHARACTER_ABILITIES, LEVEL10_FRAME_ID, XP_PER_LEVEL, rewardsForLevel, levelStatus, claimableLevels, trackLevels, nextRewardLevel, nextMilestoneLevel, abilityStatus, levelsToCelebrate, isMilestone, isAbilityLevel, isClaimablePart, partLabel, partIcon } from './levelRewards.js'
 import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession } from './currentSession.js'
@@ -1585,13 +1588,14 @@ function updateBossStateOnTileComplete(student, tileId, land) {
       if (cur.status === 'defeated') return;
       if (sessionIdx === 0) {
         if (cur.status === 'not_started') {
-          setStdBossState(sid, bk, { status:'sighted', encounterCount:1, lastAttemptSession:tileId, failedAt:null });
+          setStdBossState(sid, bk, { ...cur, status:'sighted', encounterCount:1, lastAttemptSession:tileId, failedAt:null });
         }
       } else {
         const isLastSession = sessionIdx === boss.sessions.length - 1;
         if (isLastSession) {
           // All encounters done — auto-award medal; teacher can later award Mastery Seal
           setStdBossState(sid, bk, {
+            ...cur,
             status:'mastery_available',
             encounterCount: Math.max(cur.encounterCount, sessionIdx + 1),
             lastAttemptSession:tileId, failedAt:null,
@@ -1600,6 +1604,7 @@ function updateBossStateOnTileComplete(student, tileId, land) {
         } else {
           // Intermediate encounter — track without blocking student
           setStdBossState(sid, bk, {
+            ...cur,
             status:'sighted',
             encounterCount: Math.max(cur.encounterCount, sessionIdx + 1),
             lastAttemptSession:tileId, failedAt:null,
@@ -2846,7 +2851,8 @@ function showXPCelebration(amount, levelsGained, newLevel, onComplete, message =
    docs/phase-3-level-up-plan.md are approved: today any browser can write any student's Gold or
    reward records, so a claim button cannot be made trustworthy yet. In the local dev server, tests
    can turn it on with window.__REALM_TEST_CLAIMS = true (stripped from production builds).       */
-const LEVEL_REWARD_CLAIMS_LIVE = false;
+// Claims go live only in secure mode (the server grants rewards) AND when VITE_LEVEL_REWARD_CLAIMS=on.
+const LEVEL_REWARD_CLAIMS_LIVE = SECURE && import.meta.env.VITE_LEVEL_REWARD_CLAIMS === 'on';
 function rewardClaimsEnabled() {
   return LEVEL_REWARD_CLAIMS_LIVE ||
     (import.meta.env.DEV && typeof window !== 'undefined' && window.__REALM_TEST_CLAIMS === true);
@@ -2917,6 +2923,18 @@ async function claimLevelReward(student, level) {
   const key = `${sid}:${L}`;
   if (_claimInFlight.has(key)) return { ok: false, reason: 'busy' };
   _claimInFlight.add(key);
+  if (SECURE) {
+    // The server checks the level, writes the claim record and grants everything in one transaction.
+    try {
+      const r = await callFn('claimLevelReward', { level: L });
+      return { ok: true, level: L, results: r.results };
+    } catch (e) {
+      const reason = (e && e.details && e.details.reason) || (e && e.code === 'functions/already-exists' ? 'already' : 'error');
+      return { ok: false, reason };
+    } finally {
+      _claimInFlight.delete(key);
+    }
+  }
   try {
     const recRef = ref(db, `students/${sid}/levelRewards/${L}`);
     const claimedAt = new Date().toISOString();
@@ -7536,7 +7554,7 @@ function renderBoardView() {
 }
 
 /* ─── TEACHER SCREENS ─── */
-const TEACHER_PW = "TEACHER2026";
+const TEACHER_PW = SECURE ? null : "TEACHER2026"; // legacy mode only — secure mode uses teacher accounts
 
 function renderTeacherLogin() {
   return `
@@ -7546,7 +7564,8 @@ function renderTeacherLogin() {
       <span class="t-login-icon">🔐</span>
       <h2 class="t-login-title">Teacher Dashboard</h2>
       <p class="t-login-sub">Authorized Access Only</p>
-      <input id="pw-inp" class="pw-input" type="password" placeholder="Enter password" autocomplete="off"/>
+      ${SECURE ? `<input id="email-inp" class="pw-input" type="email" placeholder="Teacher email" autocomplete="username" style="margin-bottom:10px"/>` : ''}
+      <input id="pw-inp" class="pw-input" type="password" placeholder="Enter password" autocomplete="${SECURE ? 'current-password' : 'off'}"/>
       ${STATE.pinError ? `<p class="error-box">⚠️ ${STATE.pinError}</p>` : ""}
       <button class="btn btn-purple btn-lg" id="pw-btn" style="width:100%">
         <span>Enter Dashboard</span><span class="btn-arrow">→</span>
@@ -7761,8 +7780,10 @@ function renderTeacherDashboard() {
         <button class="t-card-menu-item" data-reroll-name="${s.id}">🎲 Reroll Name</button>
         <div class="t-card-menu-pin-row">
           <span class="t-card-menu-pin-lbl">PIN:</span>
-          <span class="t-card-menu-pin-val">${STATE.revealedPinSids[s.id] ? getStudentPin(s) : '••••'}</span>
-          <button class="t-card-menu-item t-card-menu-pin-reveal" data-reveal-pin="${s.id}">${STATE.revealedPinSids[s.id] ? '🙈 Hide' : '👁 Show'}</button>
+          ${SECURE
+            ? `<span class="t-card-menu-pin-val">${isPinSet(s.id) ? 'Private (student chose it)' : 'Default'}</span>`
+            : `<span class="t-card-menu-pin-val">${STATE.revealedPinSids[s.id] ? getStudentPin(s) : '••••'}</span>
+          <button class="t-card-menu-item t-card-menu-pin-reveal" data-reveal-pin="${s.id}">${STATE.revealedPinSids[s.id] ? '🙈 Hide' : '👁 Show'}</button>`}
         </div>
         <button class="t-card-menu-item t-card-menu-reset-pin" data-reset-pin="${s.id}">🔑 Reset PIN</button>
       </div>` : ''}
@@ -7792,6 +7813,7 @@ function renderTeacherDashboard() {
         <span class="t-dash-title">👩‍🏫 Teacher Dashboard</span>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-outline-sm" id="t-board-view">📡 Board View</button>
+          ${SECURE ? `<button class="btn btn-outline-sm" id="t-security-btn">🔒 Security Setup</button>` : ''}
           <button class="btn btn-outline-sm" id="t-boss-roster-btn">⚔️ Battle Records</button>
           <button class="btn btn-outline-sm" id="t-judgment-hall-btn">⚖️ Judgment Hall</button>
           <button class="btn btn-outline-sm" id="t-flag-log-btn">🚨 Flag Log</button>
@@ -9685,11 +9707,24 @@ function bindEvents() {
         STATE.pin += btn.dataset.digit;
         mount();
         if (STATE.pin.length === 4) {
-          setTimeout(() => {
-            if (STATE.pin === getStudentPin(STATE.student)) {
+          setTimeout(async () => {
+            let _pinOk = false, _needNewPin = false, _pinErr = null;
+            if (SECURE) {
+              try { const r = await secureStudentLogin(STATE.student.id, STATE.pin); _pinOk = true; _needNewPin = !!r.mustSetPin; }
+              catch (e) {
+                const c = (e && e.code) || '';
+                _pinErr = c === 'functions/resource-exhausted' ? e.message
+                  : (c === 'functions/permission-denied' || c === 'functions/invalid-argument') ? null
+                  : "Couldn't reach the Realm. Check your internet and try again.";
+              }
+            } else {
+              _pinOk = STATE.pin === getStudentPin(STATE.student);
+              _needNewPin = !isPinSet(STATE.student.id);
+            }
+            if (_pinOk) {
               STATE.pin = ""; STATE.pinError = ""; STATE.helpFlagged = false;
               STATE._sessionResetVersion = (_overrides[String(STATE.student.id)] || {})._resetVersion ?? null;
-              if (!isPinSet(STATE.student.id)) {
+              if (_needNewPin) {
                 STATE.newPinStep = 'enter'; STATE.newPinEntry = ''; STATE.newPinFirst = '';
                 STATE.screen = "set-pin"; mount();
               } else {
@@ -9722,7 +9757,7 @@ function bindEvents() {
               if (_land2Splash) { playLand2EntrySplash(_routeAfterPin); } else { mount(); }
               }
             } else {
-              STATE.pinError = "Incorrect secret number! Try again, brave adventurer.";
+              STATE.pinError = _pinErr || "Incorrect secret number! Try again, brave adventurer.";
               STATE.pin = ""; mount();
             }
           }, 200);
@@ -9740,7 +9775,7 @@ function bindEvents() {
         STATE.newPinEntry += btn.dataset.spDigit;
         mount();
         if (STATE.newPinEntry.length === 4) {
-          setTimeout(() => {
+          setTimeout(async () => {
             const entry = STATE.newPinEntry;
             const defaultPin = makeStudentBase(STATE.student.id).pin;
             if (STATE.newPinStep === 'enter') {
@@ -9757,7 +9792,16 @@ function bindEvents() {
                 STATE.newPinStep = 'enter'; STATE.newPinEntry = ''; STATE.newPinFirst = '';
                 mount(); return;
               }
-              saveStudentOverride(STATE.student.id, { customPin: entry, pinSet: true });
+              if (SECURE) {
+                try { await callFn('setStudentPin', { pin: entry }); }
+                catch (e) {
+                  STATE.pinError = (e && e.code === 'functions/invalid-argument' && e.message) || "Couldn't save your PIN — try again.";
+                  STATE.newPinStep = 'enter'; STATE.newPinEntry = ''; STATE.newPinFirst = '';
+                  mount(); return;
+                }
+              } else {
+                saveStudentOverride(STATE.student.id, { customPin: entry, pinSet: true });
+              }
               STATE.pinError = '';
               const _land2Splash = ensureLand2Entry(STATE.student);
               const _pos = getLandPos(STATE.student);
@@ -9864,7 +9908,7 @@ function bindEvents() {
     $("open-hj-btn") && $("open-hj-btn").addEventListener("click", () => { STATE.screen = "heros-journey"; STATE.hjReveal = null; mount(); window.scrollTo(0, 0); });
     bindLevelUpOverlay();
     bindHouseSelection();
-    $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; STATE.genName = null; STATE.genEpithet = null; STATE.namingOptions = null; STATE.epithetOptions = null; STATE._namingReturnScreen = null; mount(); });
+    $("hub-logout") && $("hub-logout").addEventListener("click", () => { if (SECURE) { secureSignOutAndReload(); return; } STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; STATE.genName = null; STATE.genEpithet = null; STATE.namingOptions = null; STATE.epithetOptions = null; STATE._namingReturnScreen = null; mount(); });
     // Trophy mastery trial request — tap an available trophy
     document.querySelectorAll("[data-trophy-req]").forEach(cell => {
       cell.addEventListener("click", () => {
@@ -10338,9 +10382,24 @@ function bindEvents() {
   /* TEACHER LOGIN */
   if (STATE.screen === "teacher-login") {
     const inp = $("pw-inp");
-    inp && inp.focus();
-    const doLogin = () => {
+    const emailInp = $("email-inp");
+    (emailInp || inp) && (emailInp || inp).focus();
+    const doLogin = async () => {
       const v = inp ? inp.value.trim() : "";
+      if (SECURE) {
+        const btn = $("pw-btn"); if (btn) { btn.disabled = true; btn.textContent = "Signing in…"; }
+        try {
+          await secureTeacherLogin(emailInp ? emailInp.value.trim() : "", inp ? inp.value : "");
+          migrateCharacterNames();
+          STATE.screen = "teacher-dash"; STATE.pinError = ""; mount();
+        } catch (e) {
+          STATE.pinError = e && e.code === 'not-teacher' ? "This account isn't set up as a teacher yet."
+            : (e && /network/.test(e.code || '')) ? "Couldn't reach the Realm. Check the internet connection."
+            : "Incorrect email or password. Try again.";
+          mount();
+        }
+        return;
+      }
       if (v === TEACHER_PW) {
         migrateCharacterNames();
         STATE.screen = "teacher-dash"; STATE.pinError = ""; mount();
@@ -10357,8 +10416,18 @@ function bindEvents() {
 
   /* TEACHER DASHBOARD */
   if (STATE.screen === "teacher-dash") {
-    $("t-dash-logout") && $("t-dash-logout").addEventListener("click", () => { STATE.screen = "code"; mount(); });
+    $("t-dash-logout") && $("t-dash-logout").addEventListener("click", () => { if (SECURE) { secureSignOutAndReload(); return; } STATE.screen = "code"; mount(); });
     $("t-board-view") && $("t-board-view").addEventListener("click", () => { STATE.screen = "board-view"; mount(); });
+    // Secure mode: one-time PIN migration (see docs/security/03-rollout-and-console-steps.md).
+    $("t-security-btn") && $("t-security-btn").addEventListener("click", async () => {
+      const step = prompt("Security Setup\n\nType 1 — Prepare: copy every student's current PIN into secure storage (safe to repeat; changes nothing students see).\nType 2 — Finish: delete the old plain-text PINs (only after the secure rules are live and logins are confirmed working).\n\nLeave blank to cancel.");
+      if (step !== '1' && step !== '2') return;
+      if (step === '2' && !confirm("Delete the old plain-text PINs now? Students keep their PINs; the old copies are removed. This makes switching back to the old login lose custom PINs.")) return;
+      try {
+        const r = await callFn('adminSecurityMigration', { finalize: step === '2' });
+        alert(`Done.\nPINs secured: ${r.hashed}\nPlain-text PINs removed: ${r.cleared}\nDirectory entries: ${r.directory}`);
+      } catch (e) { alert("Security setup didn't finish: " + (e.message || e)); }
+    });
     $("t-gold-shop-btn") && $("t-gold-shop-btn").addEventListener("click", () => { STATE.teacherGoldShopOpen = true; mount(); });
     $("t-boss-roster-btn") && $("t-boss-roster-btn").addEventListener("click", () => {
       STATE.screen = "teacher-boss-roster";
@@ -10414,13 +10483,16 @@ function bindEvents() {
       STATE.resetPinsConfirmPi = null;
       if (!period) { mount(); return; }
       let count = 0;
+      const _resetIds = [];
       (period.students || []).forEach(s => {
         const ov = _overrides[String(s.id)] || {};
         if (!ov.pinSet && !ov.customPin) return; // already on the default PIN
+        if (SECURE) { _resetIds.push(String(s.id)); count++; return; }
         saveStudentOverride(s.id, { customPin: null, pinSet: false });
         logActivity(s.id, '🔑', 'PIN reset by teacher');
         count++;
       });
+      if (SECURE && _resetIds.length) callFn('resetStudentPins', { studentIds: _resetIds }).catch(e => alert("Couldn't reset PINs: " + (e.message || e)));
       STATE.revealedPinSids = {};
       mount();
       const toast = document.createElement("div");
@@ -10660,8 +10732,9 @@ function bindEvents() {
       btn.addEventListener("click", e => {
         e.stopPropagation();
         const sid = parseInt(btn.dataset.resetPin, 10);
-        saveStudentOverride(sid, { customPin: null, pinSet: false });
         STATE.cardMenuSid = null;
+        if (SECURE) { callFn('resetStudentPins', { studentIds: [String(sid)] }).catch(e2 => alert("Couldn't reset the PIN: " + (e2.message || e2))); mount(); return; }
+        saveStudentOverride(sid, { customPin: null, pinSet: false });
         logActivity(sid, '🔑', 'PIN reset by teacher');
         mount();
       });
@@ -12649,6 +12722,75 @@ function bindEvents() {
   $("teacher-link-btn") && $("teacher-link-btn").addEventListener("click", () => { STATE.pinError = ""; STATE.screen = "teacher-login"; mount(); });
 }
 
+/* ─── SECURE MODE: scoped data + real sign-in ───────────────────────────────
+   Before sign-in the app reads only settings + the public directory (names/avatars/positions).
+   A signed-in student reads only their own records; a signed-in teacher reads everything. */
+let _directory = {}, _ownSid = null, _ownRecord = null, _ownUnsubs = [];
+function rebuildSecureOverrides() {
+  if (STATE.teacherSignedIn) return; // teacher view uses the full students listener
+  const next = {};
+  for (const [k, v] of Object.entries(_directory)) next[k] = Object.assign({}, v);
+  if (_ownSid && _ownRecord) next[_ownSid] = _ownRecord;
+  _overrides = next;
+}
+function initPublicCache() {
+  return new Promise((resolve, reject) => {
+    let dReady = false, sReady = false;
+    const ready = () => { if (dReady && sReady) resolve(); };
+    onValue(ref(db, 'directory'), snap => {
+      _directory = snap.exists() ? snap.val() : {};
+      rebuildSecureOverrides();
+      if (!dReady) { dReady = true; ready(); } else liveMount();
+    }, reject);
+    onValue(ref(db, 'settings'), snap => {
+      _settings = snap.exists() ? snap.val() : {};
+      if (!sReady) { sReady = true; ready(); } else liveMount();
+    }, reject);
+  });
+}
+function subscribeOwnRecords(sid) {
+  _ownUnsubs.forEach(u => u()); _ownUnsubs = []; _ownSid = sid;
+  return new Promise((resolve, reject) => {
+    let first = true;
+    const watch = (r, fn) => _ownUnsubs.push(onValue(r, fn, err => { if (first) { first = false; reject(err); } }));
+    watch(ref(db, `students/${sid}`), snap => {
+      const rec = snap.exists() ? snap.val() : {};
+      if (!first && STATE.student && String(STATE.student.id) === sid) {
+        const incoming = rec._resetVersion ?? null;
+        if (incoming !== null && incoming !== STATE._sessionResetVersion) { window.location.reload(); return; }
+      }
+      _ownRecord = rec; rebuildSecureOverrides();
+      if (first) { first = false; resolve(); } else liveMount();
+    });
+    watch(ref(db, `helpflags/${sid}`), snap => { _helpflags = snap.exists() ? { [sid]: snap.val() } : {}; liveMount(); });
+    watch(ref(db, `craftRequests/${sid}`), snap => { _craftRequests = snap.exists() ? { [sid]: snap.val() } : {}; liveMount(); });
+    watch(ref(db, `activityLog/${sid}`), snap => { _activityLog = snap.exists() ? { [sid]: snap.val() } : {}; liveMount(); });
+    watch(ref(db, `sideQuestInvites/${sid}`), snap => { _sqInvites = snap.exists() ? { [sid]: snap.val() } : {}; liveMount(); });
+    watch(query(ref(db, 'shopPending'), orderByChild('studentId'), equalTo(sid)), snap => { _shopPending = snap.exists() ? snap.val() : {}; liveMount(); });
+  });
+}
+async function secureStudentLogin(studentId, pin) {
+  const r = await callFn('studentSignIn', { studentNumber: String(studentId), pin });
+  await signInWithCustomToken(auth, r.token);
+  await subscribeOwnRecords(String(studentId));
+  return r;
+}
+async function secureTeacherLogin(email, password) {
+  const cred = await signInWithEmailAndPassword(auth, email, password);
+  const isTeacher = (await get(ref(db, `admins/${cred.user.uid}`))).val() === true;
+  if (!isTeacher) {
+    await signOut(auth).catch(() => {}); await signInAnonymously(auth).catch(() => {});
+    throw Object.assign(new Error('not a teacher account'), { code: 'not-teacher' });
+  }
+  STATE.teacherSignedIn = true;
+  await initFirebaseCache();
+  seedAndMigrate().catch(console.error);
+}
+// Leaving clears everything from memory — important on shared Chromebooks.
+function secureSignOutAndReload() {
+  signOut(auth).catch(() => {}).finally(() => window.location.reload());
+}
+
 /* ─── FIREBASE INIT + BOOT ─── */
 function initFirebaseCache() {
   return new Promise((resolve, reject) => {
@@ -12763,7 +12905,7 @@ async function seedAndMigrate() {
 mount(); // show loading spinner immediately
 Promise.all([
   fetch('/classData.json').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
-  signInAnonymously(auth).catch(() => null).then(() => initFirebaseCache()),
+  signInAnonymously(auth).catch(() => null).then(() => SECURE ? initPublicCache() : initFirebaseCache()),
 ]).then(([data]) => {
   CLASS_DATA = data;
   CLASS_DATA.periods.forEach(p => { p.students = getPeriodStudents(p.id); });
@@ -12775,7 +12917,7 @@ Promise.all([
   if (landId > 1) return t[`${landId}-${k}`];   // Land 2+ entries are keyed "land-tile"; never leak Land 1's
   return t[k];
 } }); }).catch(() => {});
-  seedAndMigrate().catch(console.error);
+  if (!SECURE) seedAndMigrate().catch(console.error); // secure mode: runs only after a teacher signs in
   STATE.screen = 'code';
   mount();
 }).catch(err => {

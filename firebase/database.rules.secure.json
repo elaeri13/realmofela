@@ -1,0 +1,132 @@
+{
+  "rules": {
+    "admins": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid"
+      }
+    },
+    "secure": {
+      ".read": false,
+      ".write": false
+    },
+    "directory": {
+      ".read": "auth != null",
+      ".write": false
+    },
+    "settings": {
+      ".read": "auth != null",
+      ".write": "root.child('admins').child(auth.uid).val() === true"
+    },
+    "students": {
+      ".read": "root.child('admins').child(auth.uid).val() === true",
+      "$sid": {
+        ".read": "root.child('admins').child(auth.uid).val() === true || (auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+        ".write": "root.child('admins').child(auth.uid).val() === true",
+        ".validate": "!data.child('_resetVersion').exists() || (newData.child('_resetVersion').exists() && newData.child('_resetVersion').val() >= data.child('_resetVersion').val())",
+        "levelRewards": {},
+        "pinSet": {},
+        "absences": {},
+        "_isReset": {},
+        "_resetVersion": {},
+        "customPin": {
+          ".validate": "!newData.exists()"
+        },
+        "house": {
+          ".write": "(auth != null && auth.token.role === 'student' && auth.token.sid === $sid) && root.child('students').child($sid).child('houseConfirmed').val() !== true"
+        },
+        "houseConfirmed": {
+          ".write": "(auth != null && auth.token.role === 'student' && auth.token.sid === $sid) && root.child('students').child($sid).child('houseConfirmed').val() !== true"
+        },
+        "gold": {
+          ".write": "(auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+          ".validate": "newData.isNumber() && newData.val() >= 0 && (root.child('admins').child(auth.uid).val() === true || newData.val() <= (data.isNumber() ? data.val() : 0) + 250)"
+        },
+        "xp": {
+          ".write": "(auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+          ".validate": "newData.isNumber() && newData.val() >= 0 && (root.child('admins').child(auth.uid).val() === true || newData.val() <= (data.isNumber() ? data.val() : 0) + 400)"
+        },
+        "level": {
+          ".write": "(auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+          ".validate": "newData.isNumber() && newData.val() >= 1 && (root.child('admins').child(auth.uid).val() === true || (newData.val() >= (data.isNumber() ? data.val() : 1) && newData.val() <= (data.isNumber() ? data.val() : 1) + 3))"
+        },
+        "bossStatus": {
+          "$bk": {
+            ".write": "(auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+            ".validate": "newData.isString() && (root.child('admins').child(auth.uid).val() === true || newData.val() === 'submitted' || newData.val() === 'not_attempted' || (newData.val() === 'confirmed' && (!($bk.beginsWith('event_') || $bk.endsWith('_27')) || data.val() === 'defeated' || data.val() === 'confirmed')))"
+          }
+        },
+        "standardBossState": {
+          "$bk": {
+            ".write": "(auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+            ".validate": "root.child('admins').child(auth.uid).val() === true || (data.child('status').val() !== 'defeated' && newData.child('sealAwarded').val() !== true && newData.child('demonstrationCount').val() === data.child('demonstrationCount').val() && (newData.child('status').val() === 'not_started' || newData.child('status').val() === 'sighted' || newData.child('status').val() === 'mastery_available' || newData.child('status').val() === 'mastery_requested'))"
+          }
+        },
+        "gateBossState": {
+          "$bk": {
+            ".write": "(auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+            ".validate": "root.child('admins').child(auth.uid).val() === true || ((!data.exists() || data.child('status').val() === 'locked') && newData.child('status').val() === 'active' && newData.child('attemptCount').val() === 1 && !newData.child('trophyEarned').exists())"
+          }
+        },
+        "$other": {
+          ".write": "(auth != null && auth.token.role === 'student' && auth.token.sid === $sid)"
+        }
+      }
+    },
+    "helpflags": {
+      ".read": "root.child('admins').child(auth.uid).val() === true",
+      "$sid": {
+        ".read": "root.child('admins').child(auth.uid).val() === true || (auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+        ".write": "root.child('admins').child(auth.uid).val() === true || (auth != null && auth.token.role === 'student' && auth.token.sid === $sid)"
+      }
+    },
+    "craftRequests": {
+      ".read": "root.child('admins').child(auth.uid).val() === true",
+      "$sid": {
+        ".read": "root.child('admins').child(auth.uid).val() === true || (auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+        ".write": "root.child('admins').child(auth.uid).val() === true || (auth != null && auth.token.role === 'student' && auth.token.sid === $sid)"
+      }
+    },
+    "activityLog": {
+      ".read": "root.child('admins').child(auth.uid).val() === true",
+      "$sid": {
+        ".read": "root.child('admins').child(auth.uid).val() === true || (auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+        ".write": "root.child('admins').child(auth.uid).val() === true || (auth != null && auth.token.role === 'student' && auth.token.sid === $sid)"
+      }
+    },
+    "overrides": {
+      ".read": "root.child('admins').child(auth.uid).val() === true",
+      ".write": "root.child('admins').child(auth.uid).val() === true",
+      "$sid": {
+        ".read": "root.child('admins').child(auth.uid).val() === true || (auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+        ".write": "root.child('admins').child(auth.uid).val() === true || (auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+        "sideQuests": {
+          "$k": {
+            ".write": "(auth != null && auth.token.role === 'student') && !newData.exists()"
+          }
+        }
+      }
+    },
+    "sideQuestInvites": {
+      ".read": "root.child('admins').child(auth.uid).val() === true",
+      "$sid": {
+        ".read": "root.child('admins').child(auth.uid).val() === true || (auth != null && auth.token.role === 'student' && auth.token.sid === $sid)",
+        "$qk": {
+          ".write": "root.child('admins').child(auth.uid).val() === true || (auth != null && auth.token.role === 'student' && auth.token.sid === $sid) || ((auth != null && auth.token.role === 'student') && (newData.exists() ? (newData.child('fromStudentId').val() + '') === auth.token.sid : (data.child('fromStudentId').val() + '') === auth.token.sid))"
+        }
+      }
+    },
+    "shopPending": {
+      ".read": "root.child('admins').child(auth.uid).val() === true || ((auth != null && auth.token.role === 'student') && query.orderByChild === 'studentId' && query.equalTo === auth.token.sid)",
+      ".indexOn": [
+        "studentId"
+      ],
+      "$key": {
+        ".write": "root.child('admins').child(auth.uid).val() === true || ((auth != null && auth.token.role === 'student') && (newData.exists() ? (!data.exists() && newData.child('studentId').val() === auth.token.sid && $key.beginsWith(auth.token.sid + '_')) : data.child('studentId').val() === auth.token.sid))"
+      }
+    },
+    "gradeLog": {
+      ".read": "root.child('admins').child(auth.uid).val() === true",
+      ".write": "root.child('admins').child(auth.uid).val() === true"
+    }
+  }
+}
