@@ -1,146 +1,122 @@
 // Missed-lesson catch-up (pilot) — pure logic, no Firebase. Unit-tested in tests/catchUp.test.js.
 //
-// Inside a missed tile: a ~5-minute in-Realm QUICK REVIEW ("See one → Try one"), then the required work.
-//   1. Remember      — short explanation of the skill
-//   2. See one       — original paragraph, topic + important idea highlighted, modeled gist
-//   3. Try one       — second paragraph, three possible gists, explanatory feedback, unlimited retries
-//   4. Finish your work — only the required Session tasks still open (the Exit Ticket), then Submit
-// The Quick Review replaces the review route, not the assignment. The full Wayground lesson and an
-// optional video stay under "Need more help?" and are never required.
-// Stored per student at students/{id}/catchUp/{landId}_{tileId}.
+// Session 2 pilot: ONE page inside the Realm — review, worked example, three practice questions, Submit.
+// No videos, workbook pages, external links or extra steps.
+// Source of truth: Unit 2, Module 1, Session 2 teacher guide ("Race to the Moon . . . and Beyond" and
+// "The Path to the Moon", RI.5.2 gist statement). The review is written in our own words; only single
+// sentences are quoted from the text where an answer choice needs them.
 //
-// Rules:
-//  • Opening Pear Deck/Wayground only records "Opened"; the student separately confirms finishing.
-//  • Students who started the lesson in class choose "Quick Review" or "Continue my work".
-//    Absent students do the Quick Review.
-//  • Wrong answers in Try one cost nothing; Quick Review never awards XP, Gold or mastery.
-//  • Submitting completes the tile ("Submitted — awaiting review"); teacher Accept confirms completion only.
-//  • The catch-up XP/Gold is granted once, on the first submission; resubmitting never pays again.
-//  • Quick Review text reaches students only after the teacher approves it in Lesson Schedule.
-//  • Records saved by the first version of the pilot (recap/example steps) keep working.
+// Data: practice answers stay in the browser. Submitting uses the existing catch-up record fields
+// (status, submittedAt, submitCount, history, rewardGrantedAt …) — no new database fields.
+// Rules kept from the earlier pilot: submit completes the tile ("Submitted — awaiting review", not mastery);
+// the catch-up XP/Gold is paid once; teacher Accept confirms completion only; Send Back → Resubmit never pays again.
 
-export const CATCHUP_PILOT_TILES = new Set(['2_2']); // Land 2 · Session 2 (expand once the pilot is approved)
+export const CATCHUP_PILOT_TILES = new Set(['2_2']); // Land 2 (Unit 2) · Session 2
 export const catchUpKey = (landId, tileId) => `${landId}_${tileId}`;
 export const isCatchUpPilot = (landId, tileId) => CATCHUP_PILOT_TILES.has(catchUpKey(landId, tileId));
 
-// Original sample content — DRAFT until the teacher approves it in Lesson Schedule.
-export const CATCHUP_DRAFTS = {
+export const SESSION_CONTENT = {
   '2_2': {
     skill: 'Write a Gist Statement',
     standard: 'RI.5.2',
-    explain:
-`A gist is what a text is mostly about, told in one sentence in your own words.
-To write one:
-1. Find the topic — who or what the text is mostly about.
-2. Find the important idea — the most important thing the text says about the topic.
-3. Put them together in one sentence. Leave out small details.`,
-    seePassage:
-`Astronauts on the International Space Station grow lettuce in a small plant box. Colored lights help the plants grow without sunlight, and soft pillows of soil keep the roots from floating away. Scientists study the plants to learn how future crews could grow fresh food on long trips to Mars.`,
-    seeTopic: 'grow lettuce',
-    seeIdea: 'learn how future crews could grow fresh food on long trips to Mars',
-    seeGist: 'Astronauts grow lettuce in space so scientists can learn how crews could grow their own food on trips to Mars.',
-    tryPassage:
-`Long ago, sailors used the stars to find their way across the ocean at night. They learned the shapes of star groups and where those stars rose and set. By finding the North Star, sailors could tell which way was north. Knowing the stars helped them cross the sea without getting lost.`,
-    tryChoices:
-`The North Star is in the night sky.
-Long ago, sailors used the stars to find their way across the ocean.
-Sailors liked looking at the stars at night.`,
-    tryCorrect: '2',
-    tryFeedback:
-`That's a true detail, but it's only one small part. A gist covers what the whole paragraph is mostly about.
-Yes! It names the topic (sailors and the stars) and the important idea (the stars helped them find their way).
-This sounds close, but the paragraph isn't about liking the stars. What did the stars help sailors do?`,
+    textTitle: 'Race to the Moon . . . and Beyond',
+    author: 'Andrew Matthews',
+    explain: [
+      'A gist statement is a one- or two-sentence summary of a text. It answers the question: What is this text mostly about? (Gist is another word for main idea.)',
+    ],
+    steps: [
+      'State the topic — who or what the text is mostly about — in a word or phrase.',
+      'Identify the most important ideas about the topic. Leave out small details.',
+      'Combine the topic and the most important ideas into a gist statement of a sentence or two, in your own words.',
+    ],
+    reading: [
+      { heading: 'The Path to the Moon (paragraphs 1–5)',
+        text: 'In the 1950s, the United States and the Soviet Union competed to explore space. This was called the Space Race. In 1958, the U.S. created NASA to handle air and space science. In 1961, President Kennedy challenged NASA to land a person on the moon and bring them home safely before the decade ended. NASA reached that goal in 1969 with the help of more than 400,000 workers.' },
+      { heading: 'Get with the Programs (paragraphs 6–8)',
+        text: 'Project Mercury (1958–1963) sent one astronaut at a time into orbit and showed that people could survive in space. Project Gemini (1962–1966) sent two-person crews and tested skills NASA would need for longer trips to the moon. Project Apollo (1961–1972) sent three-person crews and landed astronauts on the moon. Six Apollo missions landed there.' },
+      { heading: 'Shooting for the Stars (paragraphs 9–15)',
+        text: 'NASA is still studying moon samples from the Apollo missions. Now it has new goals: building housing on the moon by 2040, and sending humans to Mars. A Mars trip would take about seven months, so scientists are first studying how a long trip far from Earth affects astronauts.' },
+      { heading: 'The Path to the Moon (timeline)',
+        text: 'The timeline shows key events in order, from the Soviet satellite Sputnik in 1957, to Apollo 11 landing on the moon in 1969, to 1975, when the U.S. and the Soviet Union flew a joint mission together, and later the International Space Station.' },
+    ],
+    example: {
+      label: 'Gist of “Race to the Moon . . . and Beyond”',
+      topic: 'the Space Race',
+      ideas: [
+        'President Kennedy was determined to send astronauts to the moon.',
+        'The U.S. government created NASA to plan space missions.',
+        'Both the U.S. and the Soviet Union sent out space missions.',
+      ],
+      gist: 'The U.S. and the Soviet Union competed to reach the moon and explore space.',
+      note: 'Details like “more than 400,000 workers” are interesting, but they are small details, so they stay out of the gist.',
+    },
+    questions: [
+      { id: 'q1', title: 'Question 1',
+        parts: [{ id: 'q1', prompt: 'Which sentence is the best gist statement for the section “Get with the Programs” (paragraphs 6–8)?',
+          choices: [
+            { text: 'Project Gemini used a new craft to launch a two-person crew into space.', feedback: 'That is one detail about Gemini. A gist covers the whole section — Mercury, Gemini and Apollo.' },
+            { text: 'It took years and many steps for NASA to finally land people on the moon.', correct: true, feedback: 'Yes! The section shows three programs, one after another, that led to the moon landing.' },
+            { text: 'Apollo 13 had to cancel its planned moon landing.', feedback: 'That is a small detail from one mission. It is not what the whole section is mostly about.' },
+            { text: 'The first astronauts were experienced test pilots called the Mercury Seven.', feedback: 'That is a detail about Project Mercury only. Think about what all three programs add up to.' },
+          ] }] },
+      { id: 'q2', title: 'Question 2', partAB: true,
+        parts: [
+          { id: 'q2a', label: 'Part A', prompt: 'What is the gist of paragraphs 10–15 in “Shooting for the Stars”?',
+            choices: [
+              { text: 'A trip to Mars would take about seven months.', feedback: 'That is a supporting detail. The gist should cover all of NASA’s new plans.' },
+              { text: 'NASA is still studying rock samples from the Apollo missions.', feedback: 'That comes from paragraph 9, and it is about the past. Paragraphs 10–15 are about NASA’s new goals.' },
+              { text: 'NASA’s new goals are to send people farther into space for longer periods of time.', correct: true, feedback: 'Yes! Houses on the moon and trips to Mars both mean going farther and staying longer.' },
+              { text: 'Scientists will use a 3-D printer to build houses on the moon.', feedback: 'That explains how one goal might work. It is a detail, not the gist.' },
+            ] },
+          { id: 'q2b', label: 'Part B', prompt: 'Which sentence from the text best supports the answer to Part A?',
+            choices: [
+              { text: '“NASA is also planning for what was once unthinkable: humans traveling to Mars.”', correct: true, feedback: 'Yes! Sending humans to Mars is a goal of going farther into space for a longer time.' },
+              { text: '“NASA is still learning from samples gathered from the Apollo missions over 50 years ago.”', feedback: 'This is about what NASA learned from past missions, not its new goals.' },
+              { text: '“The first is to mimic spaceflight conditions at labs on Earth.”', feedback: 'This describes a first research step on Earth. It does not show the goal of going farther into space.' },
+              { text: '“Scientists also need to consider how to provide medical care in space.”', feedback: 'This is a problem scientists must solve — a detail — not the new goal itself.' },
+            ] },
+        ] },
+      { id: 'q3', title: 'Question 3',
+        context: 'In the timeline “The Path to the Moon,” the entry for July 15, 1975 tells about the Apollo–Soyuz Test Project, a joint space flight by the United States and the Soviet Union. (Joint means shared.)',
+        parts: [{ id: 'q3', prompt: 'Which sentence is the best gist of the July 15, 1975 entry?',
+          choices: [
+            { text: 'The Apollo–Soyuz spacecraft orbited Earth.', feedback: 'That is true, but it is a detail. Why was this flight important?' },
+            { text: 'The Soviet Union won the Space Race.', feedback: 'The entry does not say anyone won. It says the two countries worked together.' },
+            { text: 'The Space Shuttle could carry up to eight astronauts.', feedback: 'That comes from a different timeline entry (1981).' },
+            { text: 'The United States and the Soviet Union stopped competing and began exploring space together.', correct: true, feedback: 'Yes! A joint (shared) flight marked the end of the Space Race and the start of working together.' },
+          ] }] },
+    ],
   },
 };
-export const QR_FIELDS = ['recapText', 'cuSeePassage', 'cuSeeTopic', 'cuSeeIdea', 'cuSeeGist', 'cuTryPassage', 'cuTryChoices', 'cuTryCorrect', 'cuTryFeedback'];
-const lines = t => String(t || '').split('\n').map(l => l.trim()).filter(Boolean);
+export const sessionContent = (landId, tileId) => SESSION_CONTENT[catchUpKey(landId, tileId)] || null;
+export const practiceParts = content => (content ? content.questions.flatMap(q => q.parts) : []);
 
-// Editor view (teacher): saved text, or the sample draft for anything not saved yet.
-// Student view uses ONLY saved + approved text: `ready` is false until the teacher approves.
-export function catchUpContent(landId, tileId, entry = {}) {
-  const d = CATCHUP_DRAFTS[catchUpKey(landId, tileId)] || {};
-  const pick = (field, draftKey) => (entry[field] != null && String(entry[field]).trim() !== '') ? String(entry[field]) : (d[draftKey] || '');
-  const c = {
-    skill: d.skill || '', standard: d.standard || '',
-    explain: pick('recapText', 'explain'),
-    seePassage: pick('cuSeePassage', 'seePassage'), seeTopic: pick('cuSeeTopic', 'seeTopic'), seeIdea: pick('cuSeeIdea', 'seeIdea'), seeGist: pick('cuSeeGist', 'seeGist'),
-    tryPassage: pick('cuTryPassage', 'tryPassage'), tryChoicesText: pick('cuTryChoices', 'tryChoices'),
-    tryCorrect: Number(pick('cuTryCorrect', 'tryCorrect')) || 0, tryFeedbackText: pick('cuTryFeedback', 'tryFeedback'),
-  };
-  c.tryChoices = lines(c.tryChoicesText);
-  c.tryFeedback = lines(c.tryFeedbackText);
-  c.usesDraft = QR_FIELDS.some(f => entry[f] == null || String(entry[f]).trim() === '');
-  c.isFinal = entry.cuQuickReviewStatus === 'final';           // new key: an approval of the old recap/example does not carry over
-  c.problems = contentProblems(c);
-  c.ready = c.isFinal && !c.usesDraft && c.problems.length === 0;
-  return c;
+// Grade the practice. answers = { partId: choiceIndex }.
+export function gradePractice(content, answers = {}) {
+  const parts = practiceParts(content);
+  const items = parts.map(p => {
+    const pick = answers[p.id];
+    const answered = Number.isInteger(pick) && pick >= 0 && pick < p.choices.length;
+    const choice = answered ? p.choices[pick] : null;
+    return { id: p.id, answered, correct: !!(choice && choice.correct), feedback: choice ? choice.feedback : '' };
+  });
+  const correctCount = items.filter(i => i.correct).length;
+  return { items, total: parts.length, correctCount, answeredAll: items.length > 0 && items.every(i => i.answered) };
 }
-export function contentProblems(c) {
-  const p = [];
-  if (!c.explain.trim()) p.push('Add the explanation.');
-  if (!c.seePassage.trim()) p.push('Add the See one paragraph.');
-  if (c.seeTopic && !c.seePassage.includes(c.seeTopic)) p.push('The topic words must appear exactly in the See one paragraph.');
-  if (c.seeIdea && !c.seePassage.includes(c.seeIdea)) p.push('The important idea must appear exactly in the See one paragraph.');
-  if (!c.seeGist.trim()) p.push('Add the modeled gist.');
-  if (!c.tryPassage.trim()) p.push('Add the Try one paragraph.');
-  if (c.tryChoices.length !== 3) p.push('Write exactly three answer choices, one per line.');
-  if (!(c.tryCorrect >= 1 && c.tryCorrect <= c.tryChoices.length)) p.push('Set the correct answer to 1, 2 or 3.');
-  if (c.tryFeedback.length !== c.tryChoices.length) p.push('Write one feedback line for each answer choice.');
-  return p;
-}
-// Split a paragraph into plain/highlighted pieces for the topic and important idea (renderer escapes text).
-export function highlightParts(passage, topic, idea) {
-  const marks = [['topic', topic], ['idea', idea]].filter(([, t]) => t && passage.includes(t))
-    .map(([kind, t]) => ({ kind, start: passage.indexOf(t), end: passage.indexOf(t) + t.length }))
-    .sort((a, b) => a.start - b.start).filter((m, i, arr) => i === 0 || m.start >= arr[i - 1].end);
-  const out = []; let at = 0;
-  for (const m of marks) { if (m.start > at) out.push({ text: passage.slice(at, m.start) }); out.push({ text: passage.slice(m.start, m.end), kind: m.kind }); at = m.end; }
-  if (at < passage.length) out.push({ text: passage.slice(at) });
-  return out;
-}
+// Practice is "done" when every part is answered and the student has checked their answers.
+export const practiceDone = (content, answers, checked) => !!checked && gradePractice(content, answers).answeredAll;
 
 // ── View model ──────────────────────────────────────────────────────────────
-// legacy = the tile's existing taskProgress from the lesson day.
-// mustDo = number of required workbook items on the tile (0 for Session 2).
-export function catchUpView(rec, legacy = {}, { contentReady = true, mustDo = 0 } = {}) {
+export function catchUpView(rec, { practiceComplete = false } = {}) {
   const r = rec || {};
-  const legacyRL = !!(legacy.wayground || [])[0];
-  const legacyET = !!(legacy.exitTicketOpened || [])[0];
-  const legacyMust = legacy.mustDo || [];
-  const startedInClass = (legacyRL && !r.rlOpenedAt) || (legacyET && !r.etOpenedAt) || !!r.startedInClass;
-  // Earlier pilot version: recap + example (reviewed or skipped) counts as a finished review.
-  const oldReviewDone = (!!r.recapAt || !!r.recapSkippedAt) && (!!r.exampleAt || !!r.exampleSkippedAt);
-  const review = {
-    available: contentReady,
-    remember: !!r.rememberAt, see: !!r.seeAt, tryCorrect: !!r.tryCorrectAt,
-    attempts: r.tryAttempts || 0, lastChoice: r.tryLastChoice || 0,
-    done: !!r.tryCorrectAt || oldReviewDone,
-  };
-  const route = r.route || (review.done ? 'review' : null);
-  const needsChoice = contentReady && startedInClass && !route;
-  const reviewSettled = !contentReady || review.done || route === 'continue';
-  const et = { opened: !!r.etOpenedAt || legacyET, openedInClass: legacyET && !r.etOpenedAt, confirmed: !!r.etConfirmedAt };
-  const must = Array.from({ length: mustDo }, (_, i) => ({ done: !!(r.mustDone || {})[i] || !!legacyMust[i] }));
-  const workDone = et.confirmed && must.every(m => m.done);
-  const status = r.status || (hasAnyProgress(r) ? 'in_progress' : 'not_started');
+  const status = r.status || 'not_started';
   const locked = status === 'submitted' || status === 'accepted';
-  const canSubmit = !locked && status !== 'returned' && reviewSettled && workDone;
-  const canResubmit = status === 'returned' && !!r.correctionConfirmedAt;
-  let step;
-  if (locked || status === 'returned') step = 'status';
-  else if (needsChoice) step = 'choose';
-  else if (!reviewSettled && !review.remember) step = 'remember';
-  else if (!reviewSettled && !review.see) step = 'see';
-  else if (!reviewSettled) step = 'try';
-  else step = workDone ? 'submit' : 'work';
-  return { status, label: statusLabel(status), step, route, needsChoice, review, reviewSettled, et, must, workDone,
-           canSubmit, canResubmit, startedInClass, locked, contentReady,
-           returnNote: r.returnNote || '', submitCount: r.submitCount || 0, correctionConfirmed: !!r.correctionConfirmedAt,
-           resumed: hasAnyProgress(r) && !locked && status !== 'returned' };
-}
-function hasAnyProgress(r) {
-  return !!(r.rememberAt || r.seeAt || r.tryAttempts || r.route || r.etOpenedAt || r.etConfirmedAt || (r.mustDone && Object.keys(r.mustDone).length)
-    || r.recapAt || r.exampleAt || r.recapSkippedAt || r.exampleSkippedAt || r.rlOpenedAt || r.rlConfirmedAt);
+  return {
+    status, label: statusLabel(status), locked,
+    canSubmit: !locked && status !== 'returned' && practiceComplete,
+    canResubmit: status === 'returned' && !!r.correctionConfirmedAt && practiceComplete,
+    returnNote: r.returnNote || '', submitCount: r.submitCount || 0, correctionConfirmed: !!r.correctionConfirmedAt,
+  };
 }
 export function statusLabel(status) {
   return {
@@ -153,38 +129,17 @@ export function statusLabel(status) {
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────────
-// applyCatchUp(rec, action, opts) → { ok, rec, effects, reason, feedback? }
-// effects.completeTile / grantReward / acceptedReview — see main.js runCatchUpAction.
-const STUDENT_ACTIONS = new Set(['chooseReview', 'chooseContinue', 'remember', 'see', 'try', 'openRL', 'openVideo', 'openET', 'confirmET', 'confirmMust', 'submit', 'confirmCorrection', 'resubmit']);
-export function applyCatchUp(rec, action, { now = new Date().toISOString(), note = '', legacy = {}, by = 'student', contentReady = true, mustDo = 0, choice = 0, correct = 0, index = -1 } = {}) {
+// applyCatchUp(rec, action, opts) → { ok, rec, effects, reason }
+// Only fields that already exist in catch-up records are written.
+export function applyCatchUp(rec, action, { now = new Date().toISOString(), note = '', by = 'student', practiceComplete = false } = {}) {
   const r = JSON.parse(JSON.stringify(rec || {}));
-  const v = catchUpView(r, legacy, { contentReady, mustDo });
+  const v = catchUpView(r, { practiceComplete });
   const fail = reason => ({ ok: false, rec: rec || {}, effects: {}, reason });
-  const effects = {}; let feedback = null;
-  const openOnly = ['openRL', 'openVideo', 'openET'];
-  if (STUDENT_ACTIONS.has(action) && v.locked && !openOnly.includes(action)) return fail('locked');
-  if (!r.startedAt && STUDENT_ACTIONS.has(action)) { r.startedAt = now; if (v.startedInClass) r.startedInClass = true; }
-  const reviewing = () => { if (!contentReady) return 'no-content'; if (v.reviewSettled && v.route === 'continue') return null; return null; };
+  const effects = {};
+  const student = ['submit', 'confirmCorrection', 'resubmit'].includes(action);
+  if (student && v.locked) return fail('locked');
+  if (student && !r.startedAt) r.startedAt = now;
   switch (action) {
-    case 'chooseReview': if (!contentReady) return fail('no-content'); r.route = 'review'; r.routeAt = now; break;
-    case 'chooseContinue': if (!v.startedInClass) return fail('choice-not-offered'); r.route = 'continue'; r.routeAt = now; break;
-    case 'remember': if (reviewing()) return fail('no-content'); r.rememberAt = r.rememberAt || now; if (!r.route) r.route = 'review'; break;
-    case 'see': if (reviewing()) return fail('no-content'); if (!r.rememberAt) return fail('remember-first'); r.seeAt = r.seeAt || now; break;
-    case 'try': {
-      if (reviewing()) return fail('no-content');
-      if (!r.seeAt) return fail('see-first');
-      if (!(choice >= 1)) return fail('pick-an-answer');
-      r.tryAttempts = (r.tryAttempts || 0) + 1; r.tryLastChoice = choice;          // retries are free: no HP, XP or Gold change
-      const right = choice === correct;
-      if (right && !r.tryCorrectAt) { r.tryCorrectAt = now; r.tryCorrectOnAttempt = r.tryAttempts; }
-      feedback = { correct: right, choice };
-      break;
-    }
-    case 'openRL': r.rlOpenedAt = r.rlOpenedAt || now; break;                       // "Need more help?" — never required
-    case 'openVideo': r.videoOpenedAt = r.videoOpenedAt || now; break;
-    case 'openET': if (!v.reviewSettled) return fail('review-first'); r.etOpenedAt = r.etOpenedAt || now; break;
-    case 'confirmET': if (!v.reviewSettled) return fail('review-first'); if (!v.et.opened) return fail('open-first'); r.etConfirmedAt = r.etConfirmedAt || now; break;
-    case 'confirmMust': if (!v.reviewSettled) return fail('review-first'); if (!(index >= 0 && index < mustDo)) return fail('bad-item'); r.mustDone = Object.assign({}, r.mustDone || {}, { [index]: now }); break;
     case 'submit':
       if (!v.canSubmit) return fail(v.status === 'returned' ? 'use-resubmit' : 'not-ready');
       r.status = 'submitted'; r.submittedAt = now; r.submitCount = (r.submitCount || 0) + 1;
@@ -193,7 +148,7 @@ export function applyCatchUp(rec, action, { now = new Date().toISOString(), note
       break;
     case 'confirmCorrection': if (v.status !== 'returned') return fail('not-returned'); r.correctionConfirmedAt = now; break;
     case 'resubmit':
-      if (!v.canResubmit) return fail(v.status === 'returned' ? 'confirm-correction-first' : 'not-returned');
+      if (!v.canResubmit) return fail(v.status !== 'returned' ? 'not-returned' : !r.correctionConfirmedAt ? 'confirm-correction-first' : 'not-ready');
       r.status = 'submitted'; r.submittedAt = now; r.submitCount = (r.submitCount || 0) + 1;
       effects.grantReward = !r.rewardGrantedAt;
       break;
@@ -212,16 +167,6 @@ export function applyCatchUp(rec, action, { now = new Date().toISOString(), note
     default: return fail('unknown-action');
   }
   r.updatedAt = now;
-  if (['submit', 'resubmit', 'accept', 'sendBack', 'confirmCorrection'].includes(action)) {
-    r.history = [...(Array.isArray(r.history) ? r.history : []), action === 'sendBack' ? { at: now, event: action, note: r.returnNote } : { at: now, event: action }].slice(-20);
-  }
-  return { ok: true, rec: r, effects, feedback };
-}
-// What the teacher review list says about how the student caught up.
-export function reviewSummary(rec) {
-  const r = rec || {};
-  if (r.route === 'continue') return 'chose Continue my work';
-  if (r.tryCorrectAt) return `Quick Review — correct on try ${r.tryCorrectOnAttempt || r.tryAttempts || 1}`;
-  if (r.recapSkippedAt || r.exampleSkippedAt) return 'skipped the review';
-  return '';
+  r.history = [...(Array.isArray(r.history) ? r.history : []), action === 'sendBack' ? { at: now, event: action, note: r.returnNote } : { at: now, event: action }].slice(-20);
+  return { ok: true, rec: r, effects };
 }

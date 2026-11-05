@@ -1,100 +1,71 @@
-# Missed-Lesson Catch-Up — Session 2 Pilot (Quick Review)
+# Missed-Lesson Catch-Up — Unit 2, Module 1, Session 2 Pilot (one page)
 
-_Version 2 on branch `claude/session2-catchup-pilot`. Version 1 shipped in PR #18. Not merged or deployed._
+_Branch `claude/session2-catchup-pilot`. Not merged or deployed._
 
 ## Scope
-- **Pilot tile:** only **The Stone Kingdoms · Session 2** (Write a Gist Statement, RI.5.2). Every other missed tile keeps the existing catch-up panel.
-- **Unchanged trigger:** a lesson is "missed" when it's released, not complete, and the class has moved past it.
+- **Pilot tile:** only **The Stone Kingdoms (Unit 2) · Session 2** — "Race to the Moon . . . and Beyond" and "The Path to the Moon", Write a Gist Statement, **RI.5.2**.
+- **Not changed:**
+  - every other missed session, which keeps the existing catch-up panel
+  - boss battles
+  - the regular lesson flow
+  - the missed-lesson trigger
 
-## Student flow: a ~5-minute Quick Review inside the Realm, then the required work
-1. **Remember:** a short explanation of a gist statement.
-2. **See one:** an original paragraph with the **topic** (yellow) and **important idea** (green) highlighted, then a modeled gist.
-3. **Try one:** a second original paragraph with three possible gists.
-   - Every choice gets explanatory feedback.
-   - Wrong answers can be retried as often as needed; they cost nothing.
-4. **Finish your work:** shows only the required Session 2 work the student hasn't finished — the **Exit Ticket** (Pear Deck), where the student writes their gist. Then **Submit for review**.
+## Source
+The content comes from the Unit 2, Module 1, Session 2 teacher guide (Curriculum Associates) provided by Ms. Odom.
 
-**What's required and what isn't**
-- The Quick Review replaces the old review route (recap, example, full Wayground lesson). It doesn't replace the assignment.
-- The full Wayground lesson is **not** required.
-- **"Need more help?"** offers optional links:
-  - the Wayground lesson
-  - a Schoology video
-  - Links that aren't set are hidden.
+The guide is marked "Copying is not permitted":
+- The review and the reading summary are written in our own words.
+- Only single sentences are quoted, where an answer choice needs them (Question 2 Part B).
 
-**Students who started in class** (opened Read and Learn or the Exit Ticket on the lesson day)
-- They choose **⚡ Quick Review** or **➡ Continue my work**. Absent students do the Quick Review.
-- After *Continue my work*, the Quick Review stays available through "Want a Quick Review first?".
+Where each piece comes from:
+- **Skill steps:** the guide's "Write a Gist Statement" page.
+- **Worked example:** the guide's modeled gist for the whole text. Topic: *the Space Race*. Gist: *"The U.S. and the Soviet Union competed to reach the moon and explore space."*
+- **Practice questions:** the guide's three Check for Understanding gist routines:
+  1. paragraphs 6–8, "Get with the Programs" (multiple choice)
+  2. paragraphs 10–15, "Shooting for the Stars" (**LEAP-style Part A / Part B**)
+  3. the July 15, 1975 timeline entry, Apollo–Soyuz (multiple choice)
 
-**Honesty and rewards**
-- **Opened, not finished:** opening the Exit Ticket only shows "Opened". The student taps **I finished the Exit Ticket**. The screen says the Realm can't see Pear Deck work.
-- **Quick Review earns nothing:** no XP, no Gold, no mastery.
-- **Submitting** completes the tile so the student can keep going. It's labelled "Submitted — awaiting review" and states it's not a mastery result.
-- **The catch-up reward** (+3 XP, +3 Gold) is paid **once**, on the first submission. A database transaction guards it, even across two tabs. Resubmitting never pays again.
+## Student page (one page, no steps)
+1. **What is a gist statement?** A short explanation and the three steps.
+2. **The reading:** a short summary of each section and the timeline.
+3. **Worked example:** topic, then the most important ideas, then the gist statement.
+4. **Practice:** three questions, with four parts to answer in total.
+   - **Check my answers** shows feedback for every choice and a score.
+   - Students can change answers and check again.
+5. **Submit:** enabled once every question is answered and checked. Wrong answers can still be submitted for review.
 
-## Teacher review (Teacher Dashboard → Catch-Up Work to Review)
-- **What each row shows:** how the student caught up, e.g. "Quick Review — correct on try 3" or "chose Continue my work".
-- **Accept** confirms completion only. It never awards or upgrades Bronze/Silver/Gold or a Mastery Seal.
-- **Send Back** requires a note and erases nothing. The student confirms the correction, then resubmits.
-- **Boss safeguard (unchanged):** a catch-up submission on a boss's final encounter holds back the plain 🏅 encounter medal until Accept. Session 2 isn't a boss encounter.
+There are **no videos, workbook pages, external links or extra steps.**
 
-## Editing the Quick Review (Lesson Schedule → The Stone Kingdoms → "Quick Review — Session 2")
-**Fields:**
-- explanation
-- See one paragraph
-- topic to highlight and important idea to highlight (copied exactly from the paragraph)
-- modeled gist
-- Try one paragraph
-- three answer choices
-- correct answer (1–3)
-- one feedback line per choice
-- optional Schoology video link
+## Unchanged systems
+- **Submitting:** completes the tile through the existing catch-up completion. It's labelled "Submitted — awaiting review", not mastery.
+- **Reward:** the existing reward (+3 XP, +3 Gold) is paid **once**, guarded by a database transaction.
+- **Teacher review:** Accept or Send Back, as before. Accept confirms completion only.
+- **After Send Back:** the student sees the note and redoes and checks the practice, then confirms and resubmits. There's no second reward.
+- **Boss safeguard:** unchanged.
 
-**Approval:**
-- **Students only see approved text.** Until **Approve as final**, the tile skips the Quick Review and goes straight to the Exit Ticket. The draft text isn't sent to the student's page at all.
-- **Approval checks the content:** every field must be filled in, the highlights must appear in the paragraph, there must be exactly three choices with matching feedback, and the correct answer must be 1–3.
-- **Save as draft** returns edited content to Draft until it's approved again. Changing only the video link doesn't reset approval.
-- **Fresh approval key** (`cuQuickReviewStatus`): approving version 1's recap/example doesn't carry over to the Quick Review.
+## Data (no new database fields)
+- **Practice answers stay in the browser** and aren't saved.
+- **The score** goes in the existing activity log, e.g. "Session 2 catch-up practice: 3 of 4 correct", which the teacher can see.
+- **The catch-up record** uses only fields that already exist:
+  - `status`, `submittedAt`, `submitCount`, `history`
+  - `rewardGrantedAt`, `correctionConfirmedAt`, `returnNote`, `returnedAt`, `acceptedAt`
+  - `startedAt`, `updatedAt`
+- **Removed:** the earlier Quick Review editor and its settings fields. The content is fixed to the lesson guide.
+- **No security-rule changes.**
+- **Possible later change (needs approval):** saving each student's chosen answers would let the teacher see them during review and keep a half-finished page if a student leaves. That would add one field to the catch-up record.
 
-**The sample content is original and is a draft for Ms. Odom to review:**
-- See one: astronauts growing lettuce on the space station
-- Try one: sailors navigating by the stars
-
-## Existing students (no reset)
-- **In progress under version 1:** those who reviewed or skipped the recap and example count as having finished the review. They open at Finish your work, and Read and Learn is no longer required.
-- **Submitted, sent back or accepted:** these keep their status, and the reward stays paid.
-- **Completed tiles and rewards** are untouched.
-
-## Data
-- **`students/{id}/catchUp/2_2` new fields:**
-  - `route` (review / continue)
-  - `rememberAt`, `seeAt`
-  - `tryAttempts`, `tryLastChoice`, `tryCorrectAt`, `tryCorrectOnAttempt`
-  - `videoOpenedAt`
-  - `mustDone` (for future tiles that have workbook items)
-- **`settings/lessonSchedule/2/2` new fields:**
-  - `cuSeePassage`, `cuSeeTopic`, `cuSeeIdea`, `cuSeeGist`
-  - `cuTryPassage`, `cuTryChoices`, `cuTryCorrect`, `cuTryFeedback`
-  - `cuQuickReviewStatus`
-  - `recapText` (the explanation) and `skillVideo` (the video) are the existing fields.
-
-## Security note
-While the database rules are open, these records can be changed by anyone, like everything else. When the secure rules are adopted, review statuses and `rewardGrantedAt` should become teacher-only or server-only.
+## Earlier pilot records
+Submitted, returned and accepted records keep their status. Older in-progress records simply open the new page.
 
 ## Tests
-- `npm test`: catch-up logic tests, 33 total.
-- **Browser pilot suite: 52/52** (in-memory database, fictional students), covering:
-  - draft gating and approval validation
-  - the absent-student flow with highlights, wrong/right feedback, retries and resume
-  - Need-more-help links (hidden when missing, never required)
-  - Opened vs. finished
-  - submit, send back, resubmit and accept
-  - the reward paid once, including a two-tab race
-  - the in-class choice (Quick Review vs. Continue)
-  - version-1 records
-  - non-pilot tiles unchanged
-  - the boss safeguard
-  - phone and tablet layout
+- `npm test`: catch-up logic, 28 tests total. They check:
+  - the content matches the lesson (standard, text, model gist, Part A/B)
+  - every choice has feedback
+  - there are no links or videos in the content
+  - grading
+  - only existing record fields are written
+  - the reward is paid once
+- **Browser pilot suite: 37/37** (fictional students, in-memory database).
 - **Regressions:**
   - Phase 3 46/46
   - Today's Lesson 37/37
