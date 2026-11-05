@@ -1442,6 +1442,22 @@ input  { font-family: var(--font-body); }
 .cu3-results li { background:#fff; border-radius:8px; padding:6px 8px; }
 .cu3-ok b { color:#166534; } .cu3-no b { color:#9F1239; }
 .cu3-part-wrong { border-left:4px solid #F59E0B; padding-left:8px; }
+/* Catch-up stages + Pear exit ticket */
+.cu4-stage-hdr { display:flex; align-items:center; gap:8px; }
+.cu4-stage-hdr .cu3-h { flex:1; }
+.cu4-num { width:26px; height:26px; border-radius:50%; background:#EDE9FE; color:#5B21B6; font-weight:900; font-size:13px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+.cu4-done .cu4-num { background:#DCFCE7; color:#166534; }
+.cu4-locked .cu4-num { background:#F3F4F6; color:#9CA3AF; }
+.cu4-tag { font-size:11px; font-weight:800; color:#6B7280; }
+.cu4-current .cu4-tag { color:#5B21B6; }
+.cu4-active { border-color:#A78BFA; }
+.cu3-sub-h { font-weight:900; font-size:14px; color:#1E1B4B; margin-top:4px; }
+.cu4-must { margin:0; font-size:14px; line-height:1.5; color:#1E1B4B; background:#FEF3C7; border-radius:10px; padding:8px 10px; }
+.cu4-pear { display:block; text-align:center; min-height:52px; line-height:28px; padding:12px 16px; border-radius:14px; background:linear-gradient(135deg,#F8D477,#F0C75E); color:#251442; border:2px solid #DCA83C; font-weight:900; font-size:16px; text-decoration:none; }
+.cu4-pear:focus-visible { outline:3px solid #7C3AED; outline-offset:2px; }
+.t-cu-num { font-weight:600; opacity:.7; font-size:11px; }
+.t-cu-cell { font-size:11px; font-weight:800; padding:3px 8px; border-radius:999px; background:rgba(255,255,255,.65); color:#374151; white-space:nowrap; }
+.t-cu-yes { background:#DCFCE7; color:#166534; } .t-cu-no { background:#FFE4E6; color:#9F1239; }
 .cu2-choose { display:flex; flex-direction:column; gap:8px; background:#fff; border:2px solid #A78BFA; border-radius:14px; padding:12px; }
 .cu2-sub-light { font-weight:600; opacity:.85; }
 .cu2-sub { font-weight:600; color:#6B7280; font-size:12px; }

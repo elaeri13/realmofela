@@ -1,18 +1,23 @@
 // Missed-lesson catch-up (pilot) — pure logic, no Firebase. Unit-tested in tests/catchUp.test.js.
 //
-// Session 2 pilot: ONE page inside the Realm, AUTO-GRADED.
-//   Review (what a gist is + a worked example on paragraphs 1–5) → three practice questions, each with
-//   its own short reading (four scored parts, incl. a LEAP-style Part A/Part B) → Submit once.
-//   3 of 4 or better: the catch-up is complete automatically (tile complete, existing XP/Gold once).
-//   Below 3: the student sees their score and hints, and can retry. No completion, no reward.
-// Source: Unit 2, Module 1, Session 2 teacher guide ("Race to the Moon . . . and Beyond" / "The Path to
-// the Moon", RI.5.2). Readings are retold in our own words; Part B quotes single sentences from the text.
-// Each practice reading gives the section's details but never states its gist, and the worked example
-// covers a different section, so students have to find the gist themselves.
+// Session 2 pilot, one page, three stages:
+//   1. Review the Skill        — what a gist is + a worked example
+//   2. Prove Your Knowledge    — four auto-graded parts (incl. Part A/Part B); pass = 3 of 4; free retries
+//   3. Complete Your Pear Exit Ticket — the SAME Pear Assessment exit ticket the class took (the session's
+//      stored Pear link). Opening it is only "Opened"; the student then reports "I've Submitted My Exit Ticket".
+// Completion: the catch-up tile is finalized — and the existing XP/Gold paid once — only when the student
+// reports the Pear submission (after passing practice). Passing practice alone records the score only.
+// The Realm cannot see Pear Assessment, so a report is "student-reported"; the teacher verifies it in Pear
+// and confirms it in the Realm (status 'accepted'), or sends it back.
+// Source: Unit 2, Module 1, Session 2 teacher guide (RI.5.2 gist statement); readings retold in our own words.
 //
-// Data: only fields that already exist in catch-up records are written. A pass sets status 'accepted'
-// (an existing value) and every graded attempt adds an entry to the existing `history` list
-// ({ at, event: 'autoPass' | 'autoFail', note: '3/4' }). Practice answers are not stored.
+// Data — existing catch-up record fields only (no new fields):
+//   history[]      { at, event: 'autoPass'|'autoFail', note: '3/4' } per graded try; 'accept'/'sendBack' events
+//   etOpenedAt     Pear exit ticket opened            etConfirmedAt  student reported submitting it
+//   status         unset (working) → 'submitted' (Pear reported, tile complete) → 'accepted' (teacher verified)
+//                  'returned' (teacher sent back: report again)
+//   submittedAt, submitCount, rewardGrantedAt, acceptedAt, returnedAt, returnNote, startedAt, updatedAt
+// Practice answers are not stored.
 
 export const CATCHUP_PILOT_TILES = new Set(['2_2']); // Land 2 (Unit 2) · Session 2
 export const catchUpKey = (landId, tileId) => `${landId}_${tileId}`;
@@ -115,75 +120,105 @@ export function attempts(rec) {
 export const isAutoPassed = rec => (rec || {}).status === 'accepted' && attempts(rec).some(a => a.passed);
 
 // ── View model ──────────────────────────────────────────────────────────────
-export function catchUpView(rec) {
+// legacy = the tile's taskProgress (exitTicketOpened from the lesson day counts as "Pear opened").
+// pearUrl = the session's stored Pear link ('' when missing).
+export function catchUpView(rec, { legacy = {}, pearUrl = '' } = {}) {
   const r = rec || {};
   const tries = attempts(r);
-  const status = r.status || (tries.length ? 'in_progress' : 'not_started');
-  const locked = status === 'submitted' || status === 'accepted';
-  const last = tries[tries.length - 1] || null;
   const passAttempt = tries.find(a => a.passed) || null;
+  const last = tries[tries.length - 1] || null;
+  const reported = ['submitted', 'accepted', 'returned'].includes(r.status) || false;
+  // Completed under an earlier pilot version (before practice was required): keep it, never revoke.
+  const legacyComplete = ['submitted', 'accepted', 'returned'].includes(r.status) && !passAttempt;
+  const practicePassed = !!passAttempt || legacyComplete;
+  const pearOpened = !!r.etOpenedAt || !!(legacy.exitTicketOpened || [])[0];
+  const pearReported = !!r.etConfirmedAt && r.status !== 'returned';
+  const status = r.status || (tries.length || r.etOpenedAt ? 'in_progress' : 'not_started');
+  const verified = r.status === 'accepted';
+  const tileComplete = ['submitted', 'accepted', 'returned'].includes(r.status) || (r.submitCount || 0) > 0;
+  let stage;
+  if (verified) stage = 'verified';
+  else if (r.status === 'submitted') stage = 'reported';
+  else if (!practicePassed) stage = 'practice';
+  else stage = 'pear';                       // includes 'returned': report the exit ticket again
   return {
-    status, locked, tries: tries.length, last, passAttempt, autoPassed: isAutoPassed(r),
-    label: isAutoPassed(r) ? `Complete — passed (${passAttempt.correct} of ${passAttempt.total})` : statusLabel(status),
-    returnNote: r.returnNote || '',
+    status, stage, tries: tries.length, last, passAttempt, practicePassed, legacyComplete,
+    pear: { url: pearUrl || '', available: !!pearUrl, opened: pearOpened, reported: pearReported, reportedAt: r.etConfirmedAt || null },
+    verified, tileComplete, returnNote: r.returnNote || '',
+    canReport: stage === 'pear' && !!pearUrl && pearOpened,
+    label: statusLabel(verified ? 'accepted' : r.status === 'submitted' ? 'submitted' : r.status === 'returned' ? 'returned' : practicePassed ? 'practice_passed' : status),
   };
 }
 export function statusLabel(status) {
   return {
     not_started: 'Not started',
-    in_progress: 'Not passed yet',
-    submitted: 'Submitted — awaiting review',
-    returned: 'Sent back — try again',
-    accepted: 'Completion confirmed by your teacher',
+    in_progress: 'Practice not passed yet',
+    practice_passed: 'Practice passed — Pear exit ticket next',
+    submitted: 'Complete — exit ticket reported',
+    returned: 'Sent back — check your exit ticket',
+    accepted: 'Complete — exit ticket verified',
   }[status] || 'Not started';
 }
 
 // ── Actions ─────────────────────────────────────────────────────────────────
 // applyCatchUp(rec, action, opts) → { ok, rec, effects, reason, grade? }
-//   'grade'  (student, Session 2): grades opts.answers against opts.content.
-//            pass → status 'accepted', tile completed (if not already), reward once.
-//            fail → history entry only.
-//   'accept' / 'sendBack' (teacher): unchanged, for submissions made under earlier pilot versions.
-export function applyCatchUp(rec, action, { now = new Date().toISOString(), note = '', by = 'student', content = null, answers = {} } = {}) {
+//   'grade'      student: grade the four parts. Records the try in history. Never completes or pays.
+//   'openPear'   student: record that the Pear exit ticket was opened (after passing practice).
+//   'reportPear' student: "I've Submitted My Exit Ticket". Needs a passed practice, a Pear link, and the
+//                link opened. First report: tile complete + reward once. After a send-back: report again,
+//                never paid again.
+//   'accept'     teacher: verified in Pear (status 'accepted').
+//   'sendBack'   teacher: exit ticket not found/finished; the student reports again.
+export function applyCatchUp(rec, action, { now = new Date().toISOString(), note = '', by = 'student', content = null, answers = {}, legacy = {}, pearUrl = '' } = {}) {
   const r = JSON.parse(JSON.stringify(rec || {}));
-  const v = catchUpView(r);
-  const fail = reason => ({ ok: false, rec: rec || {}, effects: {}, reason });
+  const v = catchUpView(r, { legacy, pearUrl });
+  const fail = (reason, extra = {}) => ({ ok: false, rec: rec || {}, effects: {}, reason, ...extra });
   const effects = {};
-  let grade = null;
+  const push = (event, n) => { r.history = [...(Array.isArray(r.history) ? r.history : []), n == null ? { at: now, event } : { at: now, event, note: n }].slice(-20); };
+  const student = ['grade', 'openPear', 'reportPear'].includes(action);
+  if (student && (v.stage === 'reported' || v.stage === 'verified')) return fail('locked');
+  if (student && !r.startedAt) r.startedAt = now;
   switch (action) {
     case 'grade': {
-      if (v.locked) return fail('locked');
+      if (v.practicePassed) return fail('already-passed');
       if (!content) return fail('no-content');
-      grade = gradePractice(content, answers);
-      if (!grade.answeredAll) return { ok: false, rec: rec || {}, effects: {}, reason: 'answer-all', grade };
-      if (!r.startedAt) r.startedAt = now;
-      const score = `${grade.correctCount}/${grade.total}`;
-      if (grade.passed) {
-        const alreadyComplete = (r.submitCount || 0) > 0;   // tile was completed by an earlier-version submission
-        r.status = 'accepted'; r.acceptedAt = now; r.returnNote = null;
-        effects.completeTile = !alreadyComplete;
-        effects.grantReward = !r.rewardGrantedAt;
-        effects.acceptedReview = true;
-      }
+      const grade = gradePractice(content, answers);
+      if (!grade.answeredAll) return fail('answer-all', { grade });
+      push(grade.passed ? 'autoPass' : 'autoFail', `${grade.correctCount}/${grade.total}`);
       r.updatedAt = now;
-      r.history = [...(Array.isArray(r.history) ? r.history : []), { at: now, event: grade.passed ? 'autoPass' : 'autoFail', note: score }].slice(-20);
       return { ok: true, rec: r, effects, grade };
     }
+    case 'openPear':
+      if (!v.practicePassed) return fail('pass-practice-first');
+      if (!v.pear.available) return fail('no-pear-link');
+      r.etOpenedAt = r.etOpenedAt || now;
+      break;
+    case 'reportPear':
+      if (!v.practicePassed) return fail('pass-practice-first');
+      if (!v.pear.available) return fail('no-pear-link');
+      if (!v.pear.opened) return fail('open-pear-first');
+      effects.completeTile = !v.tileComplete;
+      effects.grantReward = !r.rewardGrantedAt;
+      r.etConfirmedAt = now; r.status = 'submitted'; r.submittedAt = now; r.submitCount = (r.submitCount || 0) + 1;
+      r.correctionConfirmedAt = r.returnNote ? now : (r.correctionConfirmedAt || null);
+      push('reportPear');
+      break;
     case 'accept':
       if (by !== 'teacher') return fail('teacher-only');
-      if (v.status !== 'submitted') return fail('not-submitted');
+      if (r.status !== 'submitted') return fail('not-submitted');
       r.status = 'accepted'; r.acceptedAt = now; r.returnNote = null;
       effects.acceptedReview = true;
+      push('accept');
       break;
     case 'sendBack':
       if (by !== 'teacher') return fail('teacher-only');
-      if (v.status !== 'submitted') return fail('not-submitted');
+      if (r.status !== 'submitted') return fail('not-submitted');
       if (!String(note).trim()) return fail('note-required');
-      r.status = 'returned'; r.returnedAt = now; r.returnNote = String(note).trim().slice(0, 500); r.correctionConfirmedAt = null;
+      r.status = 'returned'; r.returnedAt = now; r.returnNote = String(note).trim().slice(0, 500);
+      push('sendBack', r.returnNote);
       break;
     default: return fail('unknown-action');
   }
   r.updatedAt = now;
-  r.history = [...(Array.isArray(r.history) ? r.history : []), action === 'sendBack' ? { at: now, event: action, note: r.returnNote } : { at: now, event: action }].slice(-20);
   return { ok: true, rec: r, effects };
 }

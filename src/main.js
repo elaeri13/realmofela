@@ -2,7 +2,7 @@ import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, run
 import { NAMES, EPITHETS } from './data/characterNames.js'
 import { CHARACTER_ABILITIES, LEVEL10_FRAME_ID, XP_PER_LEVEL, rewardsForLevel, levelStatus, claimableLevels, trackLevels, nextRewardLevel, nextMilestoneLevel, abilityStatus, levelsToCelebrate, isMilestone, isAbilityLevel, isClaimablePart, partLabel, partIcon } from './levelRewards.js'
 import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession } from './currentSession.js'
-import { isCatchUpPilot, catchUpKey, catchUpView, applyCatchUp, sessionContent, gradePractice, attempts as cuAttempts, PASS_MIN } from './catchUp.js'
+import { isCatchUpPilot, catchUpKey, catchUpView, applyCatchUp, sessionContent, gradePractice, PASS_MIN } from './catchUp.js'
 
 /* ═══════════════════════════════════════════════
    REALM OF ELA  —  Pure Vanilla JS
@@ -2277,7 +2277,7 @@ function cu3State(land, tile) {
 }
 function runCatchUpAction(student, land, tile, action, opts = {}) {
   const res = applyCatchUp(getCatchUpRecord(student.id, land.id, tile.id), action,
-    { content: sessionContent(land.id, tile.id), ...opts });
+    { content: sessionContent(land.id, tile.id), legacy: getTaskProgress(student.id, tile.id), pearUrl: getEffectivePear(land, tile), ...opts });
   if (!res.ok) return res;
   storeCatchUpRecord(student.id, land.id, tile.id, res.rec);
   const fx = res.effects;
@@ -2286,9 +2286,10 @@ function runCatchUpAction(student, land, tile, action, opts = {}) {
   if (fx.acceptedReview) applyAcceptedCatchUpBoss(student, land, tile.id);
   const label = sessionLabel(tile).split(' · ')[0];
   if (action === 'grade') logActivity(student.id, res.grade.passed ? '✅' : '📝',
-    res.grade.passed ? `${label} catch-up passed automatically: ${res.grade.correctCount} of ${res.grade.total} correct — complete`
-                     : `${label} catch-up check: ${res.grade.correctCount} of ${res.grade.total} correct — not passed yet (needs ${PASS_MIN})`);
-  if (action === 'accept') logActivity(student.id, '✅', `Catch-up accepted by teacher: ${label}`);
+    res.grade.passed ? `${label} catch-up practice passed: ${res.grade.correctCount} of ${res.grade.total} correct — Pear exit ticket next`
+                     : `${label} catch-up practice: ${res.grade.correctCount} of ${res.grade.total} correct — not passed yet (needs ${PASS_MIN})`);
+  if (action === 'reportPear') logActivity(student.id, '📝', `${label} catch-up: reported submitting the Pear exit ticket (not verified yet)`);
+  if (action === 'accept') logActivity(student.id, '✅', `${label} catch-up: Pear exit ticket verified by teacher`);
   if (action === 'sendBack') logActivity(student.id, '↩️', `Catch-up sent back: ${label} — ${res.rec.returnNote}`);
   return res;
 }
@@ -2296,83 +2297,104 @@ function renderCatchUpPilot(student, land, tile) {
   const c = sessionContent(land.id, tile.id);
   const rec = getCatchUpRecord(student.id, land.id, tile.id) || {};
   const st = cu3State(land, tile);
-  const v = catchUpView(rec);
-  const res = st.result;                               // shown only right after Submit, in this visit
+  const pearUrl = getEffectivePear(land, tile);
+  const v = catchUpView(rec, { legacy: getTaskProgress(student.id, tile.id), pearUrl });
+  const res = st.result;                               // the try graded in this visit, for feedback
   const answeredAll = gradePractice(c, st.answers).answeredAll;
   const sess = sessionLabel(tile).split(' · ')[0];
   const teacher = getClassTeacherName(student);
-  const chip = { not_started:'cu2-chip-new', in_progress:'cu2-chip-prog', submitted:'cu2-chip-sub', returned:'cu2-chip-ret', accepted:'cu2-chip-acc' }[v.status];
+  const chip = { verified:'cu2-chip-acc', reported:'cu2-chip-sub', pear:'cu2-chip-prog', practice: v.tries ? 'cu2-chip-prog' : 'cu2-chip-new' }[v.stage];
   const header = `<div class="cu2-hdr">
       <div class="cu2-title">📚 Catch up — ${escHtml(sess)}<span class="cu2-skill">${escHtml(c.skill)} · ${escHtml(c.standard)}</span></div>
       <span class="cu2-chip ${chip}">${escHtml(v.label)}</span>
     </div>`;
+  const stageHdr = (n, title, state) => `<div class="cu4-stage-hdr cu4-${state}"><span class="cu4-num">${state === 'done' ? '✓' : n}</span><h3 class="cu3-h">${title}</h3>
+      <span class="cu4-tag">${state === 'done' ? 'Done' : state === 'locked' ? 'Locked' : state === 'current' ? 'Up next' : ''}</span></div>`;
   const resultItems = r => `<ul class="cu3-results">${c.questions.flatMap(q => q.parts.map(p => {
       const g = r.items.find(i => i.id === p.id) || {};
-      const name = `${q.title}${p.label ? ' ' + p.label : ''}`;
-      return `<li class="${g.correct ? 'cu3-ok' : 'cu3-no'}"><b>${g.correct ? '✓' : '✗'} ${escHtml(name)}:</b> ${escHtml(g.feedback)}</li>`;
+      return `<li class="${g.correct ? 'cu3-ok' : 'cu3-no'}"><b>${g.correct ? '✓' : '✗'} ${escHtml(q.title)}${p.label ? ' ' + p.label : ''}:</b> ${escHtml(g.feedback)}</li>`;
     })).join('')}</ul>`;
-  // Passed (automatically) or confirmed by the teacher under an earlier version
-  if (v.locked) {
-    const passedNow = res && res.passed;
-    const score = passedNow ? { got: res.correctCount, of: res.total } : v.passAttempt ? { got: v.passAttempt.correct, of: v.passAttempt.total } : null;
-    const card = score
-      ? `<div class="cu2-status cu2-status-acc"><b>✅ Complete! You got ${score.got} of ${score.of} correct.</b>
-          <p>Your ${escHtml(sess)} catch-up is done and your tile is complete. ${passedNow ? 'Here is how you did:' : ''}</p>
-          ${passedNow ? resultItems(res) : ''}</div>`
-      : v.status === 'submitted'
-      ? `<div class="cu2-status cu2-status-sub"><b>📬 Submitted — awaiting review</b><p>Your tile is complete so you can keep going. ${teacher} will review your catch-up.</p></div>`
-      : `<div class="cu2-status cu2-status-acc"><b>✅ Completion confirmed by ${teacher}</b><p>Nice work catching up on ${escHtml(sess)}.</p></div>`;
-    return `<div class="cu2" id="cu2">${header}${card}</div>`;
+
+  // Finished (reported or verified): one short card
+  if (v.stage === 'reported' || v.stage === 'verified') {
+    const score = v.passAttempt ? `Practice: ${v.passAttempt.correct} of ${v.passAttempt.total}. ` : '';
+    return `<div class="cu2" id="cu2">${header}
+      ${v.stage === 'verified'
+        ? `<div class="cu2-status cu2-status-acc"><b>✅ All done!</b><p>${score}${teacher} checked your Pear exit ticket. Your ${escHtml(sess)} catch-up is complete.</p></div>`
+        : `<div class="cu2-status cu2-status-sub"><b>✅ Catch-up complete — exit ticket reported</b><p>${score}Your tile is complete. ${teacher} will check your Pear exit ticket.</p></div>`}
+    </div>`;
   }
-  const failCard = res && !res.passed
-    ? `<div class="cu2-status cu2-status-ret" role="status"><b>You got ${res.correctCount} of ${res.total} correct. You need ${PASS_MIN} to pass.</b>
-        <p>Read the hints, reread the short readings, change your answers, and submit again. There is no penalty for trying again.</p>
-        <ul class="cu3-results">${res.items.filter(i => !i.correct).map(i => {
-          const q = c.questions.find(q => q.parts.some(p => p.id === i.id)); const p = q.parts.find(p => p.id === i.id);
-          return `<li class="cu3-no"><b>✗ ${escHtml(q.title)}${p.label ? ' ' + p.label : ''}:</b> ${escHtml(i.feedback)}</li>`;
-        }).join('')}</ul></div>`
-    : v.status === 'returned'
-    ? `<div class="cu2-status cu2-status-ret"><b>↩ ${teacher} sent this back</b><p class="cu2-note">“${escHtml(v.returnNote)}”</p><p>Answer the questions below and submit. You need ${PASS_MIN} of 4 to finish.</p></div>`
-    : v.tries ? `<p class="cu2-resume">Last try: ${v.last.correct} of ${v.last.total}. You need ${PASS_MIN} of 4 to finish.</p>` : '';
-  const wrongIds = new Set(res && !res.passed ? res.items.filter(i => !i.correct).map(i => i.id) : []);
-  const part = p => {
-    const pick = st.answers[p.id];
-    return `<fieldset class="cu3-part${wrongIds.has(p.id) ? ' cu3-part-wrong' : ''}">
-      <legend class="cu3-prompt">${p.label ? `<span class="cu3-partlbl">${p.label}</span> ` : ''}${escHtml(p.prompt)}</legend>
-      <div class="cu2-opts">${p.choices.map((ch, i) => `<button type="button" class="cu2-opt${pick === i ? ' cu3-opt-picked' : ''}" data-cu3-part="${p.id}" data-cu3-choice="${i}" aria-pressed="${pick === i}">
-          <span class="cu2-opt-letter">${'ABCD'[i]}</span><span>${escHtml(ch.text)}</span></button>`).join('')}</div>
-    </fieldset>`;
-  };
-  const questions = c.questions.map(q => `<div class="cu3-q">
-      <div class="cu3-qtitle">${escHtml(q.title)}${q.partAB ? ' <span class="cu3-sub">(Part A and Part B)</span>' : ''}</div>
-      <div class="cu3-read"><div class="cu3-read-h">Read: ${escHtml(q.readingTitle)}</div><p>${escHtml(q.reading)}</p></div>
-      ${q.parts.map(part).join('')}
-    </div>`).join('');
-  return `<div class="cu2 cu3" id="cu2">
-    ${header}${failCard}
-    <section class="cu3-sec">
-      <h3 class="cu3-h">What is a gist statement?</h3>
+
+  // ── Stage 1 · Review the Skill
+  const stage1 = `<section class="cu3-sec">
+      ${stageHdr(1, 'Review the Skill', v.practicePassed ? 'done' : 'current')}
       ${c.explain.map(t => `<p class="cu2-recap">${escHtml(t)}</p>`).join('')}
       <ol class="cu3-steps">${c.steps.map(t => `<li>${escHtml(t)}</li>`).join('')}</ol>
-    </section>
-    <section class="cu3-sec">
-      <h3 class="cu3-h">Worked example: ${escHtml(c.example.label)} <span class="cu3-sub">from “${escHtml(c.textTitle)}” by ${escHtml(c.author)}</span></h3>
+      <div class="cu3-sub-h">Worked example: ${escHtml(c.example.label)} <span class="cu3-sub">from “${escHtml(c.textTitle)}” by ${escHtml(c.author)}</span></div>
       <div class="cu3-read"><div class="cu3-read-h">Read</div><p>${escHtml(c.example.reading)}</p></div>
       <div class="cu3-ex"><span class="cu3-exn">1</span><div><b>Topic:</b> ${escHtml(c.example.topic)}</div></div>
       <div class="cu3-ex"><span class="cu3-exn">2</span><div><b>Most important ideas:</b><ul>${c.example.ideas.map(t => `<li>${escHtml(t)}</li>`).join('')}</ul></div></div>
       <div class="cu3-ex"><span class="cu3-exn">3</span><div class="cu2-gist"><div class="cu2-gist-lbl">Gist statement</div>${escHtml(c.example.gist)}</div></div>
       <p class="cu3-hint">${escHtml(c.example.note)}</p>
-    </section>
-    <section class="cu3-sec">
-      <h3 class="cu3-h">Your turn</h3>
-      <p class="cu3-hint">Read each short section, then choose the best answer. Get ${PASS_MIN} of 4 right to finish this catch-up.</p>
-      ${questions}
-    </section>
-    <section class="cu3-sec cu3-submit">
-      <button class="cu2-btn cu2-submit" data-cu2="grade" ${answeredAll ? '' : 'disabled'}>📬 Submit</button>
+    </section>`;
+
+  // ── Stage 2 · Prove Your Knowledge (auto-graded)
+  let stage2;
+  if (v.practicePassed) {
+    stage2 = `<section class="cu3-sec">${stageHdr(2, 'Prove Your Knowledge', 'done')}
+      ${res && res.passed
+        ? `<div class="cu2-status cu2-status-acc"><b>You got ${res.correctCount} of ${res.total} correct — you passed!</b>${resultItems(res)}</div>`
+        : `<p class="cu3-hint">${v.passAttempt ? `Passed: ${v.passAttempt.correct} of ${v.passAttempt.total} correct.` : 'Completed before the practice questions were added.'}</p>`}
+    </section>`;
+  } else {
+    const wrongIds = new Set(res && !res.passed ? res.items.filter(i => !i.correct).map(i => i.id) : []);
+    const part = p => {
+      const pick = st.answers[p.id];
+      return `<fieldset class="cu3-part${wrongIds.has(p.id) ? ' cu3-part-wrong' : ''}">
+        <legend class="cu3-prompt">${p.label ? `<span class="cu3-partlbl">${p.label}</span> ` : ''}${escHtml(p.prompt)}</legend>
+        <div class="cu2-opts">${p.choices.map((ch, i) => `<button type="button" class="cu2-opt${pick === i ? ' cu3-opt-picked' : ''}" data-cu3-part="${p.id}" data-cu3-choice="${i}" aria-pressed="${pick === i}">
+            <span class="cu2-opt-letter">${'ABCD'[i]}</span><span>${escHtml(ch.text)}</span></button>`).join('')}</div>
+      </fieldset>`;
+    };
+    stage2 = `<section class="cu3-sec">${stageHdr(2, 'Prove Your Knowledge', 'current')}
+      ${res && !res.passed
+        ? `<div class="cu2-status cu2-status-ret" role="status"><b>You got ${res.correctCount} of ${res.total} correct. You need ${PASS_MIN} to pass.</b>
+            <p>Read the hints, reread the short readings, change your answers, and submit again. There is no penalty for trying again.</p>
+            <ul class="cu3-results">${res.items.filter(i => !i.correct).map(i => {
+              const q = c.questions.find(q => q.parts.some(p => p.id === i.id)); const p = q.parts.find(p => p.id === i.id);
+              return `<li class="cu3-no"><b>✗ ${escHtml(q.title)}${p.label ? ' ' + p.label : ''}:</b> ${escHtml(i.feedback)}</li>`;
+            }).join('')}</ul></div>`
+        : v.tries ? `<p class="cu2-resume">Last try: ${v.last.correct} of ${v.last.total}. You need ${PASS_MIN} of 4 to pass.</p>` : ''}
+      <p class="cu3-hint">Read each short section, then choose the best answer. Get ${PASS_MIN} of 4 right to unlock your exit ticket.</p>
+      ${c.questions.map(q => `<div class="cu3-q">
+          <div class="cu3-qtitle">${escHtml(q.title)}${q.partAB ? ' <span class="cu3-sub">(Part A and Part B)</span>' : ''}</div>
+          <div class="cu3-read"><div class="cu3-read-h">Read: ${escHtml(q.readingTitle)}</div><p>${escHtml(q.reading)}</p></div>
+          ${q.parts.map(part).join('')}
+        </div>`).join('')}
+      <button class="cu2-btn cu2-submit" data-cu2="grade" ${answeredAll ? '' : 'disabled'}>📬 Submit my answers</button>
       ${answeredAll ? '' : `<p class="cu3-hint">Answer all four parts to submit.</p>`}
-    </section>
-  </div>`;
+    </section>`;
+  }
+
+  // ── Stage 3 · Complete Your Pear Exit Ticket
+  let stage3Body;
+  if (!v.practicePassed) {
+    stage3Body = `<p class="cu3-hint">🔒 Unlocks after you pass Stage 2.</p>`;
+  } else if (!v.pear.available) {
+    stage3Body = `<div class="cu2-status cu2-status-ret"><b>Your Pear exit ticket link isn’t ready yet.</b>
+      <p>Tell ${teacher} that the ${escHtml(sess)} exit ticket link is missing. Your practice score is saved.</p></div>`;
+  } else {
+    stage3Body = `${v.status === 'returned' ? `<div class="cu2-status cu2-status-ret"><b>↩ ${teacher} sent this back</b><p class="cu2-note">“${escHtml(v.returnNote)}”</p></div>` : ''}
+      <p class="cu4-must"><b>This exit ticket is required.</b> Even when you’re making up a missed day, you take the same Pear exit ticket as your class.</p>
+      <a class="cu4-pear" href="${pearUrl}" target="_blank" rel="noopener noreferrer" data-cu4-open="pear">📝 Open my ${escHtml(sess)} Pear exit ticket</a>
+      <p class="cu3-hint">${v.pear.opened ? 'Opened. Finish it in Pear and press Submit there, then come back here.' : 'It opens in a new tab. Finish it there, then come back here.'}</p>
+      <button class="cu2-btn cu2-confirm" data-cu2="reportPear" ${v.canReport ? '' : 'disabled'}>✅ I've Submitted My Exit Ticket</button>
+      ${v.pear.opened ? '' : `<p class="cu3-hint">Open your exit ticket first.</p>`}
+      <p class="cu2-fine">The Realm can’t see Pear, so ${teacher} will check your exit ticket there.</p>`;
+  }
+  const stage3 = `<section class="cu3-sec${v.practicePassed ? ' cu4-active' : ''}">${stageHdr(3, 'Complete Your Pear Exit Ticket', v.practicePassed ? 'current' : 'locked')}${stage3Body}</section>`;
+
+  return `<div class="cu2 cu3" id="cu2">${header}${stage1}${stage2}${stage3}</div>`;
 }
 // Auto-advance student to the schedule-based current tile (silently on map open).
 // Only advances forward, never back. Writes to Firebase.
@@ -8303,6 +8325,7 @@ function renderTeacherDashboard() {
           Object.entries(getAllCatchUpRecords(student.id)).forEach(([key, rec]) => {
             if (!rec || !['submitted', 'returned'].includes(rec.status)) return;
             const [lid, tid] = key.split('_').map(Number);
+            if (isCatchUpPilot(lid, tid)) return;   // Session 2 pilot: shown in its own list below
             const land = LANDS.find(l => l.id === lid); const tile = land && land.tiles.find(t => t.id === tid);
             if (!tile) return;
             _cuItems.push({ student, period, land, tile, rec, key: `${student.id}|${key}`, rName: _roster[String(student.id)] || getCharName(student) });
@@ -8348,28 +8371,52 @@ function renderTeacherDashboard() {
           return { student, period, missed, missedNames, rName };
         }).filter(Boolean).sort((a,b) => b.missed.length - a.missed.length);
 
-        // Session 2 pilot: auto-graded catch-up — scores and completion (no approval needed)
+        // Session 2 pilot: practice score + Pear exit ticket status, with Verify / Send Back
         const _cuAuto = [];
         _cuAll.forEach(({ student, period }) => {
           Object.entries(getAllCatchUpRecords(student.id)).forEach(([key, rec]) => {
             const [lid, tid] = key.split('_').map(Number);
-            if (!isCatchUpPilot(lid, tid)) return;
-            const tries = cuAttempts(rec); if (!tries.length) return;
+            if (!isCatchUpPilot(lid, tid) || !rec) return;
             const land = LANDS.find(l => l.id === lid); const tile = land && land.tiles.find(t => t.id === tid); if (!tile) return;
-            const pass = tries.find(a => a.passed), last = tries[tries.length - 1];
-            _cuAuto.push({ rName: _roster[String(student.id)] || getCharName(student), period, land, tile, pass, last, n: tries.length });
+            const v = catchUpView(rec, { pearUrl: getEffectivePear(land, tile) });
+            if (!v.tries && v.stage === 'practice' && !rec.etOpenedAt) return;
+            _cuAuto.push({ student, rName: _roster[String(student.id)] || getCharName(student), period, land, tile, rec, v, key: `${student.id}|${key}` });
           });
         });
-        _cuAuto.sort((a, b) => (a.pass ? 1 : 0) - (b.pass ? 1 : 0));
+        const _rank = x => ({ reported: 0, pear: 1, practice: 2, verified: 3 }[x.v.stage]);
+        _cuAuto.sort((a, b) => _rank(a) - _rank(b));
+        const _when = (...isos) => { for (const iso of isos) { const d = new Date(iso); if (iso && !isNaN(d)) return d.toLocaleDateString('en-US', { month:'short', day:'numeric' }); } return ''; };
+        const _cell = (ok, txt) => `<span class="t-cu-cell ${ok === true ? 't-cu-yes' : ok === false ? 't-cu-no' : ''}">${txt}</span>`;
         const _cuAutoHtml = _cuAuto.length ? `<div class="t-catchup-section t-cu-auto">
-          <div class="t-catchup-hdr">📊 Session 2 Catch-Up — Auto-Graded (${_cuAuto.filter(x => x.pass).length} complete, ${_cuAuto.filter(x => !x.pass).length} not passed yet)</div>
-          <p class="t-cu-sub">Students pass with ${PASS_MIN} of 4 correct. Passing completes the tile and gives the catch-up reward automatically — no approval needed.</p>
-          <div class="t-catchup-list">${_cuAuto.map(x => `<div class="t-catchup-row t-cu-row">
-              <span class="t-catchup-name">${escHtml(x.rName)}</span>
+          <div class="t-catchup-hdr">📊 Session 2 Catch-Up (${_cuAuto.filter(x => x.v.stage === 'reported').length} to verify)</div>
+          <p class="t-cu-sub">Practice is graded automatically (pass = ${PASS_MIN} of 4). The tile is completed and the reward given when the student reports their Pear exit ticket. Check Pear, then <b>Verify</b> — or <b>Send Back</b> if the exit ticket isn’t there. Verifying never awards a medal level or Mastery Seal.</p>
+          <div class="t-catchup-list">${_cuAuto.map(x => {
+            const v = x.v;
+            const practice = v.passAttempt ? _cell(true, `Practice ✓ ${v.passAttempt.correct}/${v.passAttempt.total}`)
+              : v.legacyComplete ? _cell(null, 'Practice: before update')
+              : _cell(false, `Practice ✗ ${v.last ? `${v.last.correct}/${v.last.total}` : '—'}`);
+            const pear = v.verified ? _cell(true, 'Pear: verified ✓')
+              : v.stage === 'reported' ? _cell(null, `Pear: reported ${_when(x.rec.etConfirmedAt, x.rec.submittedAt)} · not verified`)
+              : x.rec.status === 'returned' ? _cell(false, 'Pear: sent back')
+              : !v.pear.available ? _cell(false, 'Pear: link missing')
+              : v.pear.opened ? _cell(null, 'Pear: opened, not reported') : _cell(false, 'Pear: not started');
+            const tile = v.tileComplete ? _cell(true, 'Tile complete') : _cell(false, 'Tile not complete');
+            const actions = v.stage === 'reported'
+              ? (STATE.cuSendBackKey === x.key
+                  ? `<div class="t-cu-sb"><textarea id="t-cu-sb-note" rows="2" placeholder="What needs fixing? (the student sees this)"></textarea>
+                     <button class="btn btn-outline-sm" data-cu-sb-confirm="${x.key}">↩ Send back</button>
+                     <button class="btn btn-outline-sm" data-cu-sb-cancel="1">Cancel</button></div>`
+                  : `<button class="btn btn-outline-sm t-cu-accept" data-cu-accept="${x.key}">✅ Verify</button>
+                     <button class="btn btn-outline-sm" data-cu-sendback="${x.key}">↩ Send Back</button>`)
+              : '';
+            return `<div class="t-catchup-row t-cu-row">
+              <span class="t-catchup-name">${escHtml(x.rName)} <span class="t-cu-num">#${x.student.id}</span></span>
               <span class="t-catchup-period">${x.period.periodName}</span>
               <span class="t-catchup-missed">${x.land.name} · ${sessionLabel(x.tile).split(' · ')[0]}</span>
-              <span class="t-catchup-count">${x.pass ? `✅ Complete — ${x.pass.correct}/${x.pass.total}` : `⏳ Not passed yet — last ${x.last.correct}/${x.last.total}`} · ${x.n} ${x.n === 1 ? 'try' : 'tries'}</span>
-            </div>`).join('')}</div>
+              ${practice}${_cell(null, `${v.tries} ${v.tries === 1 ? 'try' : 'tries'}`)}${pear}${tile}
+              ${actions}
+            </div>`;
+          }).join('')}</div>
         </div>` : '';
         if (catchUpRows.length === 0) return _cuReviewHtml + _cuAutoHtml;
         return _cuReviewHtml + _cuAutoHtml + `<div class="t-catchup-section">
@@ -12645,6 +12692,21 @@ function bindEvents() {
         const st = cu3State(land, tile);
         st.answers = Object.assign({}, st.answers, { [b.dataset.cu3Part]: Number(b.dataset.cu3Choice) });
         const y = window.scrollY; mount(); window.scrollTo(0, y);
+      }));
+      document.querySelectorAll("[data-cu4-open]").forEach(a => a.addEventListener("click", () => {
+        // the link opens Pear in a new tab; record "opened" (not "done")
+        setTimeout(() => {
+          const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
+          runCatchUpAction(student, land, tile, 'openPear');
+          saveTaskCheck(student.id, tile.id, 'exitTicketOpened', 0, true);
+          mount();
+        }, 0);
+      }));
+      document.querySelectorAll('[data-cu2="reportPear"]').forEach(b => b.addEventListener("click", () => {
+        const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
+        if (b.disabled) return; b.disabled = true;
+        runCatchUpAction(student, land, tile, 'reportPear');
+        mount();
       }));
       document.querySelectorAll('[data-cu2="grade"]').forEach(b => b.addEventListener("click", () => {
         const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
