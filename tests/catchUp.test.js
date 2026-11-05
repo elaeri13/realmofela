@@ -108,6 +108,10 @@ test('teacher Verify → verified; Send Back → student reports again with no s
   const vb = catchUpView(sb.rec, { pearUrl: PEAR });
   assert.equal(vb.stage, 'pear');
   assert.equal(vb.tileComplete, true, 'send back does not take the tile away');
+  assert.equal(vb.practicePassed, true, 'send back keeps the passed practice');
+  assert.deepEqual(attempts(sb.rec), attempts(reported), 'send back keeps every practice attempt');
+  assert.equal(sb.rec.rewardGrantedAt, 'paid', 'send back keeps the reward marker, so no second payment');
+  assert.equal(act(sb.rec, 'grade', { answers: right }).reason, 'already-passed', 'no practice redo after send back');
   const again = ok(sb.rec, 'reportPear');
   assert.deepEqual(again.effects, { completeTile: false, grantReward: false });
   assert.equal(again.rec.submitCount, 2);

@@ -59,7 +59,12 @@ The content comes from the Unit 2, Module 1, Session 2 teacher guide (Curriculum
 - **In progress, never submitted:** the student must now pass practice, then complete Pear.
 
 ## Teacher visibility
-- **"📊 Session 2 Catch-Up (N to verify)" on the Teacher Dashboard.** For each student, the list shows:
+- **"📊 Session 2 Catch-Up — N completed · M verified" on the Teacher Dashboard.** Each row starts with a status badge:
+  - **✅ Completed (Student Reported):** passed practice and reported the Pear exit ticket. The tile and reward are already given, and **no teacher action is needed**.
+  - **🛡️ Verified:** the teacher checked Pear and clicked Verify. This is an optional spot-check that never adds rewards.
+  - **↩ Sent back — re-reporting:** the tile, reward and practice score are kept.
+  - **⏳ In progress**
+- **The row also shows:**
   - name and student number, period, and session
   - practice result (✓ score / ✗ last score / before update) and number of tries
   - Pear status (not started / opened / reported, not verified / verified ✓ / sent back / link missing)
@@ -84,14 +89,16 @@ no security-rule changes.
   - Verify / Send Back / re-report with no second reward
   - earlier-version records
   - only existing fields written; no mutation
-- **Browser pilot suite: 40/40** (fictional students, in-memory database). It covers:
+- **Browser pilot suite: 48/48** (fictional students, in-memory database). It covers:
   - fail and retry
   - pass
   - the Pear link opening the stored URL
   - opened vs reported
   - a double-clicked report paying once
   - refresh at every stage
-  - teacher Verify / Send Back
+  - teacher Verify / Send Back (practice score and attempts kept, no second reward)
+  - the Completed (Student Reported) vs Verified badges
+  - an absent student getting the saved link weeks later
   - a lesson-day exit ticket
   - a missing link
   - earlier-version records

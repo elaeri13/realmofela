@@ -8383,13 +8383,14 @@ function renderTeacherDashboard() {
             _cuAuto.push({ student, rName: _roster[String(student.id)] || getCharName(student), period, land, tile, rec, v, key: `${student.id}|${key}` });
           });
         });
-        const _rank = x => ({ reported: 0, pear: 1, practice: 2, verified: 3 }[x.v.stage]);
+        const _rank = x => ({ reported: 0, pear: 1, practice: 2, verified: 3 }[x.v.stage]);  // reported first so spot-checks are easy to find
         _cuAuto.sort((a, b) => _rank(a) - _rank(b));
         const _when = (...isos) => { for (const iso of isos) { const d = new Date(iso); if (iso && !isNaN(d)) return d.toLocaleDateString('en-US', { month:'short', day:'numeric' }); } return ''; };
         const _cell = (ok, txt) => `<span class="t-cu-cell ${ok === true ? 't-cu-yes' : ok === false ? 't-cu-no' : ''}">${txt}</span>`;
         const _cuAutoHtml = _cuAuto.length ? `<div class="t-catchup-section t-cu-auto">
-          <div class="t-catchup-hdr">📊 Session 2 Catch-Up (${_cuAuto.filter(x => x.v.stage === 'reported').length} to verify)</div>
-          <p class="t-cu-sub">Practice is graded automatically (pass = ${PASS_MIN} of 4). The tile is completed and the reward given when the student reports their Pear exit ticket. Check Pear, then <b>Verify</b> — or <b>Send Back</b> if the exit ticket isn’t there. Verifying never awards a medal level or Mastery Seal.</p>
+          <div class="t-catchup-hdr">📊 Session 2 Catch-Up — ${_cuAuto.filter(x => x.v.tileComplete).length} completed · ${_cuAuto.filter(x => x.v.verified).length} verified</div>
+          <p class="t-cu-sub"><b>✅ Completed (Student Reported)</b> = passed practice (${PASS_MIN} of 4) and said they submitted the Pear exit ticket. The tile and reward are already given — no teacher action is needed.
+          <b>🛡️ Verified</b> = you checked Pear and clicked Verify. Verifying is an optional spot-check: it never adds rewards, a medal level or a Mastery Seal. <b>Send Back</b> asks the student to redo the exit ticket; it keeps their tile, reward and practice score.</p>
           <div class="t-catchup-list">${_cuAuto.map(x => {
             const v = x.v;
             const practice = v.passAttempt ? _cell(true, `Practice ✓ ${v.passAttempt.correct}/${v.passAttempt.total}`)
@@ -8401,19 +8402,23 @@ function renderTeacherDashboard() {
               : !v.pear.available ? _cell(false, 'Pear: link missing')
               : v.pear.opened ? _cell(null, 'Pear: opened, not reported') : _cell(false, 'Pear: not started');
             const tile = v.tileComplete ? _cell(true, 'Tile complete') : _cell(false, 'Tile not complete');
+            const status = v.verified ? `<span class="t-cu-cell t-cu-status t-cu-st-ver">🛡️ Verified</span>`
+              : v.stage === 'reported' ? `<span class="t-cu-cell t-cu-status t-cu-st-rep">✅ Completed (Student Reported)</span>`
+              : x.rec.status === 'returned' ? `<span class="t-cu-cell t-cu-status t-cu-st-sb">↩ Sent back — re-reporting</span>`
+              : `<span class="t-cu-cell t-cu-status t-cu-st-ip">⏳ In progress</span>`;
             const actions = v.stage === 'reported'
               ? (STATE.cuSendBackKey === x.key
                   ? `<div class="t-cu-sb"><textarea id="t-cu-sb-note" rows="2" placeholder="What needs fixing? (the student sees this)"></textarea>
                      <button class="btn btn-outline-sm" data-cu-sb-confirm="${x.key}">↩ Send back</button>
                      <button class="btn btn-outline-sm" data-cu-sb-cancel="1">Cancel</button></div>`
-                  : `<button class="btn btn-outline-sm t-cu-accept" data-cu-accept="${x.key}">✅ Verify</button>
+                  : `<button class="btn btn-outline-sm t-cu-accept" data-cu-accept="${x.key}">🛡️ Verify</button>
                      <button class="btn btn-outline-sm" data-cu-sendback="${x.key}">↩ Send Back</button>`)
               : '';
             return `<div class="t-catchup-row t-cu-row">
               <span class="t-catchup-name">${escHtml(x.rName)} <span class="t-cu-num">#${x.student.id}</span></span>
               <span class="t-catchup-period">${x.period.periodName}</span>
               <span class="t-catchup-missed">${x.land.name} · ${sessionLabel(x.tile).split(' · ')[0]}</span>
-              ${practice}${_cell(null, `${v.tries} ${v.tries === 1 ? 'try' : 'tries'}`)}${pear}${tile}
+              ${status}${practice}${_cell(null, `${v.tries} ${v.tries === 1 ? 'try' : 'tries'}`)}${pear}${tile}
               ${actions}
             </div>`;
           }).join('')}</div>
