@@ -2,7 +2,7 @@ import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, run
 import { NAMES, EPITHETS } from './data/characterNames.js'
 import { CHARACTER_ABILITIES, LEVEL10_FRAME_ID, XP_PER_LEVEL, rewardsForLevel, levelStatus, claimableLevels, trackLevels, nextRewardLevel, nextMilestoneLevel, abilityStatus, levelsToCelebrate, isMilestone, isAbilityLevel, isClaimablePart, partLabel, partIcon } from './levelRewards.js'
 import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession } from './currentSession.js'
-import { isCatchUpPilot, catchUpKey, catchUpContent, catchUpView, applyCatchUp } from './catchUp.js'
+import { isCatchUpPilot, catchUpKey, catchUpContent, catchUpView, applyCatchUp, highlightParts, reviewSummary } from './catchUp.js'
 
 /* ═══════════════════════════════════════════════
    REALM OF ELA  —  Pure Vanilla JS
@@ -2272,7 +2272,7 @@ function applyAcceptedCatchUpBoss(student, land, tileId) {
 function catchUpContentFor(land, tile) { return catchUpContent(land.id, tile.id, getLessonScheduleEntry(land.id, tile.id)); }
 function runCatchUpAction(student, land, tile, action, opts = {}) {
   const res = applyCatchUp(getCatchUpRecord(student.id, land.id, tile.id), action,
-    { legacy: getTaskProgress(student.id, tile.id), contentReady: catchUpContentFor(land, tile).ready, ...opts });
+    { legacy: getTaskProgress(student.id, tile.id), contentReady: catchUpContentFor(land, tile).ready, mustDo: (tile.mustDo || []).length, correct: catchUpContentFor(land, tile).tryCorrect, ...opts });
   if (!res.ok) return res;
   storeCatchUpRecord(student.id, land.id, tile.id, res.rec);
   const fx = res.effects;
@@ -2288,72 +2288,79 @@ function runCatchUpAction(student, land, tile, action, opts = {}) {
 }
 function renderCatchUpPilot(student, land, tile, waygroundUrl, pearUrl) {
   const c = catchUpContentFor(land, tile);
-  const v = catchUpView(getCatchUpRecord(student.id, land.id, tile.id), getTaskProgress(student.id, tile.id), { contentReady: c.ready });
+  const mustItems = tile.mustDo || [];
+  const rec = getCatchUpRecord(student.id, land.id, tile.id) || {};
+  const v = catchUpView(rec, getTaskProgress(student.id, tile.id), { contentReady: c.ready, mustDo: mustItems.length });
   const sess = sessionLabel(tile).split(' · ')[0];
   const teacher = getClassTeacherName(student);
   const nl = t => escHtml(t).replace(/\n/g, '<br>');
+  const videoUrl = normalizeLink(getLessonScheduleEntry(land.id, tile.id).skillVideo || '');
   const chip = { not_started:'cu2-chip-new', in_progress:'cu2-chip-prog', submitted:'cu2-chip-sub', returned:'cu2-chip-ret', accepted:'cu2-chip-acc' }[v.status];
-  const stepState = k => {
-    if (k === 'recap')   return v.recap.done ? 'done' : v.recap.skipped ? 'skipped' : (v.step === 'recap' ? 'current' : 'todo');
-    if (k === 'example') return v.example.done ? 'done' : v.example.skipped ? 'skipped' : (v.step === 'example' ? 'current' : 'todo');
-    if (k === 'work')    return (v.rl.confirmed && v.et.confirmed) ? 'done' : (v.step === 'work' ? 'current' : 'todo');
-    return v.submitCount > 0 ? 'done' : (v.step === 'submit' ? 'current' : 'todo');
-  };
-  // Without approved recap/example content, those steps are left out entirely (no draft text, no placeholders).
-  const stepList = (c.ready ? [['recap','Recap'],['example','Example']] : []).concat([['work','Your Work'],['submit','Submit']]);
-  const pills = stepList.map(([k, l], i) =>
-    `<div class="cu2-pill cu2-pill-${stepState(k)}"><span>${stepState(k) === 'done' ? '✓' : stepState(k) === 'skipped' ? '⏭' : i + 1}</span>${l}</div>`).join('<div class="cu2-pill-sep"></div>');
-  const openStep = STATE.cu2Peek || v.step;
-  const revealKey = catchUpKey(land.id, tile.id);
-  if (STATE.cu2RevealKey !== revealKey) { STATE.cu2RevealKey = revealKey; STATE.cu2Reveal = v.example.done ? c.exampleSteps.length : 0; STATE.cu2Peek = null; }
+  const key = catchUpKey(land.id, tile.id);
+  if (STATE.cu2Key !== key) { STATE.cu2Key = key; STATE.cu2Peek = null; STATE.cu2ShowReview = false; }
   // "Welcome back" only when the tile is reopened with saved progress, not after every tap.
-  if (STATE.cu2OpenedAt !== STATE.lessonOpenedAt) { STATE.cu2OpenedAt = STATE.lessonOpenedAt; STATE.cu2WelcomeBack = v.resumed; }
-  const reveal = Math.min(STATE.cu2Reveal || 0, c.exampleSteps.length);
-  const section = (k, num, title, body, doneNote) => {
-    const st = stepState(k), open = openStep === k;
+  if (STATE.cu2OpenedAt !== STATE.lessonOpenedAt) { STATE.cu2OpenedAt = STATE.lessonOpenedAt; STATE.cu2WelcomeBack = v.resumed; STATE.cu2Peek = null; STATE.cu2ShowReview = false; }
+  const showReview = c.ready && !v.locked && v.status !== 'returned' && !v.needsChoice && (v.route !== 'continue' || STATE.cu2ShowReview);
+  const reviewStates = {
+    remember: v.review.remember ? 'done' : (v.step === 'remember' ? 'current' : 'todo'),
+    see: v.review.see ? 'done' : (v.step === 'see' ? 'current' : 'todo'),
+    try: v.review.tryCorrect ? 'done' : (v.step === 'try' ? 'current' : 'todo'),
+    work: v.workDone ? 'done' : (['work', 'submit'].includes(v.step) ? 'current' : 'todo'),
+  };
+  const pills = showReview ? [['remember','Remember'],['see','See one'],['try','Try one'],['work','Finish your work']].map(([k, l], i) =>
+    `<div class="cu2-pill cu2-pill-${reviewStates[k]}"><span>${reviewStates[k] === 'done' ? '✓' : i + 1}</span>${l}</div>`).join('<div class="cu2-pill-sep"></div>') : '';
+  const openStep = STATE.cu2Peek || v.step;
+  const section = (k, num, title, body, extraTag) => {
+    const st = reviewStates[k], open = openStep === k || (k === 'work' && openStep === 'submit');
     return `<div class="cu2-step cu2-step-${st}${open ? ' cu2-open' : ''}">
       <button class="cu2-step-hdr" data-cu2-peek="${k}"><span class="cu2-num">${st === 'done' ? '✓' : num}</span><span class="cu2-step-title">${title}</span>
-        <span class="cu2-step-tag">${st === 'done' ? (doneNote || 'Reviewed') : st === 'skipped' ? 'Skipped — tap to review' : st === 'current' ? 'Up next' : (k === 'work' && !v.learnReady ? 'After the recap and example' : '')}</span></button>
+        <span class="cu2-step-tag">${st === 'done' ? 'Done — tap to look again' : st === 'current' ? 'Up next' : (extraTag || '')}</span></button>
       ${open ? `<div class="cu2-step-body">${body}</div>` : ''}
     </div>`;
   };
-  const choice = (k, item, reviewBtn) => item.done ? '' : `
-    ${item.canSkip && !item.skipped ? `<p class="cu2-choice">You started this lesson in class. Do you want to review this, or skip it?</p>` : ''}
-    <div class="cu2-choice-btns">${reviewBtn}
-      ${item.canSkip && !item.skipped ? `<button class="cu2-btn cu2-btn-skip" data-cu2="${k === 'recap' ? 'skipRecap' : 'skipExample'}">⏭ Skip — I learned this in class</button>` : ''}</div>`;
-  const recapBody = `<div class="cu2-recap">${nl(c.recap)}</div>
-    ${choice('recap', v.recap, `<button class="cu2-btn" data-cu2="recap">${v.recap.skipped ? '✓ I reviewed it' : 'Got it — next: the example →'}</button>`)}`;
-  const steps = c.exampleSteps.map((st, i) => i < reveal
-    ? `<div class="cu2-ex-step"><div class="cu2-ex-q">${i + 1}. ${escHtml(st.label)}</div>${st.text ? `<div class="cu2-ex-a">${escHtml(st.text)}</div>` : ''}</div>` : '').join('');
-  const exampleBody = `<div class="cu2-passage">${nl(c.examplePassage)}</div>
-    <div class="cu2-ex-steps">${steps}</div>
-    ${choice('example', v.example, reveal < c.exampleSteps.length
-      ? `<button class="cu2-btn cu2-btn-soft" id="cu2-reveal">Show step ${reveal + 1} of ${c.exampleSteps.length}</button>`
-      : `<button class="cu2-btn" data-cu2="example">${v.example.skipped ? '✓ I reviewed it' : 'I understand the example — next: my work →'}</button>`)}`;
-  const linkRow = (which, n, label, url, item, unlocked, lockMsg) => {
-    const opened = item.opened, confirmed = item.confirmed;
-    const status = confirmed ? `<span class="cu2-tag cu2-tag-conf">☑ You marked this finished</span>`
-      : opened ? `<span class="cu2-tag cu2-tag-open">Opened${item.openedInClass ? ' (in class)' : ''}</span>` : `<span class="cu2-tag">Not opened yet</span>`;
-    const canOpen = unlocked && url && !v.locked;
-    return `<div class="cu2-work${!unlocked ? ' cu2-work-locked' : ''}">
-      <div class="cu2-work-top"><span class="cu2-work-n">${n}</span><span class="cu2-work-label">${label}</span>${status}</div>
-      ${!unlocked ? `<p class="cu2-hint">🔒 ${lockMsg}</p>` : !url ? `<p class="cu2-hint">The link hasn't been added yet. Let ${teacher} know.</p>` : ''}
-      ${canOpen ? `<a class="cu2-link" href="${url}" target="_blank" rel="noopener noreferrer" data-cu2-open="${which}">${opened ? '↗ Open again' : '↗ Open'} ${label}</a>` : ''}
-      ${unlocked && !confirmed && !v.locked ? `<button class="cu2-btn cu2-confirm" data-cu2="confirm${which}" ${opened ? '' : 'disabled'}>☑ I finished ${label}</button>
-        ${!opened ? `<p class="cu2-hint">Open it first, then come back and tap this.</p>` : ''}` : ''}
-    </div>`;
-  };
-  const workBody = `<p class="cu2-dir"><b>What's left for ${escHtml(sess)}:</b> read the lesson in Wayground, then answer the Exit Ticket in Pear Deck — that's where your gist statement goes. Come back here after each one and tap "I finished."</p>
-    ${linkRow('RL', '①', 'Read and Learn', waygroundUrl, v.rl, v.learnReady, 'Review or skip the recap and example first.')}
-    ${linkRow('ET', '②', 'Exit Ticket', pearUrl, v.et, v.et.unlocked, 'Finish Read and Learn first.')}
-    <p class="cu2-fine">The Realm can't see your work in Wayground or Pear Deck — ${teacher} checks it there.</p>`;
-  const submitBody = v.status === 'not_started' || v.status === 'in_progress'
-    ? `<p class="cu2-dir">Submitting completes this tile so you can keep going on the map. ${teacher} will review your Exit Ticket.</p>
-       <button class="cu2-btn cu2-submit" data-cu2="submit" ${v.canSubmit ? '' : 'disabled'}>📬 Submit for review</button>
-       ${v.canSubmit ? '' : `<p class="cu2-hint">Finish both parts of Your Work first.</p>`}`
-    : '';
+  // 1 · Remember
+  const rememberBody = `<div class="cu2-recap">${nl(c.explain)}</div>
+    ${v.review.remember ? '' : `<button class="cu2-btn" data-cu2="remember">Got it — show me one →</button>`}`;
+  // 2 · See one
+  const marked = highlightParts(c.seePassage, c.seeTopic, c.seeIdea).map(p => p.kind
+    ? `<mark class="cu2-mark cu2-mark-${p.kind}">${escHtml(p.text)}</mark>` : escHtml(p.text)).join('').replace(/\n/g, '<br>');
+  const seeBody = `<div class="cu2-legend"><span class="cu2-mark cu2-mark-topic">Topic</span><span class="cu2-mark cu2-mark-idea">Important idea</span></div>
+    <div class="cu2-passage">${marked}</div>
+    <div class="cu2-gist"><div class="cu2-gist-lbl">Gist</div>${escHtml(c.seeGist)}</div>
+    ${v.review.see ? '' : `<button class="cu2-btn" data-cu2="see">I see it — let me try one →</button>`}`;
+  // 3 · Try one
+  const last = rec.tryLastChoice || 0, lastRight = last && last === c.tryCorrect;
+  const tryBody = `<div class="cu2-passage">${nl(c.tryPassage)}</div>
+    <p class="cu2-dir"><b>Which sentence is the best gist?</b></p>
+    <div class="cu2-opts">${c.tryChoices.map((txt, i) => {
+      const n = i + 1, picked = n === last;
+      return `<button class="cu2-opt${picked ? (lastRight ? ' cu2-opt-right' : ' cu2-opt-wrong') : ''}" data-cu2-try="${n}" ${v.review.tryCorrect ? 'disabled' : ''}>
+        <span class="cu2-opt-letter">${'ABC'[i] || n}</span><span>${escHtml(txt)}</span></button>`;
+    }).join('')}</div>
+    ${last ? `<div class="cu2-fb ${lastRight ? 'cu2-fb-right' : 'cu2-fb-wrong'}" role="status">
+      <b>${lastRight ? '✓ Correct.' : 'Not quite.'}</b> ${escHtml(c.tryFeedback[last - 1] || '')}
+      ${lastRight ? '' : '<div class="cu2-fb-retry">Try again — wrong answers don’t cost anything.</div>'}</div>` : ''}
+    ${lastRight && STATE.cu2Peek === 'try' ? `<button class="cu2-btn" id="cu2-try-next">Next: finish your work →</button>` : ''}`;
+  // 4 · Finish your work (only the required tasks that are still open)
+  const etRow = !v.et.confirmed ? `<div class="cu2-work">
+      <div class="cu2-work-top"><span class="cu2-work-label">Exit Ticket <span class="cu2-sub">(Pear Deck — your gist goes here)</span></span>
+        ${v.et.opened ? `<span class="cu2-tag cu2-tag-open">Opened${v.et.openedInClass ? ' (in class)' : ''}</span>` : `<span class="cu2-tag">Not opened yet</span>`}</div>
+      ${pearUrl ? `<a class="cu2-link" href="${pearUrl}" target="_blank" rel="noopener noreferrer" data-cu2-open="ET">${v.et.opened ? '↗ Open the Exit Ticket again' : '↗ Open the Exit Ticket'}</a>`
+                : `<p class="cu2-hint">The Exit Ticket link hasn't been added yet. Let ${teacher} know.</p>`}
+      <button class="cu2-btn cu2-confirm" data-cu2="confirmET" ${v.et.opened ? '' : 'disabled'}>☑ I finished the Exit Ticket</button>
+      ${!v.et.opened ? `<p class="cu2-hint">Open it first, then come back and tap this.</p>` : ''}
+    </div>` : '';
+  const mustRows = mustItems.map((label, i) => v.must[i].done ? '' : `<div class="cu2-work">
+      <div class="cu2-work-top"><span class="cu2-work-label">${escHtml(label)}</span></div>
+      <button class="cu2-btn cu2-confirm" data-cu2-must="${i}">☑ I finished this</button></div>`).join('');
+  const workBody = !v.reviewSettled ? `<p class="cu2-hint">Finish the Quick Review first.</p>`
+    : `${v.workDone ? `<p class="cu2-dir">✓ All the required ${escHtml(sess)} work is marked finished.</p>`
+                    : `<p class="cu2-dir"><b>Still to do for ${escHtml(sess)}:</b></p>${etRow}${mustRows}`}
+       <p class="cu2-fine">The Realm can't see your work in Pear Deck — ${teacher} checks it there.</p>
+       <p class="cu2-dir">Submitting completes this tile so you can keep going. ${teacher} will review your work.</p>
+       <button class="cu2-btn cu2-submit" data-cu2="submit" ${v.canSubmit ? '' : 'disabled'}>📬 Submit for review</button>`;
   const statusCard = v.status === 'submitted'
-    ? `<div class="cu2-status cu2-status-sub"><b>📬 Submitted — awaiting review</b><p>Your tile is complete so you can keep going. This is not a mastery result yet — ${teacher} will check your Exit Ticket.</p></div>`
+    ? `<div class="cu2-status cu2-status-sub"><b>📬 Submitted — awaiting review</b><p>Your tile is complete so you can keep going. This is not a mastery result — ${teacher} will check your work.</p></div>`
     : v.status === 'returned'
     ? `<div class="cu2-status cu2-status-ret"><b>↩ ${teacher} sent this back</b>
         <p class="cu2-note">“${escHtml(v.returnNote)}”</p>
@@ -2365,18 +2372,33 @@ function renderCatchUpPilot(student, land, tile, waygroundUrl, pearUrl) {
       </div>`
     : v.status === 'accepted'
     ? `<div class="cu2-status cu2-status-acc"><b>✅ Completion confirmed by ${teacher}</b><p>Nice work catching up on ${escHtml(sess)}.</p></div>` : '';
-  const showSteps = !v.locked && v.status !== 'returned';
+  const chooseCard = v.needsChoice ? `<div class="cu2-choose">
+      <p class="cu2-dir"><b>You started ${escHtml(sess)} in class.</b> How do you want to catch up?</p>
+      <button class="cu2-btn" data-cu2="chooseReview">⚡ Quick Review <span class="cu2-sub-light">(about 5 minutes)</span></button>
+      <button class="cu2-btn cu2-btn-soft" data-cu2="chooseContinue">➡ Continue my work</button>
+    </div>` : '';
+  // Need more help? — optional links, hidden when missing; never required
+  const help = (waygroundUrl || videoUrl) && v.status !== 'accepted' ? `<details class="cu2-help"${STATE.cu2HelpOpen ? ' open' : ''}>
+      <summary>Need more help?</summary>
+      <p class="cu2-hint">Optional — you don't have to do these to finish.</p>
+      ${waygroundUrl ? `<a class="cu2-link cu2-link-soft" href="${waygroundUrl}" target="_blank" rel="noopener noreferrer" data-cu2-open="RL">📖 Full ${escHtml(sess)} lesson (Wayground)</a>` : ''}
+      ${videoUrl ? `<a class="cu2-link cu2-link-soft" href="${videoUrl}" target="_blank" rel="noopener noreferrer" data-cu2-open="VIDEO">▶ Lesson video (Schoology)</a>` : ''}
+    </details>` : '';
+  const work = (!v.locked && v.status !== 'returned' && !v.needsChoice)
+    ? (showReview
+        ? section('remember', 1, 'Remember', rememberBody) + section('see', 2, 'See one', seeBody) + section('try', 3, 'Try one', tryBody)
+          + section('work', 4, 'Finish your work', workBody, 'After the Quick Review')
+        : `<div class="cu2-step cu2-step-current cu2-open"><div class="cu2-step-body cu2-step-body-solo"><div class="cu2-step-title">Finish your work</div>${workBody}</div></div>
+           ${c.ready && v.route === 'continue' && !v.review.done ? `<button class="cu2-linkbtn" id="cu2-show-review">Want a Quick Review first?</button>` : ''}`)
+    : '';
   return `<div class="cu2" id="cu2">
     <div class="cu2-hdr">
       <div class="cu2-title">📚 Catch up — ${escHtml(sess)}${c.skill ? `<span class="cu2-skill">${escHtml(c.skill)}${c.standard ? ` · ${escHtml(c.standard)}` : ''}</span>` : ''}</div>
       <span class="cu2-chip ${chip}">${escHtml(v.label)}</span>
     </div>
-    <div class="cu2-pills">${pills}</div>
-    ${v.resumed && STATE.cu2WelcomeBack ? `<p class="cu2-resume">👋 Welcome back — your progress is saved. Pick up at <b>${{ recap:'Recap', example:'Example', work:'Your Work', submit:'Submit' }[v.step]}</b>.</p>` : ''}
-    ${statusCard}
-    ${showSteps ? (c.ready ? section('recap', 1, 'Skill Recap', recapBody) + section('example', 2, 'Worked Example', exampleBody) : '')
-      + section('work', c.ready ? 3 : 1, 'Your Work', workBody, 'Finished')
-      + section('submit', c.ready ? 4 : 2, 'Submit', submitBody, 'Submitted') : ''}
+    ${pills ? `<div class="cu2-pills" aria-label="Quick Review steps">${pills}</div>` : ''}
+    ${v.resumed && STATE.cu2WelcomeBack ? `<p class="cu2-resume">👋 Welcome back — your progress is saved.</p>` : ''}
+    ${statusCard}${chooseCard}${work}${help}
   </div>`;
 }
 // Auto-advance student to the schedule-based current tile (silently on map open).
@@ -7911,25 +7933,42 @@ function renderTeacherLessonSchedule() {
         </table>
       </div>
       ${order.filter(tid => isCatchUpPilot(landId, tid)).map(tid => {
-        const c = catchUpContent(landId, tid, getLessonScheduleEntry(landId, tid));
+        const entry = getLessonScheduleEntry(landId, tid);
+        const c = catchUpContent(landId, tid, entry);
         const t = tileMap[tid];
+        const sess = t ? sessionLabel(t).split(' · ')[0] : 'Session ' + tid;
+        const ta = (field, label, val, rows = 4, hint = '') => `<label class="tls-cu-lbl" for="tls-cu-${field}">${label}${hint ? ` <span class="tls-cu-hint">${hint}</span>` : ''}</label>
+          <textarea id="tls-cu-${field}" class="tls-input tls-cu-ta" rows="${rows}" data-cu-field="${field}">${escHtml(val)}</textarea>`;
+        const inp = (field, label, val, hint = '') => `<label class="tls-cu-lbl" for="tls-cu-${field}">${label}${hint ? ` <span class="tls-cu-hint">${hint}</span>` : ''}</label>
+          <input id="tls-cu-${field}" class="tls-input tls-cu-in" data-cu-field="${field}" value="${escHtml(val)}"/>`;
         return `<div class="tls-cu" data-cu-tid="${tid}">
-          <div class="tls-cu-hdr">🧭 Catch-up pilot — ${t ? sessionLabel(t).split(' · ')[0] : 'Session ' + tid} content
+          <div class="tls-cu-hdr">🧭 Quick Review — ${sess}
             <span class="tls-cu-badge ${c.isFinal ? 'tls-cu-final' : 'tls-cu-draft'}">${c.isFinal ? '✅ Approved' : '📝 Draft — not yet approved'}</span></div>
           <p class="tls-hint">${c.isFinal
-            ? 'Students see this recap and example inside the missed-lesson tile.'
-            : '<b>Students do not see this text yet.</b> Until you approve it, the tile skips straight to Your Work.'}
-            ${c.usesDraft ? ' Fields you haven\'t saved show the sample draft.' : ''} Saving changes puts the content back into Draft until you approve it again.</p>
-          <label class="tls-cu-lbl">Skill recap</label>
-          <textarea class="tls-input tls-cu-ta" rows="6" data-cu-field="recapText">${escHtml(c.recap)}</textarea>
-          <label class="tls-cu-lbl">Worked example — passage</label>
-          <textarea class="tls-input tls-cu-ta" rows="6" data-cu-field="cuExamplePassage">${escHtml(c.examplePassage)}</textarea>
-          <label class="tls-cu-lbl">Worked example — steps (one per line: <i>Question | Answer</i>)</label>
-          <textarea class="tls-input tls-cu-ta" rows="6" data-cu-field="cuExampleSteps">${escHtml(c.stepsText)}</textarea>
+            ? 'Students see this Quick Review inside the missed-lesson tile.'
+            : '<b>Students do not see this text yet.</b> Until you approve it, the tile skips the Quick Review and goes straight to the Exit Ticket.'}
+            ${c.usesDraft ? ' Fields you haven\'t saved show the sample draft.' : ''} Saving changes puts the Quick Review back into Draft until you approve it again.</p>
+          ${c.problems.length ? `<ul class="tls-cu-problems">${c.problems.map(p => `<li>${escHtml(p)}</li>`).join('')}</ul>` : ''}
+          <div class="tls-cu-sec">1 · Remember</div>
+          ${ta('recapText', 'Explanation', c.explain, 6)}
+          <div class="tls-cu-sec">2 · See one</div>
+          ${ta('cuSeePassage', 'Paragraph', c.seePassage, 5)}
+          ${inp('cuSeeTopic', 'Topic to highlight', c.seeTopic, 'copy the words exactly from the paragraph')}
+          ${inp('cuSeeIdea', 'Important idea to highlight', c.seeIdea, 'copy the words exactly from the paragraph')}
+          ${ta('cuSeeGist', 'Modeled gist', c.seeGist, 2)}
+          <div class="tls-cu-sec">3 · Try one</div>
+          ${ta('cuTryPassage', 'Paragraph', c.tryPassage, 5)}
+          ${ta('cuTryChoices', 'Three answer choices', c.tryChoicesText, 3, 'one per line')}
+          ${inp('cuTryCorrect', 'Correct answer', String(c.tryCorrect || ''), '1, 2 or 3')}
+          ${ta('cuTryFeedback', 'Feedback for each choice', c.tryFeedbackText, 4, 'one line per choice, same order')}
+          <div class="tls-cu-sec">Need more help? (optional links)</div>
+          ${inp('skillVideo', 'Schoology lesson video', entry.skillVideo || '', 'optional — hidden from students when blank')}
+          <p class="tls-hint">The Wayground link comes from the table above. Neither link is required to finish.</p>
           <div class="tls-cu-btns">
             <button class="tls-save-btn" data-cu-save="${tid}">Save as draft</button>
             <button class="tls-save-btn" data-cu-approve="${tid}" data-approved="${c.isFinal ? '1' : ''}">${c.isFinal ? 'Mark as draft again' : 'Approve as final'}</button>
           </div>
+          ${STATE.cuApproveMsg ? `<p class="tls-cu-msg" role="status">${escHtml(STATE.cuApproveMsg)}</p>` : ''}
         </div>`;
       }).join('')}
     </div>
@@ -8336,7 +8375,7 @@ function renderTeacherDashboard() {
         });
         const _cuReview = _cuItems.filter(x => x.rec.status === 'submitted').sort((a, b) => String(a.rec.submittedAt).localeCompare(String(b.rec.submittedAt)));
         const _cuWaiting = _cuItems.filter(x => x.rec.status === 'returned');
-        const _cuSkips = rec => [rec.recapSkippedAt && !rec.recapAt ? 'skipped recap' : '', rec.exampleSkippedAt && !rec.exampleAt ? 'skipped example' : ''].filter(Boolean);
+
         const _cuWhen = iso => { try { return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric' }); } catch (e) { return ''; } };
         const _cuReviewHtml = (_cuReview.length || _cuWaiting.length) ? `<div class="t-catchup-section t-cu-review">
           <div class="t-catchup-hdr">📬 Catch-Up Work to Review (${_cuReview.length})</div>
@@ -8345,7 +8384,7 @@ function renderTeacherDashboard() {
             ${_cuReview.map(x => `<div class="t-catchup-row t-cu-row">
               <span class="t-catchup-name">${escHtml(x.rName)}</span>
               <span class="t-catchup-period">${x.period.periodName}</span>
-              <span class="t-catchup-missed">${x.land.name} · ${sessionLabel(x.tile).split(' · ')[0]}${(x.rec.submitCount || 1) > 1 ? ' · <b>resubmitted</b>' : ''}${_cuSkips(x.rec).length ? ` · <i>${_cuSkips(x.rec).join(', ')}</i>` : ''}</span>
+              <span class="t-catchup-missed">${x.land.name} · ${sessionLabel(x.tile).split(' · ')[0]}${(x.rec.submitCount || 1) > 1 ? ' · <b>resubmitted</b>' : ''}${reviewSummary(x.rec) ? ` · <i>${escHtml(reviewSummary(x.rec))}</i>` : ''}</span>
               <span class="t-catchup-count">Submitted ${_cuWhen(x.rec.submittedAt)}</span>
               <button class="btn btn-outline-sm t-cu-accept" data-cu-accept="${x.key}" ${STATE.cuSendBackKey === x.key ? 'hidden' : ''}>✅ Accept</button>
               ${STATE.cuSendBackKey === x.key
@@ -11926,20 +11965,36 @@ function bindEvents() {
       STATE.tlsLandId = Number(e.target.value) || 1;
       mount();
     });
+    // Quick Review editor. skillVideo is a link, not reviewed content, so it never resets approval.
+    const _cuSaveBox = (box, tid, lid) => {
+      let changed = false;
+      box.querySelectorAll("[data-cu-field]").forEach(el => {
+        const f = el.dataset.cuField, val = el.value.trim() || null;
+        const before = (getLessonScheduleEntry(lid, tid)[f] || null);
+        if (val !== before) { saveLessonScheduleField(lid, tid, f, val); if (f !== 'skillVideo') changed = true; }
+      });
+      return changed;
+    };
     document.querySelectorAll("[data-cu-save]").forEach(btn => btn.addEventListener("click", () => {
       const box = btn.closest("[data-cu-tid]"); const tid = Number(btn.dataset.cuSave);
       const _lid = STATE.tlsLandId || getMostCommonStudentLand().id;
-      box.querySelectorAll("[data-cu-field]").forEach(ta => saveLessonScheduleField(_lid, tid, ta.dataset.cuField, ta.value.trim() || null));
+      const changed = _cuSaveBox(box, tid, _lid);
       // Edited text is a draft again until it is re-approved, so changes can't go live by accident.
-      saveLessonScheduleField(_lid, tid, 'cuContentStatus', null);
+      if (changed) saveLessonScheduleField(_lid, tid, 'cuQuickReviewStatus', null);
+      STATE.cuApproveMsg = changed ? 'Saved as draft. Students won’t see these changes until you approve them.' : 'Saved.';
       mount();
     }));
     document.querySelectorAll("[data-cu-approve]").forEach(btn => btn.addEventListener("click", () => {
       const tid = Number(btn.dataset.cuApprove); const _lid = STATE.tlsLandId || getMostCommonStudentLand().id;
       const box = btn.closest("[data-cu-tid]");
-      // Approving also saves what's on screen, so the approved text is exactly what you read.
-      if (!btn.dataset.approved) box.querySelectorAll("[data-cu-field]").forEach(ta => saveLessonScheduleField(_lid, tid, ta.dataset.cuField, ta.value.trim() || null));
-      saveLessonScheduleField(_lid, tid, 'cuContentStatus', btn.dataset.approved ? null : 'final');
+      if (btn.dataset.approved) { saveLessonScheduleField(_lid, tid, 'cuQuickReviewStatus', null); STATE.cuApproveMsg = 'Back in Draft. Students no longer see the Quick Review.'; mount(); return; }
+      // Approving saves what's on screen first, so the approved text is exactly what you read.
+      _cuSaveBox(box, tid, _lid);
+      const entry = getLessonScheduleEntry(_lid, tid);
+      const c = catchUpContent(_lid, tid, Object.assign({}, entry, { cuQuickReviewStatus: 'final' }));
+      if (c.usesDraft || c.problems.length) { STATE.cuApproveMsg = 'Not approved yet: ' + (c.problems[0] || 'fill in every field.'); mount(); return; }
+      saveLessonScheduleField(_lid, tid, 'cuQuickReviewStatus', 'final');
+      STATE.cuApproveMsg = 'Approved. Students now see this Quick Review.';
       mount();
     }));
     document.querySelectorAll(".tls-save-btn[data-save-tid]").forEach(btn => {
@@ -12656,29 +12711,44 @@ function bindEvents() {
       } }, 0);
     });
 
-    // Catch-up pilot
+    // Catch-up pilot (Quick Review)
     if ($("cu2")) {
       const _cuCtx = () => ({ student: STATE.student, land: STATE.lessonLand || LANDS[0], tile: STATE.lessonTile });
       document.querySelectorAll("[data-cu2]").forEach(b => b.addEventListener("click", () => {
         const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
         const res = runCatchUpAction(student, land, tile, b.dataset.cu2);
         if (res.ok) STATE.cu2Peek = null;
+        if (b.dataset.cu2 === 'chooseReview') STATE.cu2ShowReview = true;
         mount();
+      }));
+      document.querySelectorAll("[data-cu2-try]").forEach(b => b.addEventListener("click", () => {
+        const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
+        const res = runCatchUpAction(student, land, tile, 'try', { choice: Number(b.dataset.cu2Try) });
+        // keep Try one open so the student reads why their answer is right (or wrong)
+        STATE.cu2Peek = 'try'; if (!res.ok) STATE.cu2Peek = null; mount();
+      }));
+      document.querySelectorAll("[data-cu2-must]").forEach(b => b.addEventListener("click", () => {
+        const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
+        runCatchUpAction(student, land, tile, 'confirmMust', { index: Number(b.dataset.cu2Must) }); mount();
       }));
       document.querySelectorAll("[data-cu2-open]").forEach(a => a.addEventListener("click", () => {
         const which = a.dataset.cu2Open;
         setTimeout(() => {
           const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
-          runCatchUpAction(student, land, tile, which === 'RL' ? 'openRL' : 'openET');
+          runCatchUpAction(student, land, tile, which === 'RL' ? 'openRL' : which === 'VIDEO' ? 'openVideo' : 'openET');
           // keep the lesson's own "opened" flags in step, as the normal lesson buttons do
-          saveTaskCheck(student.id, tile.id, which === 'RL' ? 'wayground' : 'exitTicketOpened', 0, true);
+          if (which !== 'VIDEO') saveTaskCheck(student.id, tile.id, which === 'RL' ? 'wayground' : 'exitTicketOpened', 0, true);
+          if (which !== 'ET') STATE.cu2HelpOpen = true;
           mount();
         }, 0);
       }));
       document.querySelectorAll("[data-cu2-peek]").forEach(b => b.addEventListener("click", () => {
         const k = b.dataset.cu2Peek; STATE.cu2Peek = STATE.cu2Peek === k ? null : k; mount();
       }));
-      $("cu2-reveal") && $("cu2-reveal").addEventListener("click", () => { STATE.cu2Reveal = (STATE.cu2Reveal || 0) + 1; mount(); });
+      $("cu2-try-next") && $("cu2-try-next").addEventListener("click", () => { STATE.cu2Peek = null; mount(); });
+      $("cu2-show-review") && $("cu2-show-review").addEventListener("click", () => { STATE.cu2ShowReview = true; STATE.cu2Peek = 'remember'; mount(); });
+      const _help = document.querySelector(".cu2-help");
+      _help && _help.addEventListener("toggle", () => { STATE.cu2HelpOpen = _help.open; });
     }
 
     // Catch-up panel open

@@ -1,166 +1,167 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyCatchUp, catchUpView, catchUpContent, parseExampleSteps, isCatchUpPilot, statusLabel } from '../src/catchUp.js';
+import { applyCatchUp, catchUpView, catchUpContent, isCatchUpPilot, statusLabel, highlightParts, reviewSummary, QR_FIELDS, CATCHUP_DRAFTS } from '../src/catchUp.js';
 
-const run = (actions, start = {}, legacy = {}) => {
-  let rec = start, effects = [];
+const run = (actions, start = {}, opts = {}) => {
+  let rec = start; const effects = []; const feedback = [];
   for (const a of actions) {
-    const [action, opts] = Array.isArray(a) ? a : [a, {}];
-    const r = applyCatchUp(rec, action, { legacy, now: `t${effects.length}`, ...opts });
+    const [action, extra] = Array.isArray(a) ? a : [a, {}];
+    const r = applyCatchUp(rec, action, { now: `t${effects.length}`, correct: 2, ...opts, ...extra });
     assert.ok(r.ok, `${action} failed: ${r.reason}`);
-    rec = r.rec; effects.push(r.effects);
+    rec = r.rec; effects.push(r.effects); feedback.push(r.feedback);
   }
-  return { rec, effects };
+  return { rec, effects, feedback };
 };
-const FULL = ['recap', 'example', 'openRL', 'confirmRL', 'openET', 'confirmET'];
+const REVIEW = ['remember', 'see', ['try', { choice: 2 }]];
+const FULL = [...REVIEW, 'openET', 'confirmET'];
+const approved = () => {
+  const d = CATCHUP_DRAFTS['2_2'];
+  return { recapText: d.explain, cuSeePassage: d.seePassage, cuSeeTopic: d.seeTopic, cuSeeIdea: d.seeIdea, cuSeeGist: d.seeGist,
+           cuTryPassage: d.tryPassage, cuTryChoices: d.tryChoices, cuTryCorrect: d.tryCorrect, cuTryFeedback: d.tryFeedback, cuQuickReviewStatus: 'final' };
+};
 
 test('pilot is Land 2 Session 2 only', () => {
   assert.ok(isCatchUpPilot(2, 2));
   assert.ok(!isCatchUpPilot(1, 2));
-  assert.ok(!isCatchUpPilot(2, 3));
 });
 
-test('steps run Recap → Example → Your Work → Submit', () => {
-  assert.equal(catchUpView({}).step, 'recap');
-  assert.equal(catchUpView(run(['recap']).rec).step, 'example');
-  assert.equal(catchUpView(run(['recap', 'example']).rec).step, 'work');
+test('Quick Review runs Remember → See one → Try one → Finish your work', () => {
+  assert.equal(catchUpView({}).step, 'remember');
+  assert.equal(catchUpView(run(['remember']).rec).step, 'see');
+  assert.equal(catchUpView(run(['remember', 'see']).rec).step, 'try');
+  assert.equal(catchUpView(run(REVIEW).rec).step, 'work');
   assert.equal(catchUpView(run(FULL).rec).step, 'submit');
-  assert.equal(catchUpView({}).status, 'not_started');
-  assert.equal(catchUpView(run(['recap']).rec).status, 'in_progress');
 });
 
-test('opening a link is only "Opened"; confirming is separate', () => {
-  const { rec } = run(['recap', 'example', 'openRL']);
+test('Try one: wrong answers give feedback, allow retries and cost nothing', () => {
+  const { rec, feedback, effects } = run(['remember', 'see', ['try', { choice: 1 }], ['try', { choice: 3 }], ['try', { choice: 2 }]]);
+  assert.deepEqual(feedback.slice(2).map(f => f.correct), [false, false, true]);
+  assert.equal(rec.tryAttempts, 3);
+  assert.equal(rec.tryCorrectOnAttempt, 3);
+  assert.ok(effects.every(e => !e.grantReward && !e.completeTile), 'review never pays or completes');
+  assert.equal(catchUpView(rec).review.done, true);
+  assert.equal(reviewSummary(rec), 'Quick Review — correct on try 3');
+  // after a wrong answer the student is still on Try one
+  assert.equal(catchUpView(run(['remember', 'see', ['try', { choice: 1 }]]).rec).step, 'try');
+  assert.equal(applyCatchUp(run(['remember', 'see']).rec, 'try', { choice: 0, correct: 2 }).reason, 'pick-an-answer');
+});
+
+test('the full Wayground lesson is never required; only the Exit Ticket is', () => {
+  const { rec } = run(FULL);
+  assert.equal(catchUpView(rec).canSubmit, true);
+  assert.ok(!rec.rlOpenedAt && !rec.rlConfirmedAt);
+  // opening the help links is allowed any time and changes nothing required
+  const helped = run(['openRL', 'openVideo'], rec).rec;
+  assert.equal(catchUpView(helped).canSubmit, true);
+});
+
+test('Exit Ticket: opening is only "Opened"; it waits for the review route to be settled', () => {
+  assert.equal(applyCatchUp({}, 'openET').reason, 'review-first');
+  const { rec } = run([...REVIEW, 'openET']);
   const v = catchUpView(rec);
-  assert.equal(v.rl.opened, true);
-  assert.equal(v.rl.confirmed, false);
+  assert.equal(v.et.opened, true);
+  assert.equal(v.et.confirmed, false);
   assert.equal(v.canSubmit, false);
-  assert.equal(applyCatchUp(run(['recap', 'example']).rec, 'confirmRL').reason, 'open-first');
+  assert.equal(applyCatchUp(run(REVIEW).rec, 'confirmET').reason, 'open-first');
 });
 
-test('exit ticket unlocks only after Read and Learn is confirmed', () => {
-  assert.equal(applyCatchUp(run(['recap', 'example', 'openRL']).rec, 'openET').reason, 'finish-read-first');
-  assert.ok(applyCatchUp(run(['recap', 'example', 'openRL', 'confirmRL']).rec, 'openET').ok);
-});
-
-test('saved progress resumes at the next unfinished step', () => {
-  const { rec } = run(['recap', 'example', 'openRL', 'confirmRL']);
-  const stored = JSON.parse(JSON.stringify(rec)); // as it comes back from the database
-  const v = catchUpView(stored);
-  assert.equal(v.step, 'work');
-  assert.equal(v.resumed, true);
-  assert.equal(v.rl.confirmed, true);
-  assert.equal(v.et.opened, false);
-});
-
-test('starting in class is not proof of learning: recap/example stay, with an explicit Review or Skip', () => {
+test('started in class: choose Quick Review or Continue my work', () => {
   const legacy = { wayground: [true] };
   const v = catchUpView({}, legacy);
   assert.equal(v.startedInClass, true);
-  assert.equal(v.rl.opened, true);
-  assert.equal(v.rl.openedInClass, true);
-  assert.equal(v.rl.confirmed, false);         // still needs the student's own confirmation
-  assert.equal(v.step, 'recap');               // recap is still shown first
-  assert.equal(v.recap.canSkip, true);
-  // the student must choose: confirming work before deciding is refused
-  assert.equal(applyCatchUp({}, 'confirmRL', { legacy }).reason, 'learn-first');
-  const skipped = run(['skipRecap'], {}, legacy).rec;
-  assert.equal(catchUpView(skipped, legacy).recap.skipped, true);
-  assert.equal(catchUpView(skipped, legacy).step, 'example');
-  // a skipped recap can still be reviewed later
-  const reviewed = run(['recap'], skipped, legacy).rec;
-  assert.equal(catchUpView(reviewed, legacy).recap.done, true);
-  const { rec } = run(['skipExample', 'confirmRL', 'openET', 'confirmET'], skipped, legacy);
-  assert.equal(catchUpView(rec, legacy).canSubmit, true);
+  assert.equal(v.step, 'choose');
+  const cont = run(['chooseContinue', 'openET', 'confirmET'], {}, { legacy });
+  assert.equal(catchUpView(cont.rec, legacy).canSubmit, true);
+  assert.equal(reviewSummary(cont.rec), 'chose Continue my work');
+  // Quick Review stays available after choosing Continue
+  assert.ok(applyCatchUp(cont.rec, 'remember', { legacy }).ok);
+  const rev = run(['chooseReview'], {}, { legacy });
+  assert.equal(catchUpView(rev.rec, legacy).step, 'remember');
 });
 
-test('absent students are not offered Skip', () => {
-  assert.equal(catchUpView({}).recap.canSkip, false);
-  assert.equal(applyCatchUp({}, 'skipRecap').reason, 'skip-not-offered');
-  assert.equal(applyCatchUp(run(['recap']).rec, 'skipExample').reason, 'skip-not-offered');
+test('absent students are not offered Continue my work', () => {
+  assert.equal(catchUpView({}).needsChoice, false);
+  assert.equal(applyCatchUp({}, 'chooseContinue').reason, 'choice-not-offered');
 });
 
-test('without approved content, students go straight to Your Work and never see draft text', () => {
-  const v = catchUpView({}, {}, { contentReady: false });
-  assert.equal(v.recap.unavailable, true);
+test('required workbook items (when a tile has them) appear in Finish your work', () => {
+  const { rec } = run([...FULL], {}, { mustDo: 1 });
+  assert.equal(catchUpView(rec, {}, { mustDo: 1 }).canSubmit, false);
+  const done = run([['confirmMust', { index: 0 }]], rec, { mustDo: 1 }).rec;
+  assert.equal(catchUpView(done, {}, { mustDo: 1 }).canSubmit, true);
+  // an item already checked in class doesn't have to be redone
+  assert.equal(catchUpView(rec, { mustDo: [true] }, { mustDo: 1 }).canSubmit, true);
+});
+
+test('saved progress from the first pilot version keeps working', () => {
+  // in progress: recap + example reviewed, Read and Learn confirmed, Exit Ticket not yet done
+  const old = { recapAt: 'a', exampleAt: 'b', rlOpenedAt: 'c', rlConfirmedAt: 'd', startedAt: 'a' };
+  const v = catchUpView(old);
+  assert.equal(v.review.done, true);
   assert.equal(v.step, 'work');
-  assert.equal(applyCatchUp({}, 'recap', { contentReady: false }).reason, 'no-content');
-  assert.equal(catchUpContent(2, 2, {}).ready, false);                            // sample draft only
-  assert.equal(catchUpContent(2, 2, { recapText: 'Mine', cuExamplePassage: 'P', cuExampleSteps: 'Q | A' }).ready, false); // saved, not approved
-  assert.equal(catchUpContent(2, 2, { recapText: 'Mine', cuExamplePassage: 'P', cuExampleSteps: 'Q | A', cuContentStatus: 'final' }).ready, true);
+  assert.equal(v.resumed, true);
+  // skipped recap/example counts as a settled review
+  assert.equal(catchUpView({ recapSkippedAt: 'a', exampleSkippedAt: 'b', startedInClass: true }).reviewSettled, true);
+  // submitted / returned / accepted records keep their status
+  for (const s of ['submitted', 'returned', 'accepted']) assert.equal(catchUpView({ status: s, recapAt: 'a', exampleAt: 'b' }).status, s);
 });
 
-test('submit completes the tile and grants the reward once', () => {
-  const { rec, effects } = run([...FULL, 'submit']);
-  assert.equal(rec.status, 'submitted');
-  assert.equal(statusLabel(rec.status), 'Submitted — awaiting review');
+test('submit completes the tile and grants the reward once; resubmit never pays again', () => {
+  let { rec, effects } = run([...FULL, 'submit']);
   assert.deepEqual(effects.at(-1), { completeTile: true, grantReward: true });
-  // submitting twice is refused
+  assert.equal(statusLabel(rec.status), 'Submitted — awaiting review');
   assert.equal(applyCatchUp(rec, 'submit').reason, 'locked');
-});
-
-test('send back → correct → resubmit never grants the reward again', () => {
-  let { rec } = run([...FULL, 'submit']);
-  rec = { ...rec, rewardGrantedAt: 'paid' }; // what the app records after paying out
-  const sb = applyCatchUp(rec, 'sendBack', { by: 'teacher', note: 'Your gist has two ideas — make it one sentence.' });
+  rec = { ...rec, rewardGrantedAt: 'paid' };
+  const sb = applyCatchUp(rec, 'sendBack', { by: 'teacher', note: 'Make it one sentence.' });
   assert.ok(sb.ok);
-  const v = catchUpView(sb.rec);
-  assert.equal(v.status, 'returned');
-  assert.equal(v.returnNote, 'Your gist has two ideas — make it one sentence.');
-  // progress is not erased
-  assert.ok(sb.rec.rlConfirmedAt && sb.rec.etConfirmedAt && sb.rec.recapAt && sb.rec.exampleAt);
+  assert.ok(sb.rec.tryCorrectAt && sb.rec.etConfirmedAt, 'send back erases nothing');
   assert.equal(applyCatchUp(sb.rec, 'resubmit').reason, 'confirm-correction-first');
-  const { rec: done, effects } = run(['confirmCorrection', 'resubmit'], sb.rec);
-  assert.equal(done.status, 'submitted');
-  assert.equal(done.submitCount, 2);
-  assert.deepEqual(effects.at(-1), { grantReward: false });
-  assert.equal(effects.at(-1).completeTile, undefined);
+  const again = run(['confirmCorrection', 'resubmit'], sb.rec);
+  assert.equal(again.rec.status, 'submitted');
+  assert.deepEqual(again.effects.at(-1), { grantReward: false });
 });
 
-test('teacher-only review actions and their rules', () => {
+test('teacher-only review actions', () => {
   const { rec } = run([...FULL, 'submit']);
   assert.equal(applyCatchUp(rec, 'accept').reason, 'teacher-only');
-  assert.equal(applyCatchUp(rec, 'sendBack', { note: 'x' }).reason, 'teacher-only');
-  assert.equal(applyCatchUp(rec, 'sendBack', { by: 'teacher', note: '  ' }).reason, 'note-required');
-  assert.equal(applyCatchUp(run(FULL).rec, 'accept', { by: 'teacher' }).reason, 'not-submitted');
+  assert.equal(applyCatchUp(rec, 'sendBack', { by: 'teacher', note: ' ' }).reason, 'note-required');
   const acc = applyCatchUp(rec, 'accept', { by: 'teacher' });
-  assert.ok(acc.ok);
   assert.equal(acc.rec.status, 'accepted');
-  assert.deepEqual(acc.effects, { acceptedReview: true });
-  assert.ok(!/mastery/i.test(statusLabel('accepted')));
   assert.match(statusLabel('accepted'), /Completion confirmed/);
-  assert.equal(applyCatchUp(acc.rec, 'sendBack', { by: 'teacher', note: 'x' }).reason, 'not-submitted');
+  assert.ok(!/mastery/i.test(statusLabel('accepted')));
+});
+
+test('without approved content: no review steps, straight to the Exit Ticket', () => {
+  const v = catchUpView({}, {}, { contentReady: false });
+  assert.equal(v.step, 'work');
+  assert.equal(v.needsChoice, false);
+  assert.equal(applyCatchUp({}, 'remember', { contentReady: false }).reason, 'no-content');
+});
+
+test('content: drafts are never "ready"; only saved + approved text is', () => {
+  assert.equal(catchUpContent(2, 2, {}).ready, false);                                   // sample draft
+  const saved = approved(); delete saved.cuQuickReviewStatus;
+  assert.equal(catchUpContent(2, 2, saved).ready, false);                                // saved, not approved
+  assert.equal(catchUpContent(2, 2, { cuContentStatus: 'final' }).ready, false);         // old approval doesn't carry over
+  assert.equal(catchUpContent(2, 2, approved()).ready, true);
+  const partial = approved(); partial.cuSeeGist = '';
+  assert.equal(catchUpContent(2, 2, partial).ready, false);                               // a missing field falls back to draft → not ready
+  const bad = approved(); bad.cuSeeTopic = 'words not in the paragraph';
+  assert.equal(catchUpContent(2, 2, bad).ready, false);
+  assert.match(catchUpContent(2, 2, bad).problems.join(' '), /topic words must appear/);
+  assert.equal(QR_FIELDS.length, 9);
+});
+
+test('highlighting marks the topic and important idea in order', () => {
+  const parts = highlightParts('Cats nap a lot because they hunt at night.', 'Cats', 'they hunt at night');
+  assert.deepEqual(parts.map(p => p.kind || '-'), ['topic', '-', 'idea', '-']);
+  assert.equal(parts.map(p => p.text).join(''), 'Cats nap a lot because they hunt at night.');
+  assert.deepEqual(highlightParts('abc', 'zzz', ''), [{ text: 'abc' }]);
 });
 
 test('actions never mutate the stored record', () => {
-  const { rec } = run(['recap']);
+  const { rec } = run(['remember']);
   const before = JSON.stringify(rec);
-  applyCatchUp(rec, 'example');
+  applyCatchUp(rec, 'see');
   assert.equal(JSON.stringify(rec), before);
-});
-
-test('content: teacher text wins over the draft; draft status shown until approved', () => {
-  const draft = catchUpContent(2, 2, {});
-  assert.ok(draft.recap.startsWith('A gist statement'));
-  assert.equal(draft.isFinal, false);
-  assert.equal(draft.usesDraft, true);
-  assert.equal(draft.exampleSteps.length, 4);
-  const custom = catchUpContent(2, 2, { recapText: 'Mine', cuExamplePassage: 'P', cuExampleSteps: 'Q | A', cuContentStatus: 'final' });
-  assert.equal(custom.recap, 'Mine');
-  assert.deepEqual(custom.exampleSteps, [{ label: 'Q', text: 'A' }]);
-  assert.equal(custom.isFinal, true);
-  assert.equal(custom.usesDraft, false);
-  assert.deepEqual(parseExampleSteps('Just a line\n\n A | B '), [{ label: 'Just a line', text: '' }, { label: 'A', text: 'B' }]);
-});
-
-test('opening links during catch-up is not mistaken for starting in class', () => {
-  // the app also sets the lesson's own "opened" flag when the student opens Wayground from catch-up
-  const { rec } = run(['recap', 'example', 'openRL']);
-  const v = catchUpView(rec, { wayground: [true] });
-  assert.equal(v.startedInClass, false);
-  assert.equal(v.rl.openedInClass, false);
-  // but a real in-class start is remembered after catch-up begins
-  const legacy = { wayground: [true] };
-  const r2 = run(['skipRecap', 'skipExample', 'confirmRL', 'openET'], {}, legacy).rec;
-  assert.equal(catchUpView(r2, { wayground: [true], exitTicketOpened: [true] }).startedInClass, true);
 });

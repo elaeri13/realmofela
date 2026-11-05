@@ -1,96 +1,104 @@
-# Missed-Lesson Catch-Up — Session 2 Pilot
+# Missed-Lesson Catch-Up — Session 2 Pilot (Quick Review)
 
-_Branch `claude/session2-catchup-pilot` (from `main`, separate from PR #17). Not merged or deployed._
+_Version 2 on branch `claude/session2-catchup-pilot`. Version 1 shipped in PR #18. Not merged or deployed._
 
 ## Scope
 - **Pilot tile:** only **The Stone Kingdoms · Session 2** (Write a Gist Statement, RI.5.2). Every other missed tile keeps the existing catch-up panel.
-- **To add more lessons later:** add each one to `CATCHUP_PILOT_TILES` in `src/catchUp.js`.
-- **The missed-lesson trigger is unchanged.** A lesson counts as missed when it's released, not complete, and the class has moved past it.
+- **Unchanged trigger:** a lesson is "missed" when it's released, not complete, and the class has moved past it.
 
-## Student flow: Recap → Example → Your Work → Submit
-1. **Skill Recap:** short text with a **Got it** button. No video is needed.
-2. **Worked Example:** a short original passage, followed by the steps to a gist statement, revealed one at a time.
-3. **Your Work:** directions for what's left.
-   - **① Read and Learn (Wayground).** Exit Ticket unlocks after the student confirms Read and Learn.
-   - **② Exit Ticket (Pear Deck).** The student's answer stays in Pear Deck; there's no typing box in the Realm.
-   - **Opening a link only records "Opened".** The student taps **I finished …** separately.
-   - The screen says the Realm can't see work in Wayground or Pear Deck.
-4. **Submit for review:**
-   - The tile counts as complete, so the student can keep going.
-   - It's labelled **"Submitted — awaiting review"** and states it's "not a mastery result".
-   - The existing catch-up reward (+3 XP, +3 Gold) is given once.
+## Student flow: a ~5-minute Quick Review inside the Realm, then the required work
+1. **Remember:** a short explanation of a gist statement.
+2. **See one:** an original paragraph with the **topic** (yellow) and **important idea** (green) highlighted, then a modeled gist.
+3. **Try one:** a second original paragraph with three possible gists.
+   - Every choice gets explanatory feedback.
+   - Wrong answers can be retried as often as needed; they cost nothing.
+4. **Finish your work:** shows only the required Session 2 work the student hasn't finished — the **Exit Ticket** (Pear Deck), where the student writes their gist. Then **Submit for review**.
 
-**Saved progress:**
-- Every step is saved to `students/{id}/catchUp/{land}_{tile}`.
-- Reopening the tile resumes at the next unfinished step, with a "Welcome back" note.
-- **Work opened on the lesson day** (the existing `taskProgress` flags) shows as **"Opened (in class)"**. The student still confirms it themselves.
-- **Opening a lesson in class is not proof of learning.** Those students still see the recap and example first, with an explicit choice:
-  - **Review** ("Got it") or **Skip — I learned this in class**.
-  - A skipped step stays available ("Skipped — tap to review").
-  - The teacher's review list shows "skipped recap / skipped example".
-  - Absent students aren't offered Skip.
+**What's required and what isn't**
+- The Quick Review replaces the old review route (recap, example, full Wayground lesson). It doesn't replace the assignment.
+- The full Wayground lesson is **not** required.
+- **"Need more help?"** offers optional links:
+  - the Wayground lesson
+  - a Schoology video
+  - Links that aren't set are hidden.
 
-## Teacher review (Teacher Dashboard → "Catch-Up Work to Review")
-- **Accept confirms completion only.** The student sees "Completion confirmed by Ms. Odom".
-- **Send Back:** needs a correction note, which the student sees on the tile and in a map banner.
-  - Nothing is erased: the tile stays complete, and XP, Gold, achievements and confirmations are kept.
-  - The student taps **I made the correction**, then **Resubmit**.
-  - **Resubmitting never awards XP or Gold again.** The reward marker is claimed by a database transaction, so even two tabs at once pay out once.
-- **"Waiting on student"** lists work that's been sent back.
+**Students who started in class** (opened Read and Learn or the Exit Ticket on the lesson day)
+- They choose **⚡ Quick Review** or **➡ Continue my work**. Absent students do the Quick Review.
+- After *Continue my work*, the Quick Review stays available through "Want a Quick Review first?".
 
-## Boss progress: submission never awards verified mastery
-**Verified mastery** in the Realm is teacher-awarded:
-- the **Mastery Seal** (Judgment Hall)
-- **Bronze / Silver / Gold** medal levels (demonstration count)
+**Honesty and rewards**
+- **Opened, not finished:** opening the Exit Ticket only shows "Opened". The student taps **I finished the Exit Ticket**. The screen says the Realm can't see Pear Deck work.
+- **Quick Review earns nothing:** no XP, no Gold, no mastery.
+- **Submitting** completes the tile so the student can keep going. It's labelled "Submitted — awaiting review" and states it's not a mastery result.
+- **The catch-up reward** (+3 XP, +3 Gold) is paid **once**, on the first submission. A database transaction guards it, even across two tabs. Resubmitting never pays again.
 
-Completing a tile never sets those, and catch-up doesn't change that.
+## Teacher review (Teacher Dashboard → Catch-Up Work to Review)
+- **What each row shows:** how the student caught up, e.g. "Quick Review — correct on try 3" or "chose Continue my work".
+- **Accept** confirms completion only. It never awards or upgrades Bronze/Silver/Gold or a Mastery Seal.
+- **Send Back** requires a note and erases nothing. The student confirms the correction, then resubmits.
+- **Boss safeguard (unchanged):** a catch-up submission on a boss's final encounter holds back the plain 🏅 encounter medal until Accept. Session 2 isn't a boss encounter.
 
-**Encounter progress:**
-- **When a catch-up is submitted:** standard-boss encounter tracking counts, as it does for any completed session.
-- **On the boss's final encounter session:**
-  - the 🏅 encounter Medal is held back
-  - so is the "request a Mastery Seal" option it unlocks
-  - the boss record is marked `medalAwaitingReview`
-- **On Accept:** the held-back Medal is applied. It never downgrades a higher status, and the Seal itself is still awarded only in Judgment Hall.
+## Editing the Quick Review (Lesson Schedule → The Stone Kingdoms → "Quick Review — Session 2")
+**Fields:**
+- explanation
+- See one paragraph
+- topic to highlight and important idea to highlight (copied exactly from the paragraph)
+- modeled gist
+- Try one paragraph
+- three answer choices
+- correct answer (1–3)
+- one feedback line per choice
+- optional Schoology video link
 
-**What the held-back "🏅 Medal" is:** the plain *encounter medal* the app already gives every student who completes all of a boss's encounter sessions. It's an attendance/completion badge, shown as "🏅 Medal" with no level.
-- It is **not** Bronze, Silver or Gold. Those come only from the demonstration count you set.
-- It is **not** the Mastery Seal.
-- Accept never reads or writes the demonstration count or the Seal. Tests confirm a Silver student stays Silver, and a Gold + Seal student is untouched.
-- **On Send Back:** nothing is applied or removed.
-- **Teacher-set demonstration counts** are always kept.
+**Approval:**
+- **Students only see approved text.** Until **Approve as final**, the tile skips the Quick Review and goes straight to the Exit Ticket. The draft text isn't sent to the student's page at all.
+- **Approval checks the content:** every field must be filled in, the highlights must appear in the paragraph, there must be exactly three choices with matching feedback, and the correct answer must be 1–3.
+- **Save as draft** returns edited content to Draft until it's approved again. Changing only the video link doesn't reset approval.
+- **Fresh approval key** (`cuQuickReviewStatus`): approving version 1's recap/example doesn't carry over to the Quick Review.
 
-**Gate bosses (trials):** completing the session still unlocks the trial *attempt*, as today. Trophies are still judged by the teacher.
+**The sample content is original and is a draft for Ms. Odom to review:**
+- See one: astronauts growing lettuce on the space station
+- Try one: sailors navigating by the stars
 
-**Session 2 itself** isn't a boss encounter: the Chronicler's sessions are S3, S8 and S12, and the first gate is S6. So the pilot tile has no boss effect at all. The safeguard matters once the flow expands to other sessions.
+## Existing students (no reset)
+- **In progress under version 1:** those who reviewed or skipped the recap and example count as having finished the review. They open at Finish your work, and Read and Learn is no longer required.
+- **Submitted, sent back or accepted:** these keep their status, and the reward stays paid.
+- **Completed tiles and rewards** are untouched.
 
-## Editable content (Lesson Schedule → choose The Stone Kingdoms)
-- **The "Catch-up pilot — Session 2" box** holds the skill recap, the example passage, and the example steps (one per line: `Question | Answer`).
-- **Saving the recap** also updates the existing Recap Text column for Session 2.
-- **Draft badge:** the box shows **Draft — not yet approved** until you press **Approve as final**. Approving saves the text on screen first.
-- **Students never see unapproved text.** Until you approve, the tile has no recap or example steps and starts at Your Work. The draft text isn't in the student's page at all.
-- **"Save as draft"** puts edited content back into Draft, so changes can't go live until you approve them again.
+## Data
+- **`students/{id}/catchUp/2_2` new fields:**
+  - `route` (review / continue)
+  - `rememberAt`, `seeAt`
+  - `tryAttempts`, `tryLastChoice`, `tryCorrectAt`, `tryCorrectOnAttempt`
+  - `videoOpenedAt`
+  - `mustDone` (for future tiles that have workbook items)
+- **`settings/lessonSchedule/2/2` new fields:**
+  - `cuSeePassage`, `cuSeeTopic`, `cuSeeIdea`, `cuSeeGist`
+  - `cuTryPassage`, `cuTryChoices`, `cuTryCorrect`, `cuTryFeedback`
+  - `cuQuickReviewStatus`
+  - `recapText` (the explanation) and `skillVideo` (the video) are the existing fields.
 
 ## Security note
-Like everything today, these records are writable by anyone while the database rules are open. When the secure rules are adopted, `catchUp/*/status` values `accepted` and `returned`, and `returnNote`, should be teacher-only, and `rewardGrantedAt` should be server-only.
+While the database rules are open, these records can be changed by anyone, like everything else. When the secure rules are adopted, review statuses and `rewardGrantedAt` should become teacher-only or server-only.
 
 ## Tests
-- `npm test`: catch-up logic, 15 tests (23 total).
-- **Browser pilot suite (in-memory database): 67/67.** It covers:
-  - the full flow and resume
-  - Opened vs. confirmed
+- `npm test`: catch-up logic tests, 33 total.
+- **Browser pilot suite: 52/52** (in-memory database, fictional students), covering:
+  - draft gating and approval validation
+  - the absent-student flow with highlights, wrong/right feedback, retries and resume
+  - Need-more-help links (hidden when missing, never required)
+  - Opened vs. finished
   - submit, send back, resubmit and accept
-  - the once-only reward, including a two-tab race
-  - work started in class, with review/skip
-  - drafts hidden from students
-  - Accept never changes medal levels or Seals
-  - other missed tiles unchanged
+  - the reward paid once, including a two-tab race
+  - the in-class choice (Quick Review vs. Continue)
+  - version-1 records
+  - non-pilot tiles unchanged
   - the boss safeguard
-  - the editor and approval
   - phone and tablet layout
 - **Regressions:**
-  - Kingdoms' Gate story 14/14
+  - Phase 3 46/46
+  - Today's Lesson 37/37
+  - Kingdoms' Gate 14/14
   - House selection 11/11
   - achievements 5/5
   - lesson links 22/22
-  - today's lesson 35/37 (the 2 misses are outdated expectations)
