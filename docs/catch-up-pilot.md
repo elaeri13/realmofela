@@ -1,14 +1,44 @@
-# Missed-Lesson Catch-Up — Unit 2, Module 1, Session 2 Pilot (review → auto-graded practice → Pear exit ticket)
+# Missed-Lesson Catch-Up (review → auto-graded practice → Pear exit ticket)
 
-_Branch `claude/session2-catchup-pilot`. Not merged or deployed._
+_Session 2 merged in PR #19. Session 3 added on branch `claude/ela-standards-medals-audit-evm13l` (not merged or deployed)._
 
 ## Scope
-- **Pilot tile:** only **The Stone Kingdoms (Unit 2) · Session 2** — "Race to the Moon . . . and Beyond" and "The Path to the Moon", Write a Gist Statement, **RI.5.2**.
+- **Sessions with the new catch-up:**
+  - **The Stone Kingdoms (Unit 2) · Session 2:** "Race to the Moon . . . and Beyond" and "The Path to the Moon", Write a Gist Statement, **RI.5.2**
+  - **The Stone Kingdoms (Unit 2) · Session 3:** Packing for Mars, Part 1, Explain Main Ideas (**RI.5.2**) and Use Context Clues (**L.5.4a**). See [Session 3](#session-3--packing-for-mars-part-1).
 - **Not changed:**
   - every other missed session, which keeps the existing catch-up panel
   - boss battles
   - the regular lesson flow
   - the missed-lesson trigger
+
+## How sessions plug in (reusable framework)
+- **One content entry per session:** each session is one entry in `SESSION_CONTENT` (`src/catchUp.js`), keyed `land_tile` (e.g. `'2_3'`). Adding an entry turns the new catch-up on for that tile. Nothing else in the code needs to change.
+- **What each session provides:**
+  - **review content:** `reviews` holds one or more sections, each with a title, explanation, steps, and a worked example (`walk` steps and an `answer`)
+  - **practice questions:** `questions`, each with its own reading and parts. Each part has four choices with exactly one `correct: true` (the answer key) and feedback on every choice. Mark `quote: true` on a part whose correct answer quotes its reading.
+  - **pass mark:** `passMin` (default 3)
+- **Shared by every session:**
+  - **Pear link:** not in the content; it is the session's link saved in Content Links or Lesson Schedule.
+  - **Completion state:** stored per session at `students/{id}/catchUp/{land_tile}`.
+  - **Student page, grading, Pear stage, rewards, dashboard list and session filter:** the same code for every session.
+- **Automatic tests for every session:** answers not copied from the review, four choices with one correct answer, feedback on every choice, and no links in the content.
+
+## Session 3 — Packing for Mars, Part 1
+All readings are **original** (not quoted from the book) and are about astronaut training, gravity, and living in space.
+- **Review A, Explaining Main Ideas:** a worked example ("Your Body in Microgravity", which explains that gravity still pulls on the station and astronauts float because they are falling around Earth together) that models topic → key details → main idea.
+- **Review B, Using Context Clues:** a worked example ("disoriented") that models the clues → meaning → checking that the meaning fits the sentence. It also names the lesson's vocabulary words, *fundamental* and *technique*.
+- **Practice:** pass at 3 of 4. The answer key is checked by tests.
+
+| Question | Skill | Correct answer |
+|---|---|---|
+| 1 | Main idea of "A Pool for Astronauts" | C |
+| 2 | Best supporting detail for a given main idea ("Bedtime on the Space Station"); distractors include true but less relevant details such as "The space station has no up or down." | B |
+| 3 | Meaning of *technique* from context ("Getting Around in Microgravity") | D |
+| 4 | Sentence that supports the meaning of *fundamental* ("Ready for Mars") | A |
+
+- **Boss:** Session 3 is the first Chronicler session. Completing it only marks the Chronicler as "sighted"; there is no medal or seal.
+- **Existing progress:** students who already finished Session 3 with the old panel stay complete. They don't see the new page and aren't paid again.
 
 ## Source
 The content comes from the Unit 2, Module 1, Session 2 teacher guide (Curriculum Associates). The guide is marked "Copying is not permitted":
@@ -59,7 +89,7 @@ The content comes from the Unit 2, Module 1, Session 2 teacher guide (Curriculum
 - **In progress, never submitted:** the student must now pass practice, then complete Pear.
 
 ## Teacher visibility
-- **"📊 Session 2 Catch-Up — N completed · M verified" on the Teacher Dashboard.** Each row starts with a status badge:
+- **"📊 Catch-Up Sessions — N completed · M verified" on the Teacher Dashboard.** One list covers every catch-up session, with filter buttons for **All sessions / Session 2 / Session 3**, each showing a count. Each row starts with a status badge:
   - **✅ Completed (Student Reported):** passed practice and reported the Pear exit ticket. The tile and reward are already given, and **no teacher action is needed**.
   - **🛡️ Verified:** the teacher checked Pear and clicked Verify. This is an optional spot-check that never adds rewards.
   - **↩ Sent back — re-reporting:** the tile, reward and practice score are kept.
@@ -71,7 +101,7 @@ The content comes from the Unit 2, Module 1, Session 2 teacher guide (Curriculum
   - whether the tile is fully complete
   - **Verify** and **Send Back** buttons
 - **The activity log** records practice passes and fails, Pear reports ("not verified yet") and verifications.
-- **The shared "Catch-Up Work to Review" list** no longer shows Session 2. Other sessions are unchanged.
+- **The shared "Catch-Up Work to Review" list** no longer shows the auto-graded sessions. Other sessions are unchanged.
 
 ## Data (existing structure only)
 - **Fields used:** only fields that already exist on the catch-up record: `history`, `etOpenedAt`, `etConfirmedAt`, `status` (submitted / returned / accepted), `submittedAt`, `submitCount`, `acceptedAt`, `returnNote`, `returnedAt`, `rewardGrantedAt`, `startedAt`, `updatedAt`.
@@ -81,7 +111,7 @@ The content comes from the Unit 2, Module 1, Session 2 teacher guide (Curriculum
 no security-rule changes.
 
 ## Tests
-- `npm test`: catch-up logic, 31 tests. They cover:
+- `npm test`: catch-up logic, 34 tests, including the content checks above for every session. They cover:
   - the threshold, and fail → retry → pass with no completion
   - Stage 3 locked before passing; opened ≠ reported
   - report → completion + reward once; duplicate reports refused
@@ -89,7 +119,8 @@ no security-rule changes.
   - Verify / Send Back / re-report with no second reward
   - earlier-version records
   - only existing fields written; no mutation
-- **Browser pilot suite: 48/48** (fictional students, in-memory database). It covers:
+- **Session 3 browser suite: 49/49:** reviews, wrong/right answers, retry, refresh at each stage, Session 3's own Pear link, double-click report paying once, Chronicler sighted only, dashboard filter, Send Back, Verify, old-panel progress kept, today's-lesson view unchanged, missing link, phone and tablet layout.
+- **Session 2 browser suite: 48/48** (fictional students, in-memory database). It covers:
   - fail and retry
   - pass
   - the Pear link opening the stored URL
