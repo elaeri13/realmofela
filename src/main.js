@@ -2293,6 +2293,17 @@ function runCatchUpAction(student, land, tile, action, opts = {}) {
   if (action === 'sendBack') logActivity(student.id, '↩️', `Catch-up sent back: ${label} — ${res.rec.returnNote}`);
   return res;
 }
+// Re-render the lesson screen without losing the student's place: the .ls-screen overlay is the
+// element that scrolls (not the window), and the card's fade-in should not replay.
+function mountKeepingScroll() {
+  const prev = document.querySelector('.ls-screen');
+  const top = prev ? prev.scrollTop : 0;
+  mount();
+  const next = document.querySelector('.ls-screen');
+  if (!next) return;
+  next.querySelectorAll('.enter').forEach(e => e.classList.remove('enter'));
+  next.scrollTop = top;
+}
 function renderCatchUpPilot(student, land, tile) {
   const c = sessionContent(land.id, tile.id);
   const rec = getCatchUpRecord(student.id, land.id, tile.id) || {};
@@ -2378,7 +2389,7 @@ function renderCatchUpPilot(student, land, tile) {
           ${q.parts.map(part).join('')}
         </div>`).join('')}
       <button class="cu2-btn cu2-submit" data-cu2="grade" ${answeredAll ? '' : 'disabled'}>📬 Submit my answers</button>
-      ${answeredAll ? '' : `<p class="cu3-hint">Answer all ${total} ${c.questions.length === total ? 'questions' : 'parts'} to submit.</p>`}
+      <p class="cu3-hint cu3-need-all" data-ready="All answered — press Submit when you’re ready." data-need="Answer all ${total} ${c.questions.length === total ? 'questions' : 'parts'} to submit.">${answeredAll ? 'All answered — press Submit when you’re ready.' : `Answer all ${total} ${c.questions.length === total ? 'questions' : 'parts'} to submit.`}</p>
     </section>`;
   }
 
@@ -2395,7 +2406,7 @@ function renderCatchUpPilot(student, land, tile) {
       <a class="cu4-pear" href="${pearUrl}" target="_blank" rel="noopener noreferrer" data-cu4-open="pear">📝 Open my ${escHtml(sess)} Pear exit ticket</a>
       <p class="cu3-hint">${v.pear.opened ? 'Opened. Finish it in Pear and press Submit there, then come back here.' : 'It opens in a new tab. Finish it there, then come back here.'}</p>
       <button class="cu2-btn cu2-confirm" data-cu2="reportPear" ${v.canReport ? '' : 'disabled'}>✅ I've Submitted My Exit Ticket</button>
-      ${v.pear.opened ? '' : `<p class="cu3-hint">Open your exit ticket first.</p>`}
+      <p class="cu3-hint">${v.pear.opened ? 'Press it only after you submit in Pear.' : 'Open your exit ticket first.'}</p>
       <p class="cu2-fine">The Realm can’t see Pear, so ${teacher} will check your exit ticket there.</p>`;
   }
   const stage3 = `<section class="cu3-sec${v.practicePassed ? ' cu4-active' : ''}">${stageHdr(3, 'Complete Your Pear Exit Ticket', v.practicePassed ? 'current' : 'locked')}${stage3Body}</section>`;
@@ -12708,11 +12719,21 @@ function bindEvents() {
     // Catch-up pilot (one page, auto-graded)
     if ($("cu2")) {
       const _cuCtx = () => ({ student: STATE.student, land: STATE.lessonLand || LANDS[0], tile: STATE.lessonTile });
+      // Picking an answer only updates that question's buttons and the Submit button, in place.
+      // (Re-rendering here rebuilt the whole .ls-screen overlay — the element that scrolls — so the
+      // page jumped back to the top after every tap.)
       document.querySelectorAll("[data-cu3-choice]").forEach(b => b.addEventListener("click", () => {
         const { land, tile } = _cuCtx(); if (!tile) return;
         const st = cu3State(land, tile);
-        st.answers = Object.assign({}, st.answers, { [b.dataset.cu3Part]: Number(b.dataset.cu3Choice) });
-        const y = window.scrollY; mount(); window.scrollTo(0, y);
+        const part = b.dataset.cu3Part, choice = Number(b.dataset.cu3Choice);
+        st.answers = Object.assign({}, st.answers, { [part]: choice });
+        document.querySelectorAll(`[data-cu3-part="${part}"]`).forEach(o => {
+          const on = Number(o.dataset.cu3Choice) === choice;
+          o.classList.toggle('cu3-opt-picked', on); o.setAttribute('aria-pressed', String(on));
+        });
+        const all = gradePractice(sessionContent(land.id, tile.id), st.answers).answeredAll;
+        const sub = document.querySelector('[data-cu2="grade"]'); if (sub) sub.disabled = !all;
+        const note = document.querySelector('.cu3-need-all'); if (note) note.textContent = all ? note.dataset.ready : note.dataset.need;  // same height: no shift
       }));
       document.querySelectorAll("[data-cu4-open]").forEach(a => a.addEventListener("click", () => {
         // the link opens Pear in a new tab; record "opened" (not "done")
@@ -12720,7 +12741,7 @@ function bindEvents() {
           const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
           runCatchUpAction(student, land, tile, 'openPear');
           saveTaskCheck(student.id, tile.id, 'exitTicketOpened', 0, true);
-          mount();
+          mountKeepingScroll();
         }, 0);
       }));
       document.querySelectorAll('[data-cu2="reportPear"]').forEach(b => b.addEventListener("click", () => {
