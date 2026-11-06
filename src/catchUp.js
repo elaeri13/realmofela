@@ -1,15 +1,17 @@
-// Missed-lesson catch-up (pilot) — pure logic, no Firebase. Unit-tested in tests/catchUp.test.js.
+// Missed-lesson catch-up — pure logic, no Firebase. Unit-tested in tests/catchUp.test.js.
 //
-// Session 2 pilot, one page, three stages:
-//   1. Review the Skill        — what a gist is + a worked example
-//   2. Prove Your Knowledge    — four auto-graded parts (incl. Part A/Part B); pass = 3 of 4; free retries
+// Each session listed in SESSION_CONTENT gets the same one-page catch-up, three stages:
+//   1. Review the Skill(s)     — short explanation(s) + worked example(s)  (content.reviews, or the
+//                                Session 2 shape: explain/steps/example — see reviewsOf)
+//   2. Prove Your Knowledge    — auto-graded parts; pass = content.passMin (default 3) ; free retries
 //   3. Complete Your Pear Exit Ticket — the SAME Pear Assessment exit ticket the class took (the session's
 //      stored Pear link). Opening it is only "Opened"; the student then reports "I've Submitted My Exit Ticket".
 // Completion: the catch-up tile is finalized — and the existing XP/Gold paid once — only when the student
 // reports the Pear submission (after passing practice). Passing practice alone records the score only.
 // The Realm cannot see Pear Assessment, so a report is "student-reported"; the teacher verifies it in Pear
 // and confirms it in the Realm (status 'accepted'), or sends it back.
-// Source: Unit 2, Module 1, Session 2 teacher guide (RI.5.2 gist statement); readings retold in our own words.
+// Adding a session = one SESSION_CONTENT entry keyed 'land_tile'. Its Pear link comes from the session
+// settings (Content Links / Lesson Schedule), never from this file.
 //
 // Data — existing catch-up record fields only (no new fields):
 //   history[]      { at, event: 'autoPass'|'autoFail', note: '3/4' } per graded try; 'accept'/'sendBack' events
@@ -19,12 +21,12 @@
 //   submittedAt, submitCount, rewardGrantedAt, acceptedAt, returnedAt, returnNote, startedAt, updatedAt
 // Practice answers are not stored.
 
-export const CATCHUP_PILOT_TILES = new Set(['2_2']); // Land 2 (Unit 2) · Session 2
 export const catchUpKey = (landId, tileId) => `${landId}_${tileId}`;
-export const isCatchUpPilot = (landId, tileId) => CATCHUP_PILOT_TILES.has(catchUpKey(landId, tileId));
-export const PASS_MIN = 3;   // of 4 scored parts (75%)
+export const isCatchUpPilot = (landId, tileId) => Object.prototype.hasOwnProperty.call(SESSION_CONTENT, catchUpKey(landId, tileId));
+export const PASS_MIN = 3;   // default: of 4 scored parts (75%); a session may set content.passMin
 
 export const SESSION_CONTENT = {
+  // Unit 2, Module 1, Session 2 — source: the Session 2 teacher guide (RI.5.2 gist); readings retold.
   '2_2': {
     skill: 'Write a Gist Statement',
     standard: 'RI.5.2',
@@ -72,7 +74,7 @@ export const SESSION_CONTENT = {
               { text: 'NASA’s new goals are to send people farther into space for longer periods of time.', correct: true, feedback: 'Houses on the moon and trips to Mars both mean going farther and staying longer.' },
               { text: 'Scientists will use a 3-D printer to build houses on the moon.', feedback: 'That explains how one goal might work. It is a detail, not the gist.' },
             ] },
-          { id: 'q2b', label: 'Part B', prompt: 'Which sentence from the text best supports the answer to Part A?',
+          { id: 'q2b', label: 'Part B', quote: true, prompt: 'Which sentence from the text best supports the answer to Part A?',
             choices: [
               { text: '“NASA is also planning for what was once unthinkable: humans traveling to Mars.”', correct: true, feedback: 'Sending humans to Mars is a goal of going farther into space for a longer time.' },
               { text: '“NASA is still learning from samples gathered from the Apollo missions over 50 years ago.”', feedback: 'This is about what NASA learned from past missions, not its new goals.' },
@@ -92,9 +94,119 @@ export const SESSION_CONTENT = {
           ] }] },
     ],
   },
+  // Unit 2, Module 1, Session 3 — Packing for Mars, Part 1. Explain main ideas (RI.5.2) + context clues
+  // (L.5.4a); lesson vocabulary: fundamental, technique. All readings below are original (not quoted).
+  '2_3': {
+    skill: 'Explain Main Ideas · Use Context Clues',
+    standard: 'RI.5.2 · L.5.4a',
+    textTitle: 'Packing for Mars, Part 1',
+    passMin: 3,
+    reviews: [
+      { title: 'Review A: Explaining Main Ideas',
+        explain: [
+          'The main idea is the most important point the author wants you to understand about a section.',
+          'Supporting details are the facts and examples that explain or prove the main idea. A main idea is not always written in one sentence. Sometimes you put it together from the details.',
+        ],
+        steps: [
+          'Find the topic: What is this section mostly about?',
+          'Look at the key details. What do they have in common?',
+          'State the main idea: What point do all of those details help the author make?',
+          'Check it: Does every key detail support your main idea? If a sentence covers only one small part, it is a detail, not the main idea.',
+        ],
+        example: {
+          label: '“Your Body Without Gravity”',
+          reading: 'On Earth, gravity pulls blood and other fluids in your body down toward your feet. In space, nothing pulls them down, so the fluids drift up toward your head. Astronauts’ faces look puffy, and their legs get skinnier. Their noses often feel stuffed up, as if they have a cold. Some astronauts even say food tastes bland during their first days in space.',
+          walk: [
+            { h: 'Topic', text: 'what happens to body fluids in space' },
+            { h: 'Key details', list: ['Faces look puffy and legs get skinnier.', 'Noses feel stuffed up.', 'Food can taste bland.'] },
+          ],
+          answer: { label: 'Main idea', text: 'Without gravity, fluids move up in an astronaut’s body, and that changes how the astronaut looks and feels.' },
+          note: '“Their legs get skinnier” is true, but it tells only one part. The main idea ties all the details together.',
+        } },
+      { title: 'Review B: Using Context Clues',
+        explain: [
+          'When you meet a word you don’t know, look at the words and sentences around it. Authors often leave context clues: a definition, an example, a word that means the same thing, or an opposite.',
+          'In Packing for Mars, Part 1, you met the words fundamental and technique. Context clues can help you figure out words like these.',
+        ],
+        steps: [
+          'Reread the sentence with the word, plus the sentences before and after it.',
+          'Look for clues: a definition, examples, a word that means the same, or an opposite (watch for but and unlike).',
+          'Make your best guess about the meaning.',
+          'Check it: Put your meaning in place of the word. Does the sentence still make sense?',
+        ],
+        example: {
+          label: 'The word “disoriented”',
+          reading: 'During her first hour in orbit, the astronaut felt disoriented. She could not tell which way was up, and she kept reaching for handholds on the wrong side of the cabin.',
+          walk: [
+            { h: 'Unfamiliar word', text: 'disoriented' },
+            { h: 'Clues nearby', list: ['“could not tell which way was up”', '“reaching for handholds on the wrong side”'] },
+          ],
+          answer: { label: 'Meaning', text: 'confused about where you are or which way you are facing' },
+          note: 'Check: “The astronaut felt confused about which way she was facing.” It makes sense! The clues were in the next sentence, so always read around the word.',
+        } },
+    ],
+    questions: [
+      { id: 'q1', title: 'Question 1',
+        readingTitle: '“A Pool for Astronauts”',
+        reading: 'One of the world’s biggest swimming pools is not used for swimming races. It sits in Houston, Texas, and holds about 6 million gallons of water. On the bottom is a full-size model of parts of the International Space Station. Astronauts put on real spacesuits, and divers add small weights until each astronaut hovers in place, neither sinking nor floating up. For every hour of a real spacewalk, astronauts may practice about seven hours in the pool. Safety divers swim close by the whole time.',
+        parts: [{ id: 'q1', prompt: 'Which sentence best states the main idea of this section?',
+          choices: [
+            { text: 'The pool in Houston holds about 6 million gallons of water.', feedback: 'That is a detail about the pool’s size. The main idea tells what the pool is for.' },
+            { text: 'Safety divers stay close to the astronauts the whole time.', feedback: 'That is a supporting detail about safety. It is only one small part of the section.' },
+            { text: 'Astronauts train in a giant pool because hovering underwater is a lot like moving in space.', correct: true, feedback: 'The model station, the weights that make astronauts hover, and the long practice all show how the pool gets astronauts ready for space.' },
+            { text: 'Astronauts like swimming more than any other kind of training.', feedback: 'The section never says how astronauts feel about swimming. A main idea must be supported by the details.' },
+          ] }] },
+      { id: 'q2', title: 'Question 2',
+        readingTitle: '“Bedtime on the Space Station”',
+        reading: 'Everyone needs sleep to stay healthy and alert. The space station is about as long as a football field, and it has no up or down. A sleeping astronaut could drift across the cabin and bump into equipment. To stay put, astronauts zip themselves into sleeping bags that are tied to the wall. The station circles Earth so quickly that the Sun rises and sets about 16 times a day, so many astronauts wear eye masks. Some crew members enjoy looking out the window at Earth before bed.',
+        parts: [{ id: 'q2', quote: true, prompt: 'The main idea of this section is that sleeping in space takes special planning. Which detail best supports this main idea?',
+          choices: [
+            { text: '“Everyone needs sleep to stay healthy and alert.”', feedback: 'That is true on Earth, too. It doesn’t show what is special about sleeping in space.' },
+            { text: '“To stay put, astronauts zip themselves into sleeping bags that are tied to the wall.”', correct: true, feedback: 'Tying the sleeping bag down is a plan that solves a space problem: drifting while asleep.' },
+            { text: '“The space station is about as long as a football field.”', feedback: 'That describes the station’s size, not how astronauts plan for sleep.' },
+            { text: '“Some crew members enjoy looking out the window at Earth before bed.”', feedback: 'That tells what some astronauts like to do. It is not part of planning for sleep.' },
+          ] }] },
+      { id: 'q3', title: 'Question 3',
+        readingTitle: '“Getting Around Without Gravity”',
+        reading: 'Moving around the space station looks easy, but it takes practice. New astronauts often push off a wall too hard and go tumbling. Crew members who have lived there for months teach them a better technique. Push off gently with your fingertips, keep your arms close to your body, and grab a handrail to stop. With this method, astronauts glide smoothly from one end of the station to the other.',
+        parts: [{ id: 'q3', prompt: 'What does the word technique mean in this section?',
+          choices: [
+            { text: 'a piece of equipment that helps astronauts move', feedback: 'A handrail is equipment, but the technique is the set of steps for moving, not an object.' },
+            { text: 'a mistake that new astronauts make', feedback: 'Pushing off too hard is the mistake. The technique is the better way the experienced crew teaches.' },
+            { text: 'a strong, fast push', feedback: 'The steps say to push off gently, which is the opposite of a strong push.' },
+            { text: 'a special way of doing something, step by step', correct: true, feedback: 'The next sentence lists the steps, and the last sentence calls it “this method.”' },
+          ] }] },
+      { id: 'q4', title: 'Question 4',
+        readingTitle: '“Ready for Mars”',
+        reading: 'A trip to Mars could take about seven months. Before astronauts go, they must master some fundamental skills. Everyday skills, like eating and sleeping without gravity, are the foundation that every other part of the mission is built on. Practicing these skills on Earth is tricky, because Earth’s gravity never stops pulling.',
+        parts: [{ id: 'q4', quote: true, prompt: 'The word fundamental means “basic and most important.” Which sentence best helps the reader understand this meaning?',
+          choices: [
+            { text: '“Everyday skills, like eating and sleeping without gravity, are the foundation that every other part of the mission is built on.”', correct: true, feedback: 'A foundation is what everything else is built on, so fundamental skills are the basic, most important ones.' },
+            { text: '“A trip to Mars could take about seven months.”', feedback: 'This tells how long the trip is. It does not explain the word fundamental.' },
+            { text: '“Before astronauts go, they must master some fundamental skills.”', feedback: 'This sentence uses the word, but it doesn’t explain it. Look for the sentence that tells what these skills are like.' },
+            { text: '“Practicing these skills on Earth is tricky, because Earth’s gravity never stops pulling.”', feedback: 'This tells why practice is hard, not what fundamental means.' },
+          ] }] },
+    ],
+  },
 };
 export const sessionContent = (landId, tileId) => SESSION_CONTENT[catchUpKey(landId, tileId)] || null;
 export const practiceParts = content => (content ? content.questions.flatMap(q => q.parts) : []);
+export const passMinOf = content => (content && Number.isInteger(content.passMin) ? content.passMin : PASS_MIN);
+// Every catch-up session, in map order: [{ key, landId, tileId }]
+export const catchUpSessions = () => Object.keys(SESSION_CONTENT)
+  .map(key => { const [landId, tileId] = key.split('_').map(Number); return { key, landId, tileId }; })
+  .sort((a, b) => a.landId - b.landId || a.tileId - b.tileId);
+// Review sections in one shape: [{ title, explain[], steps[], example: { label, source, reading, walk[], answer, note } }].
+// Session 2 keeps its original single-review fields (explain/steps/example with topic/ideas/gist).
+export function reviewsOf(c) {
+  if (!c) return [];
+  if (Array.isArray(c.reviews)) return c.reviews.map(r => ({ ...r, example: { source: '', ...r.example } }));
+  const e = c.example || {};
+  return [{ title: '', explain: c.explain || [], steps: c.steps || [], example: {
+    label: e.label, source: c.author ? `from “${c.textTitle}” by ${c.author}` : '', reading: e.reading,
+    walk: [{ h: 'Topic', text: e.topic }, { h: 'Most important ideas', list: e.ideas || [] }],
+    answer: { label: 'Gist statement', text: e.gist }, note: e.note } }];
+}
 
 // Grade the practice. answers = { partId: choiceIndex }.
 export function gradePractice(content, answers = {}) {
@@ -107,7 +219,8 @@ export function gradePractice(content, answers = {}) {
   });
   const correctCount = items.filter(i => i.correct).length;
   const answeredAll = items.length > 0 && items.every(i => i.answered);
-  return { items, total: parts.length, correctCount, answeredAll, passed: answeredAll && correctCount >= PASS_MIN };
+  const passMin = passMinOf(content);
+  return { items, total: parts.length, correctCount, answeredAll, passMin, passed: answeredAll && correctCount >= passMin };
 }
 
 // ── Attempts (from the existing `history` list) ─────────────────────────────
