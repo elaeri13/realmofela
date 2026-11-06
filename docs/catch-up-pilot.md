@@ -26,7 +26,7 @@ _Session 2 merged in PR #19. Session 3 added on branch `claude/ela-standards-med
 
 ## Session 3 — Packing for Mars, Part 1
 All readings are **original** (not quoted from the book) and are about astronaut training, gravity, and living in space.
-- **Review A, Explaining Main Ideas:** a worked example ("Your Body Without Gravity") that models topic → key details → main idea.
+- **Review A, Explaining Main Ideas:** a worked example ("Your Body in Microgravity", which explains that gravity still pulls on the station and astronauts float because they are falling around Earth together) that models topic → key details → main idea.
 - **Review B, Using Context Clues:** a worked example ("disoriented") that models the clues → meaning → checking that the meaning fits the sentence. It also names the lesson's vocabulary words, *fundamental* and *technique*.
 - **Practice:** pass at 3 of 4. The answer key is checked by tests.
 
@@ -34,7 +34,7 @@ All readings are **original** (not quoted from the book) and are about astronaut
 |---|---|---|
 | 1 | Main idea of "A Pool for Astronauts" | C |
 | 2 | Supporting detail for a given main idea ("Bedtime on the Space Station") | B |
-| 3 | Meaning of *technique* from context ("Getting Around Without Gravity") | D |
+| 3 | Meaning of *technique* from context ("Getting Around in Microgravity") | D |
 | 4 | Sentence that supports the meaning of *fundamental* ("Ready for Mars") | A |
 
 - **Boss:** Session 3 is the first Chronicler session. Completing it only marks the Chronicler as "sighted"; there is no medal or seal.
