@@ -1,96 +1,115 @@
-# Missed-Lesson Catch-Up — Session 2 Pilot
+# Missed-Lesson Catch-Up — Unit 2, Module 1, Session 2 Pilot (review → auto-graded practice → Pear exit ticket)
 
-_Branch `claude/session2-catchup-pilot` (from `main`, separate from PR #17). Not merged or deployed._
+_Branch `claude/session2-catchup-pilot`. Not merged or deployed._
 
 ## Scope
-- **Pilot tile:** only **The Stone Kingdoms · Session 2** (Write a Gist Statement, RI.5.2). Every other missed tile keeps the existing catch-up panel.
-- **To add more lessons later:** add each one to `CATCHUP_PILOT_TILES` in `src/catchUp.js`.
-- **The missed-lesson trigger is unchanged.** A lesson counts as missed when it's released, not complete, and the class has moved past it.
+- **Pilot tile:** only **The Stone Kingdoms (Unit 2) · Session 2** — "Race to the Moon . . . and Beyond" and "The Path to the Moon", Write a Gist Statement, **RI.5.2**.
+- **Not changed:**
+  - every other missed session, which keeps the existing catch-up panel
+  - boss battles
+  - the regular lesson flow
+  - the missed-lesson trigger
 
-## Student flow: Recap → Example → Your Work → Submit
-1. **Skill Recap:** short text with a **Got it** button. No video is needed.
-2. **Worked Example:** a short original passage, followed by the steps to a gist statement, revealed one at a time.
-3. **Your Work:** directions for what's left.
-   - **① Read and Learn (Wayground).** Exit Ticket unlocks after the student confirms Read and Learn.
-   - **② Exit Ticket (Pear Deck).** The student's answer stays in Pear Deck; there's no typing box in the Realm.
-   - **Opening a link only records "Opened".** The student taps **I finished …** separately.
-   - The screen says the Realm can't see work in Wayground or Pear Deck.
-4. **Submit for review:**
-   - The tile counts as complete, so the student can keep going.
-   - It's labelled **"Submitted — awaiting review"** and states it's "not a mastery result".
-   - The existing catch-up reward (+3 XP, +3 Gold) is given once.
+## Source
+The content comes from the Unit 2, Module 1, Session 2 teacher guide (Curriculum Associates). The guide is marked "Copying is not permitted":
+- The explanation and readings are retold in our own words.
+- Only Question 2 Part B quotes## Student page: three stages on one page
+1. **Review the Skill:** a short explanation, the guide's three steps, and a worked example on paragraphs 1–5 (a reading, then topic → most important ideas → gist). This is the guide's own model: *"The U.S. and the Soviet Union competed to reach the moon and explore space."*
+2. **Prove Your Knowledge:** three questions with **four scored parts**, each question with its own short reading:
+   - **Question 1:** "Get with the Programs" (paragraphs 6–8). Best gist?
+   - **Question 2:** "Shooting for the Stars" (paragraphs 10–15). **Part A** asks for the gist; **Part B** asks which quoted sentence best supports it (LEAP-style).
+   - **Question 3:** the July 15, 1975 timeline entry (Apollo–Soyuz). Best gist?
+3. **Complete Your Pear Exit Ticket:** this stage stays locked until practice is passed. After that the student sees:
+   - a note that the exit ticket is **required even though they missed the lesson**
+   - a large **"📝 Open my Session 2 Pear exit ticket"** button, which opens in a new tab
+   - **"✅ I've Submitted My Exit Ticket"**, which is disabled until the student has opened the exit ticket
+   - **If no Pear link is saved for the session:** "Your Pear exit ticket link isn't ready yet. Tell Ms. Odom…" The student can't report, and the tile stays incomplete. No link is ever made up.
 
-**Saved progress:**
-- Every step is saved to `students/{id}/catchUp/{land}_{tile}`.
-- Reopening the tile resumes at the next unfinished step, with a "Welcome back" note.
-- **Work opened on the lesson day** (the existing `taskProgress` flags) shows as **"Opened (in class)"**. The student still confirms it themselves.
-- **Opening a lesson in class is not proof of learning.** Those students still see the recap and example first, with an explicit choice:
-  - **Review** ("Got it") or **Skip — I learned this in class**.
-  - A skipped step stays available ("Skipped — tap to review").
-  - The teacher's review list shows "skipped recap / skipped example".
-  - Absent students aren't offered Skip.
+**Showing the skill, not copying:**
+- Each practice reading gives the section's details but never states its gist.
+- The wrong choices are true details from the reading.
+- A test checks that no correct answer appears word-for-word in the review or in its reading. (Part B is exempt, because it asks for a quotation from the text.)
 
-## Teacher review (Teacher Dashboard → "Catch-Up Work to Review")
-- **Accept confirms completion only.** The student sees "Completion confirmed by Ms. Odom".
-- **Send Back:** needs a correction note, which the student sees on the tile and in a map banner.
-  - Nothing is erased: the tile stays complete, and XP, Gold, achievements and confirmations are kept.
-  - The student taps **I made the correction**, then **Resubmit**.
-  - **Resubmitting never awards XP or Gold again.** The reward marker is claimed by a database transaction, so even two tabs at once pay out once.
-- **"Waiting on student"** lists work that's been sent back.
+## Practice grading (unchanged)
+- **3 of 4 or better (75%) passes.** The student sees their score and feedback, and Stage 3 unlocks. Passing **only records the score**. It doesn't complete the tile or pay a reward.
+- **Below 3 of 4:** the student sees their score, "You need 3 to pass", and a hint for each missed part. Retries are unlimited and have no penalty.
+- **Every try is kept** in the record's history (`autoFail` / `autoPass`, with the score).
 
-## Boss progress: submission never awards verified mastery
-**Verified mastery** in the Realm is teacher-awarded:
-- the **Mastery Seal** (Judgment Hall)
-- **Bronze / Silver / Gold** medal levels (demonstration count)
+## Pear link
+- **Source:** the link already saved for the session, in Content Links (`tileLinks`) or the Lesson Schedule. It's the same link regular attendees use, read through the existing `getEffectivePear`.
+- **Future sessions** use their own saved Pear links. Adding one to the pilot is a content entry in `src/catchUp.js` plus its tile key.
 
-Completing a tile never sets those, and catch-up doesn't change that.
+## Pear tracking and verification
+- **Pear can't report back to the Realm,** so submission can't be confirmed automatically. The same is true in regular lessons.
+- **Opened:** clicking the Pear button records `etOpenedAt`. An exit ticket opened on the lesson day (`exitTicketOpened`) also counts.
+- **Reported:** clicking "I've Submitted My Exit Ticket" records `etConfirmedAt` and sets `status: submitted`.
+- **Verified:** the teacher checks Pear, then clicks **Verify** on the dashboard, which sets `status: accepted`.
+- **Send Back:** the teacher must add a note. The student sees the note and reports again. The tile and reward are **not** taken away.
 
-**Encounter progress:**
-- **When a catch-up is submitted:** standard-boss encounter tracking counts, as it does for any completed session.
-- **On the boss's final encounter session:**
-  - the 🏅 encounter Medal is held back
-  - so is the "request a Mastery Seal" option it unlocks
-  - the boss record is marked `medalAwaitingReview`
-- **On Accept:** the held-back Medal is applied. It never downgrades a higher status, and the Seal itself is still awarded only in Judgment Hall.
+## When completion and rewards happen
+- **When the student reports the Pear exit ticket** (after passing practice and opening Pear):
+  - the tile is completed through the existing catch-up completion
+  - **+3 XP / +3 Gold** is paid **once**, guarded by a database transaction on `rewardGrantedAt`
+- **No reward** for failing, passing practice, opening Pear, refreshing, double-clicking, re-reporting after Send Back, or teacher Verify.
+- **Boss/medal safeguard (unchanged):** a catch-up completion never awards a medal level by itself. Verify applies the deferred medal step; there's still no Mastery Seal.
 
-**What the held-back "🏅 Medal" is:** the plain *encounter medal* the app already gives every student who completes all of a boss's encounter sessions. It's an attendance/completion badge, shown as "🏅 Medal" with no level.
-- It is **not** Bronze, Silver or Gold. Those come only from the demonstration count you set.
-- It is **not** the Mastery Seal.
-- Accept never reads or writes the demonstration count or the Seal. Tests confirm a Silver student stays Silver, and a Gold + Seal student is untouched.
-- **On Send Back:** nothing is applied or removed.
-- **Teacher-set demonstration counts** are always kept.
+## Records from earlier pilot versions
+- **Submitted or accepted (the student confirmed the Exit Ticket under v1):** the completion, tile and reward are kept. These show as "exit ticket reported" or "verified", with practice listed as "before update". Nothing is reset.
+- **Returned under v1:** the student only reports the exit ticket again. There's no practice and no second reward.
+- **In progress, never submitted:** the student must now pass practice, then complete Pear.
 
-**Gate bosses (trials):** completing the session still unlocks the trial *attempt*, as today. Trophies are still judged by the teacher.
+## Teacher visibility
+- **"📊 Session 2 Catch-Up — N completed · M verified" on the Teacher Dashboard.** Each row starts with a status badge:
+  - **✅ Completed (Student Reported):** passed practice and reported the Pear exit ticket. The tile and reward are already given, and **no teacher action is needed**.
+  - **🛡️ Verified:** the teacher checked Pear and clicked Verify. This is an optional spot-check that never adds rewards.
+  - **↩ Sent back — re-reporting:** the tile, reward and practice score are kept.
+  - **⏳ In progress**
+- **The row also shows:**
+  - name and student number, period, and session
+  - practice result (✓ score / ✗ last score / before update) and number of tries
+  - Pear status (not started / opened / reported, not verified / verified ✓ / sent back / link missing)
+  - whether the tile is fully complete
+  - **Verify** and **Send Back** buttons
+- **The activity log** records practice passes and fails, Pear reports ("not verified yet") and verifications.
+- **The shared "Catch-Up Work to Review" list** no longer shows Session 2. Other sessions are unchanged.
 
-**Session 2 itself** isn't a boss encounter: the Chronicler's sessions are S3, S8 and S12, and the first gate is S6. So the pilot tile has no boss effect at all. The safeguard matters once the flow expands to other sessions.
+## Data (existing structure only)
+- **Fields used:** only fields that already exist on the catch-up record: `history`, `etOpenedAt`, `etConfirmedAt`, `status` (submitted / returned / accepted), `submittedAt`, `submitCount`, `acceptedAt`, `returnNote`, `returnedAt`, `rewardGrantedAt`, `startedAt`, `updatedAt`.
+- **Not stored:** practice answers.
+- **No new fields** and **no security-rule changes.**
 
-## Editable content (Lesson Schedule → choose The Stone Kingdoms)
-- **The "Catch-up pilot — Session 2" box** holds the skill recap, the example passage, and the example steps (one per line: `Question | Answer`).
-- **Saving the recap** also updates the existing Recap Text column for Session 2.
-- **Draft badge:** the box shows **Draft — not yet approved** until you press **Approve as final**. Approving saves the text on screen first.
-- **Students never see unapproved text.** Until you approve, the tile has no recap or example steps and starts at Your Work. The draft text isn't in the student's page at all.
-- **"Save as draft"** puts edited content back into Draft, so changes can't go live until you approve them again.
-
-## Security note
-Like everything today, these records are writable by anyone while the database rules are open. When the secure rules are adopted, `catchUp/*/status` values `accepted` and `returned`, and `returnNote`, should be teacher-only, and `rewardGrantedAt` should be server-only.
+no security-rule changes.
 
 ## Tests
-- `npm test`: catch-up logic, 15 tests (23 total).
-- **Browser pilot suite (in-memory database): 67/67.** It covers:
-  - the full flow and resume
-  - Opened vs. confirmed
-  - submit, send back, resubmit and accept
-  - the once-only reward, including a two-tab race
-  - work started in class, with review/skip
-  - drafts hidden from students
-  - Accept never changes medal levels or Seals
-  - other missed tiles unchanged
+- `npm test`: catch-up logic, 31 tests. They cover:
+  - the threshold, and fail → retry → pass with no completion
+  - Stage 3 locked before passing; opened ≠ reported
+  - report → completion + reward once; duplicate reports refused
+  - missing link
+  - Verify / Send Back / re-report with no second reward
+  - earlier-version records
+  - only existing fields written; no mutation
+- **Browser pilot suite: 48/48** (fictional students, in-memory database). It covers:
+  - fail and retry
+  - pass
+  - the Pear link opening the stored URL
+  - opened vs reported
+  - a double-clicked report paying once
+  - refresh at every stage
+  - teacher Verify / Send Back (practice score and attempts kept, no second reward)
+  - the Completed (Student Reported) vs Verified badges
+  - an absent student getting the saved link weeks later
+  - a lesson-day exit ticket
+  - a missing link
+  - earlier-version records
   - the boss safeguard
-  - the editor and approval
+  - other sessions unchanged
+  - simultaneous reward grants
   - phone and tablet layout
 - **Regressions:**
-  - Kingdoms' Gate story 14/14
+  - Phase 3 46/46
+  - Today's Lesson 37/37
+  - Kingdoms' Gate 14/14
   - House selection 11/11
   - achievements 5/5
   - lesson links 22/22
-  - today's lesson 35/37 (the 2 misses are outdated expectations)
