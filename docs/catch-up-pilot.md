@@ -33,7 +33,7 @@ All readings are **original** (not quoted from the book) and are about astronaut
 | Question | Skill | Correct answer |
 |---|---|---|
 | 1 | Main idea of "A Pool for Astronauts" | C |
-| 2 | Supporting detail for a given main idea ("Bedtime on the Space Station") | B |
+| 2 | Best supporting detail for a given main idea ("Bedtime on the Space Station"); distractors include true but less relevant details such as "The space station has no up or down." | B |
 | 3 | Meaning of *technique* from context ("Getting Around in Microgravity") | D |
 | 4 | Sentence that supports the meaning of *fundamental* ("Ready for Mars") | A |
 

@@ -62,6 +62,14 @@ test('Session 3: two reviews (main idea, context clues), four questions, answer 
   assert.deepEqual(p3.map(p => p.id), ['q1', 'q2', 'q3', 'q4']);
   assert.deepEqual(p3.map(p => 'ABCD'[p.choices.findIndex(x => x.correct)]), ['C', 'B', 'D', 'A']);
   assert.ok(p3[2].prompt.includes('technique') && p3[3].prompt.includes('fundamental'));
+  assert.deepEqual(p3[1].choices.map(x => x.text), [
+    '“Everyone needs sleep to stay healthy and alert.”',
+    '“To stay put, astronauts zip themselves into sleeping bags that are tied to the wall.”',
+    '“The space station has no up or down.”',
+    '“Some crew members enjoy looking out the window at Earth before bed.”',
+  ], 'Question 2 choices as approved');
+  for (const q of c3.questions) for (const p of q.parts.filter(p => p.quote))
+    for (const ch of p.choices) assert.ok(q.reading.includes(ch.text.replace(/^“|”$/g, '')), `${p.id}: quoted choice not in its reading: ${ch.text}`);
   assert.equal(passMinOf(c3), 3);
   const r3 = Object.fromEntries(p3.map(p => [p.id, p.choices.findIndex(x => x.correct)]));
   const w = p => p.choices.findIndex(x => !x.correct);
