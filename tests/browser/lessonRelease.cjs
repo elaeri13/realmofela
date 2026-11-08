@@ -64,8 +64,19 @@ const SEED = {
     await teacher('teacher-lesson-schedule');
     check('Lesson Release panel is off by default', /Lesson Release\s*Off/.test(await text('#trl-panel')));
     await click('#trl-enable');
+    check('step 1 saves nothing — it only shows the confirmation', !(await tree()).settings.lessonRelease && !!(await page.$('#trl-confirm')));
+    const cfOpen = await text('#trl-cf-open'), cfFuture = await text('#trl-cf-future'), cfNoDate = await text('#trl-cf-nodate');
+    check('confirmation: "Open right away" lists only sessions whose date has passed (S2–S4)', /Open right away \(3\)/.test(cfOpen) && /Session 2/.test(cfOpen) && /Session 4/.test(cfOpen) && !/Session 5|Session 6/.test(cfOpen), cfOpen);
+    check('confirmation: future-dated session listed as staying locked, with its date', /Stay locked \(1\)/.test(cfFuture) && /Camp Day|Session 7/.test(cfFuture) && /2099/.test(cfFuture), cfFuture);
+    check('confirmation: sessions with NO release date listed separately as staying locked', /no release date/.test(cfNoDate) && /Session 5|Writer/.test(cfNoDate) && /Study Hall/.test(cfNoDate) && /Session 6/.test(cfNoDate), cfNoDate);
+    check('confirmation: progress is kept, and it says how many students sit on a session that will lock', /keeps everything they've finished/.test(await text('#trl-confirm')) && /3 students are/.test(await text('#trl-confirm')), await text('#trl-confirm'));
+    await click('#trl-enable-cancel');
+    check('Cancel saves nothing and closes the confirmation', !(await tree()).settings.lessonRelease && !(await page.$('#trl-confirm')) && !!(await page.$('#trl-enable')));
+    await click('#trl-enable'); await click('#trl-enable-confirm');
     t = await tree();
     const rel = t.settings.lessonRelease[2];
+    check('confirm saves exactly the listed "open" sessions; no-date sessions are not released', JSON.stringify(Object.keys(rel.all).sort()) === '["2","3","4"]', JSON.stringify(rel.all));
+    check('turning on changed no student progress', (await stu(104)).completedTiles.join() === '1,2,3,4,5' && (await stu(103)).currentTile === 5 && (await stu(101)).xp === 10);
     check('turning on keeps sessions with past release dates open for all periods (S2–S4), nothing else', rel.enabled === true && rel.all[2] && rel.all[3] && rel.all[4] && !rel.all[5] && !rel.all[7]);
     check('turning on wrote only settings/lessonRelease (other settings intact)', t.settings.homeworkQuest.text === 'Read 20 minutes' && t.settings.currentSession[2].tileId === 5);
     check('"Release next" offers the first locked session', /Release next: (Session 5|Writer)/.test(await text('#trl-next')), await text('#trl-next'));
@@ -164,6 +175,9 @@ const SEED = {
     // ── Phone layout ──
     await page.setViewportSize({ width: 390, height: 844 });
     await teacher('teacher-lesson-schedule'); await click('#trl-enable');
+    check('turning back on: the confirmation lists sessions kept from last time as open', /you released it before/.test(await text('#trl-cf-open')));
+    check('phone: confirmation fits the screen', await page.evaluate(() => [...document.querySelectorAll('#trl-panel, #trl-panel *')].every(e => e.getBoundingClientRect().right <= window.innerWidth + 1)));
+    await click('#trl-enable-confirm');
     check('phone: release panel fits the screen', await page.evaluate(() => [...document.querySelectorAll('#trl-panel, #trl-panel *')].every(e => e.getBoundingClientRect().right <= window.innerWidth + 1)));
     await page.screenshot({ path: path.join(require('os').tmpdir(), 'release-phone.png') });
     check('no page errors', errs.length === 0, errs.join(' | '));

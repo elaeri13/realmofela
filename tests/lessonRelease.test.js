@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isReleaseTile, releaseTiles, releaseFor, canWorkOn, planEnable, planDisable, planSetAll, planTogglePeriod, nextToRelease, applyPlan, summarize, releaseConfig } from '../src/lessonRelease.js';
+import { isReleaseTile, releaseTiles, releaseFor, canWorkOn, planEnable, planDisable, previewEnable, planSetAll, planTogglePeriod, nextToRelease, applyPlan, summarize, releaseConfig } from '../src/lessonRelease.js';
 import { planAllPeriods, summarizeTodaysLessons } from '../src/currentSession.js';
 
 const land = { id: 2, pathOrder: [1, 2, 3, 4, 5, 31, 6, 27], tiles: [
@@ -49,6 +49,28 @@ test('turning on keeps every session whose date has passed open for all periods'
   const plan = planEnable(land, id => [2, 3].includes(id));
   assert.deepEqual(plan, { enabled: true, 'all/2': true, 'all/3': true });
   assert.deepEqual(planDisable(), { enabled: null });
+});
+
+test('activation preview: every session is listed once — open (date passed), locked (future date), locked (no date)', () => {
+  const dates = { 2: '2026-01-01', 3: '2026-01-02', 4: '2099-01-01' };          // 5 and 6 have no date
+  const passed = id => ['2026-01-01', '2026-01-02'].includes(dates[id]);
+  const p = previewEnable(land, passed, id => dates[id]);
+  assert.deepEqual(p.open.map(x => x.tile.id), [2, 3]);
+  assert.deepEqual(p.lockedFuture.map(x => [x.tile.id, x.date]), [[4, '2099-01-01']]);
+  assert.deepEqual(p.lockedNoDate.map(x => x.tile.id), [5, 6]);
+  assert.equal(p.open.length + p.lockedFuture.length + p.lockedNoDate.length, releaseTiles(land).length);
+  // the plan written on confirm opens exactly the "open" list — never a no-date session
+  assert.deepEqual(planEnable(land, passed, id => dates[id]), { enabled: true, 'all/2': true, 'all/3': true });
+  assert.deepEqual(planEnable(land, () => true, id => dates[id]), { enabled: true, 'all/2': true, 'all/3': true, 'all/4': true }, 'no-date sessions stay locked even if a caller says "passed"');
+});
+
+test('re-enabling: sessions released earlier are listed as open (kept), and kept period settings are counted', () => {
+  const dates = { 2: '2026-01-01' };
+  const prev = { all: { 5: true }, classes: { 2: { 6: true } } };
+  const p = previewEnable(land, id => id === 2, id => dates[id], prev);
+  assert.deepEqual(p.open.map(x => [x.tile.id, !!x.kept]), [[2, false], [5, true]]);
+  assert.deepEqual(p.lockedNoDate.map(x => x.tile.id), [3, 4, 6]);
+  assert.equal(p.keptPeriodSettings, 1);
 });
 
 test('release for ALL periods in one action clears period holds; undo locks everywhere', () => {

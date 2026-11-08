@@ -58,12 +58,34 @@ export function canWorkOn({ cfg, classId, land, tile, completed = [], dateOpen =
 
 // Turn release mode on. Sessions whose release date has already passed are released for all periods,
 // so nothing students can open today closes when the mode is switched on.
-export function planEnable(land, isDatePassed) {
+export function planEnable(land, isDatePassed, getDate = null) {
   const w = { enabled: true };
-  releaseTiles(land).forEach(t => { if (isDatePassed(t.id)) w[`all/${t.id}`] = true; });
+  releaseTiles(land).forEach(t => {
+    if (getDate && !getDate(t.id)) return;            // no release date → stays locked, explicitly
+    if (isDatePassed(t.id)) w[`all/${t.id}`] = true;
+  });
   return w;
 }
 export const planDisable = () => ({ enabled: null });   // keeps the release list for next time
+
+// What turning release mode on would do, for the teacher's confirmation screen. Every managed
+// session lands in exactly one list. Sessions with NO release date are listed separately and stay
+// locked (they never open by accident). getDate(tileId) → 'YYYY-MM-DD' | '' ; isDatePassed(tileId) → bool.
+// prev = a release list kept from an earlier time the mode was on: those sessions open again
+// (marked kept), and per-period settings are counted so the teacher sees them too.
+export function previewEnable(land, isDatePassed, getDate, prev = null) {
+  const out = { open: [], lockedFuture: [], lockedNoDate: [], keptPeriodSettings: 0 };
+  const prevAll = (prev && prev.all) || {};
+  Object.values((prev && prev.classes) || {}).forEach(c => { out.keptPeriodSettings += Object.keys(c || {}).length; });
+  releaseTiles(land).forEach(t => {
+    const date = getDate(t.id) || '';
+    if (prevAll[String(t.id)]) out.open.push({ tile: t, date, kept: true });
+    else if (!date) out.lockedNoDate.push({ tile: t, date: '' });
+    else if (isDatePassed(t.id)) out.open.push({ tile: t, date });
+    else out.lockedFuture.push({ tile: t, date });
+  });
+  return out;
+}
 
 // Release (or undo) one session for ALL periods in one action. Clears that session's period overrides
 // so every period ends up the same.

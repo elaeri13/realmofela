@@ -13,7 +13,14 @@
 ## Lesson Release (Lesson Schedule screen)
 Release mode is set **per Land** and is **off** until you turn it on. While it's off, the old rule applies: sessions open on their release dates.
 
-- **Turning it on:** every session whose release date has already passed stays open for all periods. From then on, a session opens only when you release it.
+- **Turning it on takes two steps.** The first click saves nothing. It only shows a confirmation that lists every session in the Land in exactly one of three columns:
+  1. **🔓 Open right away:** the release date has passed, or you released it the last time release mode was on.
+  2. **🔒 Stay locked:** the release date is in the future. It will **not** open on that date; you release it.
+  3. **🔒 Stay locked — no release date:** listed separately. A session with no date can never open by accident.
+
+  The confirmation also counts any kept period settings and how many students are sitting on a session that will lock. It confirms that finished work, XP, Gold and items are kept.
+  - **Only "Yes, turn on release mode" saves,** and it saves exactly the "Open right away" list. **Cancel** saves nothing.
+  - **From then on,** a session opens only when you release it.
   - **🔓 Release next: Session N for all periods** is a one-tap daily action.
   - Each session row has **Release for all periods** / **Lock for all periods**, **P1–P4** buttons for one period, and **👁 Preview**.
   - A **dashed** period button means that period is set differently from the others. Click it again to make it follow all periods.

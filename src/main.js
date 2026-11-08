@@ -2,7 +2,7 @@ import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, run
 import { NAMES, EPITHETS } from './data/characterNames.js'
 import { CHARACTER_ABILITIES, LEVEL10_FRAME_ID, XP_PER_LEVEL, rewardsForLevel, levelStatus, claimableLevels, trackLevels, nextRewardLevel, nextMilestoneLevel, abilityStatus, levelsToCelebrate, isMilestone, isAbilityLevel, isClaimablePart, partLabel, partIcon } from './levelRewards.js'
 import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession, planAllPeriods, summarizeTodaysLessons } from './currentSession.js'
-import { releaseConfig, isManaged, isReleaseTile, releaseTiles, releaseFor, canWorkOn, planEnable, planDisable, planSetAll, planTogglePeriod, nextToRelease, applyPlan, summarize as summarizeRelease, CLASS_IDS } from './lessonRelease.js'
+import { releaseConfig, isManaged, isReleaseTile, releaseTiles, releaseFor, canWorkOn, planEnable, planDisable, previewEnable, planSetAll, planTogglePeriod, nextToRelease, applyPlan, summarize as summarizeRelease, CLASS_IDS } from './lessonRelease.js'
 import { isCatchUpPilot, catchUpKey, catchUpView, applyCatchUp, sessionContent, gradePractice, practiceParts, passMinOf, reviewsOf, catchUpSessions } from './catchUp.js'
 
 /* ═══════════════════════════════════════════════
@@ -7967,18 +7967,53 @@ function renderTeacherContentLinks() {
     </div>
   </div>`;
 }
+// What turning release mode on would do (confirmation screen + the plan saved on confirm).
+function releasePreview(land) {
+  const dateOf = tid => getLessonScheduleEntry(land.id, tid).releaseDate || '';
+  const passed = tid => !!dateOf(tid) && !isTileLocked(land.id, tid);
+  const pv = previewEnable(land, passed, dateOf, getReleaseCfg(land.id));   // includes a list kept from last time
+  const lockIds = new Set([...pv.lockedFuture, ...pv.lockedNoDate].map(x => x.tile.id));
+  pv.studentsOnLocked = CLASS_DATA.periods.flatMap(p => p.students).filter(s => {
+    const pos = getLandPos(s);
+    return pos.land === land.id && lockIds.has(pos.tile) && !(pos.completed || []).includes(pos.tile);
+  }).length;
+  pv.plan = planEnable(land, passed, dateOf);
+  return pv;
+}
 // Lesson Release panel (Lesson Schedule screen). All writes go through saveReleasePlan().
 function renderLessonReleasePanel(land) {
   const cfg = getReleaseCfg(land.id);
   const tiles = releaseTiles(land);
   if (!tiles.length) return '';
   if (!isManaged(cfg)) {
-    const keep = tiles.filter(t => tileReleasedFor(null, land.id, t.id)).length;
-    return `<div class="trl-panel" id="trl-panel">
-      <div class="trl-h">🔓 Lesson Release <span class="trl-off">Off</span></div>
-      <p class="trl-p">Right now sessions open on their release dates (and sessions with no date are open). Turn on release mode so students can't work ahead: you release each session for all periods with one tap, and can hold one period back when you need to.</p>
-      <p class="trl-p">When you turn it on, the ${keep} session${keep === 1 ? '' : 's'} whose release date has passed stay open. Finished work is never locked.</p>
-      <button class="btn btn-outline-sm trl-btn-main" id="trl-enable">Turn on release mode for ${land.name}</button>
+    const pv = releasePreview(land);
+    const intro = `<div class="trl-h">🔓 Lesson Release <span class="trl-off">Off</span></div>
+      <p class="trl-p">Right now sessions open on their release dates, and sessions with no date are open. Turn on release mode so students can't work ahead: you release each session for all periods with one tap, and can hold one period back when you need to.</p>`;
+    if (STATE.trlConfirmLand !== land.id) {
+      return `<div class="trl-panel" id="trl-panel">${intro}
+        <button class="btn btn-outline-sm trl-btn-main" id="trl-enable">Turn on release mode for ${land.name}…</button>
+      </div>`;
+    }
+    // Confirmation step: show exactly what will happen before anything is saved.
+    const fmt = d => { const x = new Date(d + 'T00:00:00'); return isNaN(x) ? d : x.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+    const list = (items, withDate) => items.length
+      ? `<ul class="trl-cf-list">${items.map(x => `<li>${escHtml(sessionLabel(x.tile))}${x.kept ? ' <span class="trl-cf-date">(you released it before)</span>' : withDate && x.date ? ` <span class="trl-cf-date">${fmt(x.date)}</span>` : ''}</li>`).join('')}</ul>`
+      : '<p class="trl-p"><i>None</i></p>';
+    return `<div class="trl-panel trl-confirm" id="trl-panel">${intro}
+      <div class="trl-cf" id="trl-confirm" role="region" aria-label="Confirm turning on release mode">
+        <div class="trl-cf-h">Before you turn it on, here's exactly what will happen in ${land.name}:</div>
+        <div class="trl-cf-grid">
+          <div class="trl-cf-col trl-cf-open" id="trl-cf-open"><b>🔓 Open right away (${pv.open.length})</b><span class="trl-cf-why">Release date has passed${pv.open.some(x => x.kept) ? ', or you released it the last time release mode was on' : ''}</span>${list(pv.open, true)}</div>
+          <div class="trl-cf-col trl-cf-future" id="trl-cf-future"><b>🔒 Stay locked (${pv.lockedFuture.length})</b><span class="trl-cf-why">Release date is in the future — they will NOT open on that date; you release them</span>${list(pv.lockedFuture, true)}</div>
+          <div class="trl-cf-col trl-cf-nodate" id="trl-cf-nodate"><b>🔒 Stay locked — no release date (${pv.lockedNoDate.length})</b><span class="trl-cf-why">No date is set, so they stay locked until you release them</span>${list(pv.lockedNoDate, false)}</div>
+        </div>
+        ${pv.keptPeriodSettings ? `<p class="trl-p">↺ ${pv.keptPeriodSettings} period-specific setting${pv.keptPeriodSettings === 1 ? '' : 's'} from last time will apply again (dashed period buttons).</p>` : ''}
+        <p class="trl-p">✅ Every student keeps everything they've finished — completed sessions, XP, Gold and items are never locked or removed.${pv.studentsOnLocked ? ` <b>${pv.studentsOnLocked} student${pv.studentsOnLocked === 1 ? ' is' : 's are'}</b> currently on a session that will lock; they'll see "isn't open yet" there until you release it.` : ''}</p>
+        <div class="trl-top">
+          <button class="btn btn-outline-sm trl-btn-main" id="trl-enable-confirm">Yes, turn on release mode</button>
+          <button class="btn btn-outline-sm" id="trl-enable-cancel">Cancel</button>
+        </div>
+      </div>
     </div>`;
   }
   const next = nextToRelease(cfg, land);
@@ -12176,9 +12211,14 @@ function bindEvents() {
       const _rl = () => LANDS.find(l => l.id === (STATE.tlsLandId || getMostCommonStudentLand().id)) || LANDS[0];
       const _keep = () => { const w = document.querySelector('.t-dash-screen'); return w ? w.scrollTop : 0; };
       const _redraw = y => { mount(); const w = document.querySelector('.t-dash-screen'); if (w) w.scrollTop = y; };
-      $("trl-enable") && $("trl-enable").addEventListener("click", () => {
+      // Step 1 shows the confirmation list (nothing saved). Step 2 saves exactly what was listed.
+      $("trl-enable") && $("trl-enable").addEventListener("click", () => { const y = _keep(); STATE.trlConfirmLand = _rl().id; _redraw(y); });
+      $("trl-enable-cancel") && $("trl-enable-cancel").addEventListener("click", () => { const y = _keep(); STATE.trlConfirmLand = null; _redraw(y); });
+      $("trl-enable-confirm") && $("trl-enable-confirm").addEventListener("click", () => {
         const land = _rl(); const y = _keep();
-        saveReleasePlan(land.id, planEnable(land, tid => tileReleasedFor(null, land.id, tid)));
+        if (STATE.trlConfirmLand !== land.id) return;
+        STATE.trlConfirmLand = null;
+        saveReleasePlan(land.id, releasePreview(land).plan);
         _redraw(y);
       });
       $("trl-more") && $("trl-more").addEventListener("click", () => { const y = _keep(); STATE.trlShowAll = !STATE.trlShowAll; _redraw(y); });
