@@ -2320,7 +2320,7 @@ function applyAcceptedCatchUpBoss(student, land, tileId) {
 // result = the last graded attempt in this visit, used to show feedback.
 function cu3State(land, tile) {
   const key = catchUpKey(land.id, tile.id);
-  if (!STATE.cu3 || STATE.cu3.key !== key || STATE.cu3.openedAt !== STATE.lessonOpenedAt) STATE.cu3 = { key, openedAt: STATE.lessonOpenedAt, answers: {}, result: null };
+  if (!STATE.cu3 || STATE.cu3.key !== key || STATE.cu3.openedAt !== STATE.lessonOpenedAt) STATE.cu3 = { key, openedAt: STATE.lessonOpenedAt, answers: {}, result: null, step: null, q: 0, showResult: false };
   return STATE.cu3;
 }
 function runCatchUpAction(student, land, tile, action, opts = {}) {
@@ -2370,8 +2370,6 @@ function renderCatchUpPilot(student, land, tile) {
       <div class="cu2-title">📚 Catch up — ${escHtml(sess)}<span class="cu2-skill">${escHtml(c.skill)} · ${escHtml(c.standard)}</span></div>
       <span class="cu2-chip ${chip}">${escHtml(v.label)}</span>
     </div>`;
-  const stageHdr = (n, title, state) => `<div class="cu4-stage-hdr cu4-${state}"><span class="cu4-num">${state === 'done' ? '✓' : n}</span><h3 class="cu3-h">${title}</h3>
-      <span class="cu4-tag">${state === 'done' ? 'Done' : state === 'locked' ? 'Locked' : state === 'current' ? 'Up next' : ''}</span></div>`;
   const resultItems = r => `<ul class="cu3-results">${c.questions.flatMap(q => q.parts.map(p => {
       const g = r.items.find(i => i.id === p.id) || {};
       return `<li class="${g.correct ? 'cu3-ok' : 'cu3-no'}"><b>${g.correct ? '✓' : '✗'} ${escHtml(q.title)}${p.label ? ' ' + p.label : ''}:</b> ${escHtml(g.feedback)}</li>`;
@@ -2387,7 +2385,8 @@ function renderCatchUpPilot(student, land, tile) {
     </div>`;
   }
 
-  // ── Stage 1 · Review the Skill(s) — one block per review section
+  // ── Three steps, one at a time: 1 Review → 2 Practice (one question per screen) → 3 Pear exit ticket.
+  // Which step shows is page-only (STATE.cu3.step); progress itself still comes from the saved record.
   const reviews = reviewsOf(c);
   const reviewHtml = r => { const e = r.example;
     return `<div class="cu5-review">
@@ -2400,69 +2399,104 @@ function renderCatchUpPilot(student, land, tile) {
       <div class="cu3-ex"><span class="cu3-exn">${e.walk.length + 1}</span><div class="cu2-gist"><div class="cu2-gist-lbl">${escHtml(e.answer.label)}</div>${escHtml(e.answer.text)}</div></div>
       ${e.note ? `<p class="cu3-hint">${escHtml(e.note)}</p>` : ''}
     </div>`; };
-  const stage1 = `<section class="cu3-sec">
-      ${stageHdr(1, reviews.length > 1 ? 'Review the Skills' : 'Review the Skill', v.practicePassed ? 'done' : 'current')}
-      ${reviews.map(reviewHtml).join('')}
-    </section>`;
+  const step = st.step === 'review' ? 'review'
+    : v.practicePassed ? 'pear'
+    : (st.step === 'practice' || (st.step == null && v.tries > 0)) ? 'practice' : 'review';
+  const stepper = (() => {
+    const items = [['review', 'Review'], ['practice', 'Practice'], ['pear', 'Exit Ticket']];
+    const done = { review: step !== 'review' || v.practicePassed || v.tries > 0, practice: v.practicePassed, pear: false };
+    return `<ol class="cu6-steps" aria-label="Catch-up steps">${items.map(([k, lbl], i) => {
+      // Only Step 3 is ever locked (until practice is passed); the student can always go back to Review/Practice.
+      const cls = k === step ? 'cu6-now' : done[k] ? 'cu6-done' : (k === 'pear' && !v.practicePassed) ? 'cu6-locked' : '';
+      const dot = cls === 'cu6-done' ? '✓' : cls === 'cu6-locked' ? '🔒' : String(i + 1);
+      return `<li class="cu6-step ${cls}"${k === step ? ' aria-current="step"' : ''}><span class="cu6-dot">${dot}</span><span class="cu6-lbl">Step ${i + 1}<br><b>${lbl}</b></span></li>`;
+    }).join('<li class="cu6-line" aria-hidden="true"></li>')}</ol>`;
+  })();
 
-  // ── Stage 2 · Prove Your Knowledge (auto-graded)
-  let stage2;
-  if (v.practicePassed) {
-    stage2 = `<section class="cu3-sec">${stageHdr(2, 'Prove Your Knowledge', 'done')}
-      ${res && res.passed
-        ? `<div class="cu2-status cu2-status-acc"><b>You got ${res.correctCount} of ${res.total} correct — you passed!</b>${resultItems(res)}</div>`
-        : `<p class="cu3-hint">${v.passAttempt ? `Passed: ${v.passAttempt.correct} of ${v.passAttempt.total} correct.` : 'Completed before the practice questions were added.'}</p>`}
+  let body;
+  if (step === 'review') {
+    body = `<section class="cu6-card" id="cu6-review">
+      <h3 class="cu6-h">${reviews.length > 1 ? 'Review the Skills' : 'Review the Skill'}</h3>
+      ${reviews.map(reviewHtml).join('')}
+      <button class="cu2-btn cu6-next" data-cu6-go="${v.practicePassed ? 'pear' : 'practice'}">${v.practicePassed ? 'Back to my exit ticket →' : 'I’m ready to practice →'}</button>
     </section>`;
-  } else {
+  } else if (step === 'practice') {
+    const qs = c.questions;
+    const qi = Math.min(Math.max(0, st.q || 0), qs.length - 1);
     const wrongIds = new Set(res && !res.passed ? res.items.filter(i => !i.correct).map(i => i.id) : []);
-    const part = p => {
-      const pick = st.answers[p.id];
-      return `<fieldset class="cu3-part${wrongIds.has(p.id) ? ' cu3-part-wrong' : ''}">
-        <legend class="cu3-prompt">${p.label ? `<span class="cu3-partlbl">${p.label}</span> ` : ''}${escHtml(p.prompt)}</legend>
-        <div class="cu2-opts">${p.choices.map((ch, i) => `<button type="button" class="cu2-opt${pick === i ? ' cu3-opt-picked' : ''}" data-cu3-part="${p.id}" data-cu3-choice="${i}" aria-pressed="${pick === i}">
-            <span class="cu2-opt-letter">${'ABCD'[i]}</span><span>${escHtml(ch.text)}</span></button>`).join('')}</div>
-      </fieldset>`;
-    };
-    stage2 = `<section class="cu3-sec">${stageHdr(2, 'Prove Your Knowledge', 'current')}
-      ${res && !res.passed
-        ? `<div class="cu2-status cu2-status-ret" role="status"><b>You got ${res.correctCount} of ${res.total} correct. You need ${passMin} to pass.</b>
-            <p>Read the hints, reread the short readings, change your answers, and submit again. There is no penalty for trying again.</p>
-            <ul class="cu3-results">${res.items.filter(i => !i.correct).map(i => {
-              const q = c.questions.find(q => q.parts.some(p => p.id === i.id)); const p = q.parts.find(p => p.id === i.id);
-              return `<li class="cu3-no"><b>✗ ${escHtml(q.title)}${p.label ? ' ' + p.label : ''}:</b> ${escHtml(i.feedback)}</li>`;
-            }).join('')}</ul></div>`
-        : res && res.passed ? `<div class="cu2-status cu2-status-acc" role="status"><b>Preview: ${res.correctCount} of ${res.total} correct — this would pass.</b>${resultItems(res)}</div>`
-        : v.tries ? `<p class="cu2-resume">Last try: ${v.last.correct} of ${v.last.total}. You need ${passMin} of ${total} to pass.</p>` : ''}
-      <p class="cu3-hint">Read each short section, then choose the best answer. Get ${passMin} of ${total} right to unlock your exit ticket.</p>
-      ${c.questions.map(q => `<div class="cu3-q">
-          <div class="cu3-qtitle">${escHtml(q.title)}${q.partAB ? ' <span class="cu3-sub">(Part A and Part B)</span>' : ''}</div>
+    const qAnswered = q => q.parts.every(p => Number.isInteger(st.answers[p.id]));
+    const qWrong = q => q.parts.some(p => wrongIds.has(p.id));
+    const dots = `<div class="cu6-qnav" role="group" aria-label="Questions">${qs.map((q, i) =>
+      `<button type="button" class="cu6-qdot${i === qi && !st.showResult ? ' cu6-qdot-now' : ''}${qAnswered(q) ? ' cu6-qdot-done' : ''}${qWrong(q) ? ' cu6-qdot-wrong' : ''}" data-cu6-q="${i}" aria-label="Question ${i + 1}${qAnswered(q) ? ', answered' : ''}">${i + 1}</button>`).join('')}</div>`;
+    if (res && !res.passed && st.showResult) {
+      const firstMissed = Math.max(0, qs.findIndex(qWrong));
+      body = `<section class="cu6-card" id="cu6-result">
+        <h3 class="cu6-h">Not yet — almost there!</h3>
+        <div class="cu2-status cu2-status-ret" role="status"><b>You got ${res.correctCount} of ${res.total} correct. You need ${passMin} to pass.</b>
+          <p>Read the hints, reread the short readings, change your answers, and submit again. There is no penalty for trying again.</p>
+          <ul class="cu3-results">${res.items.filter(i => !i.correct).map(i => {
+            const q = qs.find(q => q.parts.some(p => p.id === i.id)); const p = q.parts.find(p => p.id === i.id);
+            return `<li class="cu3-no"><b>✗ ${escHtml(q.title)}${p.label ? ' ' + p.label : ''}:</b> ${escHtml(i.feedback)}</li>`;
+          }).join('')}</ul></div>
+        ${dots}
+        <button class="cu2-btn cu6-next" data-cu6-q="${firstMissed}">Fix my answers →</button>
+      </section>`;
+    } else {
+      const q = qs[qi];
+      const part = p => {
+        const pick = st.answers[p.id];
+        return `<fieldset class="cu3-part${wrongIds.has(p.id) ? ' cu3-part-wrong' : ''}">
+          <legend class="cu3-prompt">${p.label ? `<span class="cu3-partlbl">${p.label}</span> ` : ''}${escHtml(p.prompt)}</legend>
+          <div class="cu2-opts">${p.choices.map((ch, i) => `<button type="button" class="cu2-opt${pick === i ? ' cu3-opt-picked' : ''}" data-cu3-part="${p.id}" data-cu3-choice="${i}" aria-pressed="${pick === i}">
+              <span class="cu2-opt-letter">${'ABCD'[i]}</span><span>${escHtml(ch.text)}</span></button>`).join('')}</div>
+        </fieldset>`;
+      };
+      const last = qi === qs.length - 1;
+      body = `<section class="cu6-card" id="cu6-practice">
+        <div class="cu6-prachead"><h3 class="cu6-h">Practice</h3><span class="cu6-goal">Get ${passMin} of ${total} right</span></div>
+        ${res && res.passed ? `<div class="cu2-status cu2-status-acc" role="status"><b>Preview: ${res.correctCount} of ${res.total} correct — this would pass.</b></div>`
+          : v.tries ? `<p class="cu2-resume">Last try: ${v.last.correct} of ${v.last.total}. You need ${passMin} of ${total} to pass.</p>` : ''}
+        ${dots}
+        <div class="cu3-q" data-cu6-qi="${qi}">
+          <div class="cu3-qtitle">Question ${qi + 1} of ${qs.length}${q.partAB ? ' <span class="cu3-sub">(Part A and Part B)</span>' : ''}</div>
           <div class="cu3-read"><div class="cu3-read-h">Read: ${escHtml(q.readingTitle)}</div><p>${escHtml(q.reading)}</p></div>
           ${q.parts.map(part).join('')}
-        </div>`).join('')}
-      <button class="cu2-btn cu2-submit" data-cu2="grade" ${answeredAll ? '' : 'disabled'}>📬 Submit my answers</button>
-      <p class="cu3-hint cu3-need-all" data-ready="All answered — press Submit when you’re ready." data-need="Answer all ${total} ${c.questions.length === total ? 'questions' : 'parts'} to submit.">${answeredAll ? 'All answered — press Submit when you’re ready.' : `Answer all ${total} ${c.questions.length === total ? 'questions' : 'parts'} to submit.`}</p>
+        </div>
+        <div class="cu6-nav">
+          ${qi > 0 ? `<button type="button" class="cu2-btn cu6-back" data-cu6-q="${qi - 1}">← Back</button>` : `<button type="button" class="cu2-btn cu6-back" data-cu6-go="review">← Review</button>`}
+          ${last ? `<button class="cu2-btn cu2-submit" data-cu2="grade" ${answeredAll ? '' : 'disabled'}>📬 Submit my answers</button>`
+                 : `<button type="button" class="cu2-btn cu6-next" data-cu6-q="${qi + 1}">Next →</button>`}
+        </div>
+        <p class="cu3-hint cu3-need-all" data-ready="All answered — press Submit when you’re ready." data-need="Answer all ${total} ${c.questions.length === total ? 'questions' : 'parts'} to submit.">${answeredAll ? 'All answered — press Submit when you’re ready.' : `Answer all ${total} ${c.questions.length === total ? 'questions' : 'parts'} to submit.`}</p>
+      </section>`;
+    }
+  } else {
+    // Step 3 · Pear exit ticket (same rules and buttons as before)
+    let pearBody;
+    if (!v.pear.available) {
+      pearBody = `<div class="cu2-status cu2-status-ret"><b>Your Pear exit ticket link isn’t ready yet.</b>
+        <p>Tell ${teacher} that the ${escHtml(sess)} exit ticket link is missing. Your practice score is saved.</p></div>`;
+    } else {
+      pearBody = `${v.status === 'returned' ? `<div class="cu2-status cu2-status-ret"><b>↩ ${teacher} sent this back</b><p class="cu2-note">“${escHtml(v.returnNote)}”</p></div>` : ''}
+        <p class="cu4-must"><b>This exit ticket is required.</b> Even when you’re making up a missed day, you take the same Pear exit ticket as your class.</p>
+        <a class="cu4-pear" href="${pearUrl}" target="_blank" rel="noopener noreferrer" data-cu4-open="pear">📝 Open my ${escHtml(sess)} Pear exit ticket</a>
+        <p class="cu3-hint">${v.pear.opened ? 'Opened. Finish it in Pear and press Submit there, then come back here.' : 'It opens in a new tab. Finish it there, then come back here.'}</p>
+        <button class="cu2-btn cu2-confirm" data-cu2="reportPear" ${v.canReport ? '' : 'disabled'}>✅ I've Submitted My Exit Ticket</button>
+        <p class="cu3-hint">${v.pear.opened ? 'Press it only after you submit in Pear.' : 'Open your exit ticket first.'}</p>
+        <p class="cu2-fine">The Realm can’t see Pear, so ${teacher} will check your exit ticket there.</p>`;
+    }
+    const passNote = res && res.passed
+      ? `<div class="cu2-status cu2-status-acc cu6-win" role="status"><b>🎉 You got ${res.correctCount} of ${res.total} correct — you passed!</b><details class="cu6-details"><summary>See your answers</summary>${resultItems(res)}</details></div>`
+      : `<p class="cu6-passed">✓ Practice passed${v.passAttempt ? `: ${v.passAttempt.correct} of ${v.passAttempt.total} correct` : ''}</p>`;
+    body = `<section class="cu6-card cu4-active" id="cu6-pear">
+      <h3 class="cu6-h">Complete Your Pear Exit Ticket</h3>
+      ${passNote}
+      ${pearBody}
+      <button type="button" class="cu6-link" data-cu6-go="review">↺ Look back at the review</button>
     </section>`;
   }
 
-  // ── Stage 3 · Complete Your Pear Exit Ticket
-  let stage3Body;
-  if (!v.practicePassed) {
-    stage3Body = `<p class="cu3-hint">🔒 Unlocks after you pass Stage 2.</p>`;
-  } else if (!v.pear.available) {
-    stage3Body = `<div class="cu2-status cu2-status-ret"><b>Your Pear exit ticket link isn’t ready yet.</b>
-      <p>Tell ${teacher} that the ${escHtml(sess)} exit ticket link is missing. Your practice score is saved.</p></div>`;
-  } else {
-    stage3Body = `${v.status === 'returned' ? `<div class="cu2-status cu2-status-ret"><b>↩ ${teacher} sent this back</b><p class="cu2-note">“${escHtml(v.returnNote)}”</p></div>` : ''}
-      <p class="cu4-must"><b>This exit ticket is required.</b> Even when you’re making up a missed day, you take the same Pear exit ticket as your class.</p>
-      <a class="cu4-pear" href="${pearUrl}" target="_blank" rel="noopener noreferrer" data-cu4-open="pear">📝 Open my ${escHtml(sess)} Pear exit ticket</a>
-      <p class="cu3-hint">${v.pear.opened ? 'Opened. Finish it in Pear and press Submit there, then come back here.' : 'It opens in a new tab. Finish it there, then come back here.'}</p>
-      <button class="cu2-btn cu2-confirm" data-cu2="reportPear" ${v.canReport ? '' : 'disabled'}>✅ I've Submitted My Exit Ticket</button>
-      <p class="cu3-hint">${v.pear.opened ? 'Press it only after you submit in Pear.' : 'Open your exit ticket first.'}</p>
-      <p class="cu2-fine">The Realm can’t see Pear, so ${teacher} will check your exit ticket there.</p>`;
-  }
-  const stage3 = `<section class="cu3-sec${v.practicePassed ? ' cu4-active' : ''}">${stageHdr(3, 'Complete Your Pear Exit Ticket', v.practicePassed ? 'current' : 'locked')}${stage3Body}</section>`;
-
-  return `<div class="cu2 cu3" id="cu2">${header}${stage1}${stage2}${stage3}</div>`;
+  return `<div class="cu2 cu3 cu6" id="cu2">${header}${stepper}${body}</div>`;
 }
 // Auto-advance student to the schedule-based current tile (silently on map open).
 // Only advances forward, never back. Writes to Firebase.
@@ -13266,7 +13300,16 @@ function bindEvents() {
         const all = gradePractice(sessionContent(land.id, tile.id), st.answers).answeredAll;
         const sub = document.querySelector('[data-cu2="grade"]'); if (sub) sub.disabled = !all;
         const note = document.querySelector('.cu3-need-all'); if (note) note.textContent = all ? note.dataset.ready : note.dataset.need;  // same height: no shift
+        const qEl = document.querySelector('[data-cu6-qi]');   // mark this question's number button as answered
+        if (qEl) { const q = sessionContent(land.id, tile.id).questions[Number(qEl.dataset.cu6Qi)];
+          const dot = document.querySelector(`.cu6-qdot[data-cu6-q="${qEl.dataset.cu6Qi}"]`);
+          if (q && dot) dot.classList.toggle('cu6-qdot-done', q.parts.every(p => Number.isInteger(st.answers[p.id]))); }
       }));
+      // Step / question navigation (page-only: nothing is saved)
+      const _cuGo = fn => { const { land, tile } = _cuCtx(); if (!tile) return; fn(cu3State(land, tile)); mountKeepingScroll();
+        const top = $("cu2"); if (top) top.scrollIntoView({ block: 'start' }); };
+      document.querySelectorAll("[data-cu6-go]").forEach(b => b.addEventListener("click", () => _cuGo(st => { st.step = b.dataset.cu6Go; st.showResult = false; })));
+      document.querySelectorAll("[data-cu6-q]").forEach(b => b.addEventListener("click", () => _cuGo(st => { st.step = 'practice'; st.q = Number(b.dataset.cu6Q); st.showResult = false; })));
       document.querySelectorAll("[data-cu4-open]").forEach(a => a.addEventListener("click", () => {
         // the link opens Pear in a new tab; record "opened" (not "done")
         setTimeout(() => {
@@ -13285,13 +13328,13 @@ function bindEvents() {
       document.querySelectorAll('[data-cu2="grade"]').forEach(b => b.addEventListener("click", () => {
         if (STATE.lessonPreview) {   // teacher preview: grade on the page only, never saved
           const { land, tile } = _cuCtx(); const st = cu3State(land, tile);
-          st.result = gradePractice(sessionContent(land.id, tile.id), st.answers); mountKeepingScroll(); return;
+          st.result = gradePractice(sessionContent(land.id, tile.id), st.answers); st.showResult = !st.result.passed; mountKeepingScroll(); return;
         }
         const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
         if (b.disabled) return; b.disabled = true;                 // one submit per click
         const st = cu3State(land, tile);
         const res = runCatchUpAction(student, land, tile, 'grade', { answers: st.answers });
-        if (res.grade) st.result = res.grade;
+        if (res.grade) { st.result = res.grade; st.showResult = !res.grade.passed; st.step = res.grade.passed ? null : 'practice'; }
         mount();
         const top = $("cu2"); top && top.scrollIntoView({ block: 'start' });
       }));

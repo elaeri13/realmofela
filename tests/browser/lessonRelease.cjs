@@ -40,6 +40,25 @@ const SEED = {
     const openTile = async tid => { await page.evaluate(t => document.querySelector(`.lm-svg-wrap svg [data-tid="${t}"]`).dispatchEvent(new MouseEvent('click', { bubbles: true })), tid); await page.waitForTimeout(400); };
     const click = async sel => { await page.click(sel); await page.waitForTimeout(250); };
     const text = sel => page.textContent(sel);
+  // three-step catch-up: go to the question that holds a part, then pick (like a student)
+  const _toPractice = async pg => {
+    if (await pg.$('#cu6-result')) { await pg.click('#cu6-result .cu6-next'); await pg.waitForTimeout(200); }
+    if (!(await pg.$('#cu6-practice')) && await pg.$('[data-cu6-go="practice"]')) { await pg.click('[data-cu6-go="practice"]'); await pg.waitForTimeout(200); }
+  };
+  const pickOn = async (pg, part, choice) => {
+    await _toPractice(pg);
+    const sel = `[data-cu3-part="${part}"][data-cu3-choice="${choice}"]`;
+    const n = (await pg.$$('.cu6-qdot')).length;
+    for (let i = 0; i < n && !(await pg.$(sel)); i++) { await pg.click(`[data-cu6-q="${i}"]`); await pg.waitForTimeout(150); }
+    await pg.click(sel); await pg.waitForTimeout(150);
+  };
+  const submitOn = async pg => {
+    await _toPractice(pg);
+    const n = (await pg.$$('.cu6-qdot')).length;
+    if (!(await pg.$('[data-cu2="grade"]'))) { await pg.click(`[data-cu6-q="${n - 1}"]`); await pg.waitForTimeout(150); }
+    await pg.click('[data-cu2="grade"]'); await pg.waitForTimeout(250);
+  };
+
 
     // ── Feature 1: Today's Lesson for all periods ──
     await teacher('teacher-dash', 0);
@@ -138,8 +157,8 @@ const SEED = {
     // ── Catch-up for a released session ──
     await asStudent(102); await openTile(3);
     check('missed S3 (released) → catch-up page still opens', !!(await page.$('#cu2')));
-    for (const [k, v] of Object.entries({ q1: 2, q2: 1, q3: 3, q4: 0 })) await click(`[data-cu3-part="${k}"][data-cu3-choice="${v}"]`);
-    await click('[data-cu2="grade"]');
+    for (const [k, v] of Object.entries({ q1: 2, q2: 1, q3: 3, q4: 0 })) await pickOn(page, k, v);
+    await submitOn(page);
     const r102 = ((await stu(102)).catchUp || {})['2_3'] || {};
     check('catch-up grading unchanged (4/4 pass recorded, no completion/reward until Pear)', (r102.history || []).map(h => h.event + ':' + h.note).join() === 'autoPass:4/4' && !(await stu(102)).completedTiles.includes(3) && (await stu(102)).gold === 20);
     await teacher('teacher-lesson-schedule');
@@ -160,8 +179,8 @@ const SEED = {
     await click('[data-rel-preview="3"]');
     await click('[data-preview-cu="1"]');
     check('preview shows the missed-day catch-up page too', !!(await page.$('#cu2')) && /Review the Skills/.test(await text('#cu2')));
-    for (const [k, v] of Object.entries({ q1: 2, q2: 1, q3: 3, q4: 1 })) await click(`[data-cu3-part="${k}"][data-cu3-choice="${v}"]`);
-    await click('[data-cu2="grade"]');
+    for (const [k, v] of Object.entries({ q1: 2, q2: 1, q3: 3, q4: 1 })) await pickOn(page, k, v);
+    await submitOn(page);
     check('preview can try the questions (graded on the page)', /Preview: 3 of 4 correct — this would pass/.test(await text('#cu2')));
     check('preview saved nothing to any student', JSON.stringify((await tree()).students) === snap);
     await click('.ls-back-btn');
