@@ -1,6 +1,7 @@
 // Today's Lesson for all periods + teacher lesson release (in-memory database; no live data).
 // Run: npm run test:browser
 const { chromium } = require('playwright');
+const { withoutChestPopups } = require('./harness/seedHelpers.cjs');   // chest pop-ups are tested in questChests.cjs
 const { spawn } = require('child_process');
 const path = require('path');
 const ROOT = path.join(__dirname, '../..');
@@ -30,7 +31,7 @@ const SEED = {
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     const errs = []; page.on('pageerror', e => errs.push(e.message));
-    await page.addInitScript(s => { window.__SEED = s; }, SEED);
+    await page.addInitScript(s => { window.__SEED = s; }, withoutChestPopups(SEED));
     await page.goto(`http://127.0.0.1:${PORT}/`); await page.waitForTimeout(2500);
     const tree = () => page.evaluate(() => JSON.parse(JSON.stringify(window.__tree)));
     const stu = async id => (await tree()).students[id];

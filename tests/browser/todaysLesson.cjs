@@ -1,5 +1,6 @@
 // Today's Lesson browser checks (in-memory database; no live data).   Run: npm run test:browser
 const { chromium } = require('playwright');
+const { withoutChestPopups } = require('./harness/seedHelpers.cjs');   // chest pop-ups are tested in questChests.cjs
 const { spawn } = require('child_process');
 const path = require('path');
 const ROOT = path.join(__dirname, '../..');
@@ -32,7 +33,7 @@ const PORT = Number(process.env.PORT || 5288);
   try {
   const page = await b.newPage({ viewport:{ width:1280, height:900 } });
   const errs = []; page.on('pageerror', e => errs.push(e.message));
-  await page.addInitScript(s => { window.__SEED = s; }, SEED);
+  await page.addInitScript(s => { window.__SEED = s; }, withoutChestPopups(SEED));
   await page.goto(`http://127.0.0.1:${PORT}/`); await page.waitForTimeout(2500);
   const hub = async sid => { await page.evaluate(sid => { const S = window.__STATE; S.student = { id:sid, number:sid, cohort:Math.floor(sid/100), pin:'x' }; S.helpFlagged = false; S.screen = 'hub'; window.__mount(); }, sid); await page.waitForTimeout(400); };
   const hubText = () => page.evaluate(() => document.querySelector('.hub-actions')?.innerText || '');

@@ -2,6 +2,7 @@ import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, run
 import { NAMES, EPITHETS } from './data/characterNames.js'
 import { CHARACTER_ABILITIES, LEVEL10_FRAME_ID, XP_PER_LEVEL, rewardsForLevel, levelStatus, claimableLevels, trackLevels, nextRewardLevel, nextMilestoneLevel, abilityStatus, levelsToCelebrate, isMilestone, isAbilityLevel, isClaimablePart, partLabel, partIcon } from './levelRewards.js'
 import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession, planAllPeriods, summarizeTodaysLessons } from './currentSession.js'
+import { TIER_INFO, POTIONS, RETIRED_POTIONS, earnInto, openInto, armInto, migratePotionsInto, successfulAfterLaunch, isChestSession, chestKey } from './questChests.js'
 import { releaseConfig, isManaged, isReleaseTile, releaseTiles, releaseFor, canWorkOn, planEnable, planDisable, previewEnable, planSetAll, planTogglePeriod, nextToRelease, applyPlan, summarize as summarizeRelease, CLASS_IDS } from './lessonRelease.js'
 import { isCatchUpPilot, catchUpKey, catchUpView, applyCatchUp, sessionContent, gradePractice, practiceParts, passMinOf, reviewsOf, catchUpSessions } from './catchUp.js'
 
@@ -32,9 +33,13 @@ function clsKey(student, merged) {
   return raw === "fairy" ? "elf" : raw; // migrate legacy "fairy" to "elf"
 }
 const ITEMS = {
-  health_potion:    { i:"🧪", img:"icon_potion_red.png",  n:"Health Potion",   desc:"Restore 2 HP" },
-  behavior_potion:  { i:"🔵", img:"icon_potion_blue.png",  n:"Mana Potion",     desc:"Restore 2 MP" },
-  stamina_potion:   { i:"💚", img:"icon_potion_green.png", n:"Focus Potion",    desc:"Restore 2 SP" },
+  // Retired stat potions: upgraded once per student to the potions below (see questChests.js)
+  health_potion:    { i:"🧪", img:"icon_potion_red.png",  n:"Health Potion",   desc:"Retired — upgrades to a Fortune Potion" },
+  behavior_potion:  { i:"🔵", img:"icon_potion_blue.png",  n:"Mana Potion",     desc:"Retired — upgrades to an Insight Potion" },
+  stamina_potion:   { i:"💚", img:"icon_potion_green.png", n:"Focus Potion",    desc:"Retired — upgrades to a Luck Potion" },
+  potion_insight:   { i:"✨", img:"icon_potion_blue.png",  n:"Insight Potion",  desc:"2× base XP on your next completed lesson" },
+  potion_fortune:   { i:"🪙", img:"icon_potion_red.png",   n:"Fortune Potion",  desc:"2× base Gold on your next completed lesson" },
+  potion_luck:      { i:"🍀", img:"icon_potion_green.png", n:"Luck Potion",     desc:"Your next Quest Chest is Silver or better" },
   gold_pouch:       { i:"💰", img:"icon_gold.png",         n:"Gold Pouch",      desc:"Open for +25 Gold" },
   scroll:           { i:"📜", img:"icon_scroll.png",       n:"Scroll",          desc:"Hint during boss fight" },
   shield:           { i:"🛡️", img:"icon_shield.png",       n:"Shield",          desc:"Protect 1 missed assignment" },
@@ -2327,6 +2332,7 @@ function runCatchUpAction(student, land, tile, action, opts = {}) {
   const fx = res.effects;
   if (fx.completeTile) completeCatchUpTile(student, land, tile);
   if (fx.grantReward) grantCatchUpRewardOnce(student, land, tile);
+  if (fx.completeTile) queueChestEarned(earnQuestChest(student, land, tile, { source: 'catchUp', base: { xp: CU_XP, gold: CU_GOLD } }));
   if (fx.acceptedReview) applyAcceptedCatchUpBoss(student, land, tile.id);
   const label = sessionLabel(tile).split(' · ')[0];
   if (action === 'grade') logActivity(student.id, res.grade.passed ? '✅' : '📝',
@@ -3307,6 +3313,259 @@ function showGoldToast(amount, onComplete) {
   };
   setTimeout(dismiss, 1000);
 }
+/* ─── QUEST CHESTS & POTIONS (rules in src/questChests.js) ─── */
+const qcNow = () => new Date().toISOString().slice(0, 19);       // same format as taskTimestamps.completedAt
+// Pools for a chest: the EXISTING companion / collectible / Mystery Drop / seasonal pools.
+function qcPools(landName) {
+  const ln = PET_POOLS[landName] ? landName : Object.keys(PET_POOLS)[0];
+  const pet = PET_POOLS[ln] || {}, acc = ((EQUIP_POOLS[ln] || {}).accessory) || {};
+  const list = v => (Array.isArray(v) ? v : v ? [v] : []);
+  const season = getActiveSeasonalSet();
+  return {
+    companions: { common: list(pet.common), rare: list(pet.rare), epic: list(pet.epic) },
+    collectibles: { common: list(acc.common), rare: list(acc.rare), epic: list(acc.epic), legendary: list(acc.legendary) },
+    mystery: MYSTERY_POOL.filter(m => m.type === 'companion').map(m => m.file),
+    seasonal: season ? season.badges.map(b => b.id) : null,
+  };
+}
+// One transaction on the WHOLE student record: the reward and its "done" marker are saved together or
+// not at all (a failed or interrupted write leaves nothing half-done). body(rec) → { rec, ... } | null.
+async function studentTx(sid, body) {
+  let out = null;
+  const tx = await runTransaction(ref(db, `students/${sid}`), cur => {
+    if (cur === null || cur === undefined) { out = null; return cur === null ? null : undefined; }
+    out = body(cur);
+    return out ? out.rec : undefined;                            // undefined = abort, nothing written
+  });
+  const val = tx && tx.snapshot && typeof tx.snapshot.val === 'function' ? tx.snapshot.val() : null;
+  if (val && typeof val === 'object') _overrides[sid] = val;    // refresh the local copy (also when aborted)
+  return { committed: !!(tx && tx.committed && out), out };
+}
+const qcDefaults = { xp: STUDENT_DEFAULTS.xp, level: STUDENT_DEFAULTS.level, xpNext: STUDENT_DEFAULTS.xpNext };
+// Earn the chest for one session (or the welcome chest). Never throws; returns null if nothing new.
+async function earnQuestChest(student, land, tile, { source = 'lesson', base = null, key = null, tier = null, useBoosts = true } = {}) {
+  if (!student) return null;
+  if (!key && !isChestSession(land, tile)) return null;
+  const sid = String(student.id), k = key || chestKey(land.id, tile.id);
+  const landName = (land && land.name) || (LANDS.find(l => l.id === getLandPos(student).land) || {}).name;
+  try {
+    const r = await studentTx(sid, rec => earnInto(rec, k, { pools: qcPools(landName), rng: Math.random, now: qcNow(), source, landName, base, tier, useBoosts, defaults: qcDefaults }));
+    if (!r.committed) return null;
+    const { chest, levelsGained, startLevel } = r.out;
+    if (levelsGained > 0) for (let lvl = startLevel + 1; lvl <= startLevel + levelsGained; lvl++) unlockCosmeticsForLevel(student, lvl);
+    const b = chest.boosts || {};
+    logActivity(sid, '🎁', `Earned a ${TIER_INFO[chest.tier].name} Quest Chest${source === 'welcome' ? ' (Welcome Chest)' : tile ? ` — ${tile.name}` : ''}${b.xp ? ` · Insight +${b.xp} XP` : ''}${b.gold ? ` · Fortune +${b.gold} 🪙` : ''}${b.luck ? ' · Luck' : ''}`);
+    return { key: k, chest, levelsGained };
+  } catch (e) { console.error(e); return null; }               // a missed chest is added back by self-repair
+}
+async function openQuestChest(student, key) {
+  const sid = String(student.id);
+  try {
+    const r = await studentTx(sid, rec => openInto(rec, key, qcNow()));
+    if (r.committed) {
+      logActivity(sid, '🎁', `Opened a Quest Chest: ${r.out.results.map(x => qcLabel(x).name).join(', ')}`);
+      return { ok: true, results: r.out.results };
+    }
+    const ch = (((_overrides[sid] || {}).questChests) || {})[key];
+    return ch && ch.openedAt ? { ok: false, already: true, results: ch.results || [] } : { ok: false };
+  } catch (e) { console.error(e); return { ok: false, error: true }; }
+}
+async function armPotion(student, potionId) {
+  try { const r = await studentTx(String(student.id), rec => armInto(rec, potionId)); return r.committed; }
+  catch (e) { console.error(e); return false; }
+}
+// First hub visit after launch: launch time (once for the Realm), potion upgrade (once), Silver Welcome
+// Chest (once), then self-repair for this Land. Each step is its own once-only transaction.
+async function ensureQuestChestLaunch() {
+  const now = qcNow();
+  try {
+    const tx = await runTransaction(ref(db, 'settings/questChests/launchAt'), cur => (cur ? undefined : now));
+    const v = (tx && tx.snapshot && tx.snapshot.val()) || now;
+    if (!_settings) _settings = {};
+    _settings.questChests = Object.assign({}, _settings.questChests || {}, { launchAt: v });
+    return v;
+  } catch (e) { console.error(e); return ((_settings || {}).questChests || {}).launchAt || null; }
+}
+async function questChestStartup(student) {
+  if (!student || STATE.qcInitFor === String(student.id)) return;
+  STATE.qcInitFor = String(student.id);
+  const sid = String(student.id);
+  if (!(_overrides[sid] || {}).claimed) return;
+  const launchAt = await ensureQuestChestLaunch();
+  if (!launchAt) { STATE.qcInitFor = null; return; }
+  try {
+    const m = await studentTx(sid, rec => migratePotionsInto(rec, qcNow()));
+    if (m.committed && m.out.converted > 0) {
+      logActivity(sid, '🧪', `Potions upgraded: ${m.out.converted} old potion${m.out.converted === 1 ? '' : 's'} became new Quest potions`);
+      qcEnqueue(done => showPotionUpgradeNotice(m.out.converted, done), sid);
+    }
+  } catch (e) { console.error(e); }
+  const w = await earnQuestChest(student, null, null, { key: 'welcome', tier: 'silver', useBoosts: false, source: 'welcome' });
+  if (w) qcEnqueue(done => showChestEarned(w, done), sid);
+  await questChestSelfRepair(student, launchAt);
+  if (STATE.screen === 'hub') mount();
+}
+// Adds a chest that is missing for a session whose SUCCESSFUL completion after launch is clearly recorded.
+async function questChestSelfRepair(student, launchAt) {
+  const sid = String(student.id), pos = getLandPos(student);
+  const land = LANDS.find(l => l.id === pos.land);               // tile records are per tile id → current Land only
+  if (!land || !land.id) return;
+  const ov = _overrides[sid] || {}, chests = ov.questChests || {}, ts = ov.taskTimestamps || {};
+  for (const tile of land.tiles) {
+    if (!isChestSession(land, tile) || chests[chestKey(land.id, tile.id)]) continue;
+    if (!successfulAfterLaunch({ tile, taskProgress: getTaskProgress(sid, tile.id), completedAt: (ts[String(tile.id)] || {}).completedAt, completed: pos.completed, launchAt })) continue;
+    const r = await earnQuestChest(student, land, tile, { source: 'repair', useBoosts: false });
+    if (r) logActivity(sid, '🛠️', `Quest Chest restored for ${tile.name}`);
+  }
+}
+function unopenedChests(student) {
+  const qc = ((_overrides[String(student.id)] || {}).questChests) || {};
+  return Object.entries(qc).filter(([, c]) => c && !c.openedAt).sort((a, b) => String(a[1].earnedAt).localeCompare(String(b[1].earnedAt)));
+}
+
+// ── Chest UI: body-level overlays shown one at a time, after any XP/Gold/reveal pop-ups ──
+let _qcQueue = Promise.resolve();
+const QC_BUSY = '.xp-celebrate, .gold-toast, .companion-reveal-overlay, .mystery-reveal-overlay, .equip-reveal-overlay';
+function qcEnqueue(show, sid = STATE.student ? String(STATE.student.id) : null) {
+  _qcQueue = _qcQueue.then(() => new Promise(async res => {
+    for (let i = 0; i < 60 && document.querySelector(QC_BUSY); i++) await new Promise(r => setTimeout(r, 200));
+    if (sid && (!STATE.student || String(STATE.student.id) !== sid)) { res(); return; }   // a different student is signed in now
+    let settled = false;
+    const finish = () => { if (!settled) { settled = true; clearInterval(watch); res(); } };
+    // Never block the line: if the card leaves the page any other way, its turn is over.
+    const watch = setInterval(() => { if (!document.querySelector('.qc-overlay, .companion-reveal-overlay, .mystery-reveal-overlay')) finish(); }, 400);
+    try { show(finish); } catch (e) { console.error(e); finish(); }
+  }));
+  return _qcQueue;
+}
+function queueChestEarned(p) { const sid = STATE.student ? String(STATE.student.id) : null; Promise.resolve(p).then(r => { if (r) qcEnqueue(done => showChestEarned(r, done), sid); }); }
+function qcReduceMotion() {
+  try { if (localStorage.getItem('realm-reduce-motion') === '1') return true; } catch (e) {}
+  return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+const qcChestArt = tier => `<span class="qc-box qc-box-${tier}" aria-hidden="true"><span class="qc-lid"></span><span class="qc-base"><span class="qc-lock"></span></span></span>`;
+function qcLabel(x) {
+  if (x.kind === 'gold') return { icon: '🪙', name: `+${x.amount} Gold`, sub: 'Added to your Gold' };
+  if (x.kind === 'potion') { const d = POTIONS[x.id] || {}; return { img: ITEMS[x.id] && `/icons/${ITEMS[x.id].img}`, icon: d.icon, name: d.name || x.id, sub: d.desc }; }
+  if (x.kind === 'material') return { img: `/materials/material_${x.variant}.png`, icon: '🧪', name: `${x.n} × ${x.variant[0].toUpperCase() + x.variant.slice(1)}`, sub: 'Crafting material' };
+  if (x.kind === 'companion') { const c = companionByFile(x.file); return { img: `/companions/${x.file}`, icon: '🐾', name: c.name, sub: `${x.rarity === 'mystery' ? 'Mystery' : (COMPANION_RARITY_LABEL[c.rarity] || 'New')} companion!` }; }
+  if (x.kind === 'collectible') { const d = getEquipItemDef(x.id); return { img: d.img, icon: d.icon, name: d.n, sub: 'Collectible' }; }
+  if (x.kind === 'seasonal') { const b = SEASONAL_SETS.flatMap(s => s.badges).find(b => b.id === x.id); return { icon: '🏅', name: b ? b.name : 'Seasonal badge', sub: 'Seasonal bonus!' }; }
+  return { icon: '🎁', name: 'Treasure', sub: '' };
+}
+function qcOverlay(html) {
+  const el = document.createElement('div');
+  el.className = `qc-overlay${qcReduceMotion() ? ' qc-rm' : ''}`;
+  el.dataset.sid = STATE.student ? String(STATE.student.id) : '';   // closed if someone else is signed in (see mount)
+  el.innerHTML = html;
+  document.body.appendChild(el);
+  const btn = el.querySelector('[data-qc]'); btn && btn.focus();
+  return el;
+}
+function showChestEarned({ key, chest }, done) {
+  const t = TIER_INFO[chest.tier], b = chest.boosts || {};
+  const boostTxt = [b.xp ? `✨ Insight: +${b.xp} bonus XP` : '', b.gold ? `🪙 Fortune: +${b.gold} bonus Gold` : '', b.luck ? '🍀 Luck made it Silver or better!' : ''].filter(Boolean).join(' · ');
+  const el = qcOverlay(`<div class="qc-card qc-t-${chest.tier}" role="dialog" aria-modal="true" aria-label="Quest Chest earned" id="qc-earned">
+      <div class="qc-eyebrow">${chest.source === 'welcome' ? '🎉 Welcome to Quest Chests!' : '⭐ Lesson complete!'}</div>
+      <div class="qc-art qc-pop">${qcChestArt(chest.tier)}</div>
+      <h2 class="qc-h">You earned a ${t.name} Quest Chest!</h2>
+      ${boostTxt ? `<p class="qc-sub">${boostTxt}</p>` : ''}
+      <div class="qc-btns"><button class="qc-btn qc-btn-main" data-qc="open">Open now</button><button class="qc-btn" data-qc="later">Save for later</button></div>
+    </div>`);
+  el.querySelector('[data-qc="open"]').addEventListener('click', () => { el.remove(); showChestOpener(key, done); });
+  el.querySelector('[data-qc="later"]').addEventListener('click', () => { el.remove(); done(); if (STATE.screen === 'hub') mount(); });
+}
+// Opening: tap the chest 3 times (wiggle, wiggle, burst) or Quick Open. The chest is only marked opened
+// together with its contents (one transaction); if that fails, nothing changes and the student retries.
+function showChestOpener(key, done) {
+  const student = STATE.student;
+  const chest = student && (((_overrides[String(student.id)] || {}).questChests) || {})[key];
+  if (!chest) { done(); return; }
+  const t = TIER_INFO[chest.tier];
+  const el = qcOverlay(`<div class="qc-card qc-t-${chest.tier}" role="dialog" aria-modal="true" aria-label="${t.name} Quest Chest" id="qc-opener">
+      <div class="qc-eyebrow">${t.emoji} ${t.name} Quest Chest</div>
+      <button class="qc-art qc-tap" id="qc-tap" aria-label="Tap the chest to open it">${qcChestArt(chest.tier)}</button>
+      <p class="qc-hint" id="qc-hint" aria-live="polite">Tap the chest 3 times to open it!</p>
+      <div class="qc-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="qc-btns"><button class="qc-btn qc-btn-main" data-qc="quick">⚡ Quick Open</button><button class="qc-btn" data-qc="later">Save for later</button></div>
+      <label class="qc-rmlbl"><input type="checkbox" id="qc-rm"${qcReduceMotion() ? ' checked' : ''}/> Reduce motion</label>
+    </div>`);
+  let taps = 0, busy = false;
+  const hint = el.querySelector('#qc-hint'), art = el.querySelector('#qc-tap');
+  const close = () => { el.remove(); done(); if (STATE.screen === 'hub') mount(); };
+  el.querySelector('#qc-rm').addEventListener('change', e => {
+    try { localStorage.setItem('realm-reduce-motion', e.target.checked ? '1' : '0'); } catch (err) {}
+    el.classList.toggle('qc-rm', e.target.checked);
+  });
+  el.querySelector('[data-qc="later"]').addEventListener('click', () => { if (!busy) close(); });
+  const finish = async quick => {
+    if (busy) return; busy = true;
+    el.querySelectorAll('button').forEach(b => { b.disabled = true; });
+    hint.textContent = 'Opening…';
+    const res = await openQuestChest(student, key);
+    if (!res.ok && !res.already) {
+      busy = false; el.querySelectorAll('button').forEach(b => { b.disabled = false; });
+      hint.textContent = "Couldn't open it — check your connection and try again. Your chest is safe.";
+      return;
+    }
+    const results = res.results || [];
+    const calm = quick || qcReduceMotion();
+    const showList = () => {
+      el.querySelector('.qc-card').innerHTML = `
+        <div class="qc-eyebrow">${t.emoji} ${t.name} Quest Chest</div>
+        <h2 class="qc-h">${res.already ? 'Already opened — here’s what was inside' : 'You found…'}</h2>
+        <ul class="qc-prizes" id="qc-prizes">${results.map(x => { const L = qcLabel(x);
+          return `<li class="qc-prize qc-prize-${x.kind}">${L.img ? `<img src="${L.img}" alt="" width="56" height="56" onerror="this.replaceWith(document.createTextNode('${L.icon || '🎁'}'))"/>` : `<span class="qc-prize-ico">${L.icon || '🎁'}</span>`}
+            <span><b>${escHtml(L.name)}</b><small>${escHtml(L.sub || '')}</small></span></li>`; }).join('')}</ul>
+        <p class="qc-sub">✓ Added to your Inventory</p>
+        <div class="qc-btns"><button class="qc-btn qc-btn-main" data-qc="done">Awesome!</button></div>`;
+      const d = el.querySelector('[data-qc="done"]'); d.addEventListener('click', close); d.focus();
+    };
+    if (calm || res.already) { showList(); return; }
+    art.classList.add('qc-burst');
+    await new Promise(r => setTimeout(r, 650));
+    const pet = results.find(x => x.kind === 'companion');
+    if (pet) {                                                   // special pet moment: the existing reveals
+      el.style.visibility = 'hidden';
+      const back = () => { el.style.visibility = ''; showList(); };
+      const mys = pet.rarity === 'mystery' && MYSTERY_POOL.find(m => m.file === pet.file);
+      if (mys) showMysteryReveal(mys, back); else showCompanionReveal(pet.file, back);
+      return;
+    }
+    showList();
+  };
+  art.addEventListener('click', () => {
+    if (busy) return;
+    taps++;
+    el.querySelectorAll('.qc-dots span').forEach((d, i) => d.classList.toggle('on', i < taps));
+    if (taps >= 3) { finish(false); return; }
+    hint.textContent = taps === 1 ? 'It’s wiggling… tap again!' : 'One more tap!';
+    art.classList.remove('qc-wiggle'); void art.offsetWidth; art.classList.add('qc-wiggle');
+  });
+  el.querySelector('[data-qc="quick"]').addEventListener('click', () => finish(true));
+}
+function showPotionUpgradeNotice(n, done) {
+  const el = qcOverlay(`<div class="qc-card" role="dialog" aria-modal="true" aria-label="Potions upgraded" id="qc-upgrade">
+      <div class="qc-eyebrow">🧪 Potion upgrade!</div>
+      <h2 class="qc-h">Your ${n} old potion${n === 1 ? ' was' : 's were'} upgraded!</h2>
+      <ul class="qc-upg"><li>❤️ Health → 🪙 <b>Fortune</b>: 2× Gold on your next lesson</li><li>💙 Mana → ✨ <b>Insight</b>: 2× XP on your next lesson</li><li>💚 Focus → 🍀 <b>Luck</b>: your next chest is Silver or better</li></ul>
+      <p class="qc-sub">Tap a potion in your Inventory to use it.</p>
+      <div class="qc-btns"><button class="qc-btn qc-btn-main" data-qc="ok">Got it!</button></div>
+    </div>`);
+  el.querySelector('[data-qc="ok"]').addEventListener('click', () => { el.remove(); done(); if (STATE.screen === 'hub') mount(); });
+}
+// Hub inventory: unopened chests + active potions (rendered inside the existing 🎒 Inventory panel)
+function renderChestShelf(student) {
+  const list = unopenedChests(student);
+  const boosts = ((_overrides[String(student.id)] || {}).activeBoosts) || {};
+  const active = Object.values(POTIONS).filter(p => boosts[p.boost]);
+  return `${list.length ? `<div class="qc-shelf" id="qc-shelf">
+      <div class="qc-shelf-h">🎁 Quest Chests <span class="qc-count">${list.length} to open</span></div>
+      <div class="qc-shelf-row">${list.map(([k, c]) => `<button class="qc-slot qc-t-${c.tier}" data-open-chest="${k}" aria-label="Open your ${TIER_INFO[c.tier].name} Quest Chest">
+        <span class="qc-mini">${qcChestArt(c.tier)}</span><span class="qc-slot-lbl">${TIER_INFO[c.tier].name}</span></button>`).join('')}</div>
+    </div>` : ''}${active.length ? `<div class="qc-active" id="qc-active">Active: ${active.map(p => `<span>${p.icon} ${p.name.replace(' Potion', '')}</span>`).join(' ')}</div>` : ''}`;
+}
+
 /* ─── SHOP PENDING REDEMPTIONS ─── */
 function getShopPending() { return Object.assign({}, _shopPending); }
 function addShopPending(student, item) {
@@ -4420,7 +4679,7 @@ function renderHub() {
   const equipInventory = getEquipInventory(STATE.student);
   const legacySlots = s.items.map((it, idx) => {
     const def = ITEMS[it] || { i:"❓", n: it };
-    const usable = ['health_potion', 'behavior_potion', 'stamina_potion', 'gold_pouch'].includes(it);
+    const usable = ['gold_pouch', ...Object.keys(POTIONS)].includes(it);   // retired stat potions: no effect (upgraded on login)
     const equippable = EQUIPPABLE.has(it);
     const isEquipped = equippable && !!equipped[it];
     const imgTag = def.img
@@ -4705,6 +4964,7 @@ function renderHub() {
       <div class="character-hub-two-col-row">
       <div class="hub-panel inv-panel-wrap enter" style="animation-delay:.12s">
         <div class="panel-title">🎒 Inventory</div>
+        ${renderChestShelf(STATE.student)}
         <div class="inv-grid">${invSlots}</div>
         ${hasPendingPotion ? `<div class="brew-pending" style="margin-top:8px">⏳ Crafting request sent — awaiting teacher approval</div>` : ''}
       </div>
@@ -8875,7 +9135,7 @@ function renderTeacherEdit() {
     return `<span class="inv-chip">${it.i} ${it.n}<button class="chip-x" data-remove-item="${key}">×</button></span>`;
   }).join("");
 
-  const addableItems = Object.keys(ITEMS).filter(k => !(edit.items||[]).includes(k));
+  const addableItems = Object.keys(ITEMS).filter(k => !(edit.items||[]).includes(k) && !RETIRED_POTIONS[k]);
   const itemOpts = addableItems.map(k => `<option value="${k}">${ITEMS[k].i} ${ITEMS[k].n}</option>`).join("");
 
   const bossChips = (edit.bosses || []).map(b => {
@@ -10159,6 +10419,8 @@ function bindLevelUpOverlay() {
 
 /* ─── MOUNT & EVENTS ─── */
 function mount() {
+  // A Quest Chest card belongs to one student: close it if that student signed out (the chest stays saved).
+  document.querySelectorAll('.qc-overlay').forEach(o => { if (!STATE.student || String(STATE.student.id) !== o.dataset.sid) o.remove(); });
   const root = document.getElementById("root");
   if (STATE.screen === "loading") { root.innerHTML = renderLoading(); return; }
   if (STATE.screen === "error")   { root.innerHTML = renderError(STATE.errorMsg || "Could not load classData.json"); return; }
@@ -10427,6 +10689,7 @@ function bindEvents() {
   }
 
   if (STATE.screen === "hub") {
+    if (STATE.student) questChestStartup(STATE.student);   // launch time, potion upgrade, Welcome Chest, self-repair (each once)
     $("open-hj-btn") && $("open-hj-btn").addEventListener("click", () => { STATE.screen = "heros-journey"; STATE.hjReveal = null; mount(); window.scrollTo(0, 0); });
     bindLevelUpOverlay();
     bindHouseSelection();
@@ -10798,11 +11061,22 @@ function bindEvents() {
     });
 
     // Use health potion from inventory
-    const POTION_CONFIG = {
-      health_potion:   { stat:'hp', amount:3, icon:'❤️', label:'HP', color:'#EF4444' },
-      behavior_potion: { stat:'mp', amount:3, icon:'💙', label:'MP', color:'#3B82F6' },
-      stamina_potion:  { stat:'sp', amount:3, icon:'💚', label:'SP', color:'#10B981' },
-    };
+    const POTION_CONFIG = {};   // Health/Mana/Focus retired: potions never change HP, behavior points (MP) or pacing (SP)
+    // Quest potions: tap to make it active (one of each type at a time)
+    document.querySelectorAll("[data-use-item]").forEach(slot => {
+      const potionId = slot.dataset.useItem;
+      if (!POTIONS[potionId]) return;
+      slot.addEventListener("click", async () => {
+        if (slot.dataset.busy) return; slot.dataset.busy = '1';
+        const ok = await armPotion(STATE.student, potionId);
+        const t = document.createElement("div"); t.className = "toast";
+        t.textContent = ok ? `${POTIONS[potionId].icon} ${POTIONS[potionId].name} is active! ${POTIONS[potionId].desc}.` : `You already have a ${POTIONS[potionId].name.replace(' Potion', '')} potion active — use it on a lesson first.`;
+        document.body.appendChild(t); setTimeout(() => t.remove(), 3500);
+        if (ok) logActivity(STATE.student.id, POTIONS[potionId].icon, `Used ${POTIONS[potionId].name}`);
+        mount();
+      });
+    });
+    document.querySelectorAll("[data-open-chest]").forEach(b => b.addEventListener("click", () => qcEnqueue(done => showChestOpener(b.dataset.openChest, done))));
     document.querySelectorAll("[data-use-item]").forEach(slot => {
       const itemKey = slot.dataset.useItem;
       const cfg = POTION_CONFIG[itemKey];
@@ -12831,6 +13105,8 @@ function bindEvents() {
       // alreadyDone guard stays false for the entire toast duration, allowing re-entry.
       if (btn) btn.disabled = true;
       saveStudentOverride(STATE.student.id, { completedTiles: [...new Set([...(pos.completed || []), tile.id])] });
+      const _qcSession = isChestSession(land, tile);
+      if (_qcSession) saveTaskCheck(STATE.student.id, tile.id, 'submitted', 0, true);   // clear success marker (self-repair)
       const prog = getTaskProgress(STATE.student.id, tile.id);
       const _rlSubmit = tile.type === 'lesson' && !isBranchTile && !BOSS_SCHEDULE[String(tile.id)];
       const _shouldDone = (tile.shouldDo||[]).length > 0 && (tile.shouldDo||[]).every((_,i) => (prog.shouldDo||[])[i]);
@@ -12847,7 +13123,7 @@ function bindEvents() {
         const _lvl = awardXP(STATE.student, xpAmount);
         levelsGained = _lvl.levelsGained; newLevel = _lvl.newLevel;
         awardGold(STATE.student, goldAmount);
-        if (Math.random() < 0.15) awardMaterialDrop(STATE.student, 1);
+        if (!_qcSession && Math.random() < 0.15) awardMaterialDrop(STATE.student, 1);
       }
       const _amtLabel = (xpAmount > 0 || goldAmount > 0) ? ` (+${xpAmount} XP, +${goldAmount} 🪙)` : '';
       logActivity(STATE.student.id, '📖', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''}${_amtLabel}`);
@@ -12917,7 +13193,11 @@ function bindEvents() {
           _showMainXP();
         }
       };
-      if (!tryMysteryDrop(STATE.student, 'lesson', _doNormalLoot)) _doNormalLoot();
+      if (_qcSession) {
+        if (_hasPool) checkAndAwardSpecialBadges(STATE.student);
+        queueChestEarned(earnQuestChest(STATE.student, land, tile, { source: 'lesson', base: { xp: xpAmount, gold: goldAmount } }));
+        _showMainXP();
+      } else if (!tryMysteryDrop(STATE.student, 'lesson', _doNormalLoot)) _doNormalLoot();
     });
     document.querySelectorAll(".ls-check").forEach(cb => {
       cb.addEventListener("change", () => {
@@ -13094,6 +13374,7 @@ function bindEvents() {
       const _lvl = awardXP(student, xpAmount);
       awardGold(student, goldAmount);
       logActivity(student.id, '📚', `Catch-up completed: ${tile.name} (+${xpAmount} XP, +${goldAmount} 🪙)`);
+      queueChestEarned(earnQuestChest(student, land, tile, { source: 'catchUp', base: { xp: xpAmount, gold: goldAmount } }));
       if (_lvl.levelsGained > 0) logActivity(student.id, '⬆️', `Reached Level ${_lvl.newLevel}!`);
 
       STATE.catchUpOpen = false;
@@ -13127,7 +13408,8 @@ function bindEvents() {
       updateBossStateOnTileComplete(student, tile.id, land);
       const _lvl = awardXP(student, xpAmount);
       awardGold(student, goldAmount);
-      if (Math.random() < 0.15) awardMaterialDrop(student, 1);
+      const _qcSession = isChestSession(land, tile);   // Quest Chest replaces the after-lesson random drops
+      if (!_qcSession && Math.random() < 0.15) awardMaterialDrop(student, 1);
       logActivity(student.id, '✅', `Completed ${tile.name}${tile.sessionTitle ? ': ' + tile.sessionTitle : ''} (+${xpAmount} XP, +${goldAmount} 🪙)`);
       if (_lvl.levelsGained > 0) logActivity(student.id, '⬆️', `Reached Level ${_lvl.newLevel}!`);
 
@@ -13152,6 +13434,12 @@ function bindEvents() {
       const _poolLand = (land && land.name) || (LANDS[0] && LANDS[0].name);
       const _hasPool  = _poolLand && (EQUIP_POOLS[_poolLand] || PET_POOLS[_poolLand]);
       const _showXP   = () => showXPCelebration(xpAmount, _lvl.levelsGained, _lvl.newLevel, () => showGoldToast(goldAmount, _doAdvance));
+      if (_qcSession) {
+        if (_hasPool) checkAndAwardSpecialBadges(student);   // milestone achievements stay as they are
+        queueChestEarned(earnQuestChest(student, land, tile, { source: 'lesson', base: { xp: xpAmount, gold: goldAmount } }));
+        _showXP();
+        return;
+      }
       const _doNormalLoot = () => {
         if (_hasPool) {
           if (Math.random() < 0.2) awardSeasonalBadge(student);
