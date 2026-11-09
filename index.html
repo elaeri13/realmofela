@@ -1468,6 +1468,32 @@ input  { font-family: var(--font-body); }
 .t-today-all { border-color:#FCD34D !important; color:#FDE68A !important; }
 .t-today-warn { flex-basis:100%; font-size:12px; font-weight:700; color:#FECACA; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 /* Lesson Release panel */
+/* Catch-up: three-step flow */
+.cu6-steps { list-style:none; display:flex; align-items:center; gap:0; margin:6px 0 12px; padding:0; }
+.cu6-step { display:flex; align-items:center; gap:6px; flex:0 0 auto; color:#6B7280; font-size:12px; line-height:1.15; }
+.cu6-line { flex:1 1 auto; height:3px; min-width:12px; background:#E5E7EB; border-radius:2px; margin:0 6px; }
+.cu6-dot { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; background:#F3F4F6; border:2px solid #D1D5DB; color:#6B7280; flex:0 0 auto; }
+.cu6-now { color:#4C1D95; } .cu6-now .cu6-dot { background:#7C3AED; border-color:#7C3AED; color:#fff; box-shadow:0 0 0 4px rgba(124,58,237,.18); }
+.cu6-done { color:#166534; } .cu6-done .cu6-dot { background:#DCFCE7; border-color:#22C55E; color:#166534; }
+.cu6-locked .cu6-dot { font-size:12px; }
+.cu6-card { background:#fff; border:2px solid #E9E3FF; border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:12px; }
+.cu6-card.cu4-active { border-color:#C4B5FD; }
+.cu6-h { margin:0; font-size:18px; font-weight:900; color:#3B0764; }
+.cu6-prachead { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+.cu6-goal { font-size:12px; font-weight:800; color:#5B21B6; background:#F3E8FF; padding:4px 10px; border-radius:999px; }
+.cu6-qnav { display:flex; gap:8px; flex-wrap:wrap; }
+.cu6-qdot { font:inherit; width:40px; height:40px; border-radius:12px; border:2px solid #D1D5DB; background:#fff; color:#374151; font-weight:900; font-size:15px; cursor:pointer; }
+.cu6-qdot-done { background:#EDE9FE; border-color:#A78BFA; color:#4C1D95; }
+.cu6-qdot-wrong { border-color:#F87171; background:#FEF2F2; color:#991B1B; }
+.cu6-qdot-now { outline:3px solid #7C3AED; outline-offset:2px; }
+.cu6-nav { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.cu6-nav .cu2-btn { flex:1 1 140px; margin:0; }
+.cu6-back { background:#F3F4F6 !important; color:#374151 !important; border:2px solid #D1D5DB !important; }
+.cu6-next { background:#7C3AED !important; color:#fff !important; }
+.cu6-link { font:inherit; background:none; border:none; color:#6D28D9; font-weight:800; font-size:13px; text-decoration:underline; cursor:pointer; align-self:flex-start; padding:4px 0; }
+.cu6-passed { margin:0; font-weight:800; color:#166534; font-size:14px; }
+.cu6-details summary { cursor:pointer; font-weight:800; font-size:13px; margin-top:6px; }
+@media (max-width:420px) { .cu6-lbl { font-size:11px; } .cu6-dot { width:28px; height:28px; } }
 .trl-panel { margin:10px 0 14px; padding:12px 14px; border-radius:12px; background:rgba(15,10,40,.55); border:1.5px solid rgba(167,243,208,.45); color:#fff; }
 .trl-h { font-size:15px; font-weight:900; color:#A7F3D0; display:flex; gap:8px; align-items:center; }
 .trl-on, .trl-off { font-size:11px; font-weight:900; padding:2px 8px; border-radius:999px; }

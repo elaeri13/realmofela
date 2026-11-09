@@ -60,6 +60,21 @@ The content comes from the Unit 2, Module 1, Session 2 teacher guide (Curriculum
 - The wrong choices are true details from the reading.
 - A test checks that no correct answer appears word-for-word in the review or in its reading. (Part B is exempt, because it asks for a quotation from the text.)
 
+## Three-step layout (one step at a time)
+A progress bar at the top shows **① Review → ② Practice → ③ Exit Ticket**. Only Step 3 is ever locked, until practice is passed.
+
+1. **Review:** the skill explanation and worked example(s). It ends with **"I'm ready to practice →"**.
+2. **Practice:** one question per screen.
+   - Numbered question buttons let the student jump to any question, and show which ones are answered. **Back** / **Next** move one at a time. **Submit** is on the last question and is enabled once everything is answered.
+   - **A try that doesn't pass** opens a results screen: the score, a hint for each missed question, and the missed numbers marked in red. **"Fix my answers →"** opens the first missed question, with every answer kept.
+3. **Exit ticket:** opens with **"🎉 You got 3 of 4 — you passed!"**, then the same Pear steps as before. **"↺ Look back at the review"** is always available.
+
+- **Saved progress decides where a returning student lands:**
+  - nothing graded yet: Review
+  - a graded try: Practice
+  - passed: Exit Ticket
+- **The step and question shown are page-only.** Nothing new is saved, and grading, retries, attempt history, completion and rewards are unchanged.
+
 ## Practice grading (unchanged)
 - **3 of 4 or better (75%) passes.** The student sees their score and feedback, and Stage 3 unlocks. Passing **only records the score**. It doesn't complete the tile or pay a reward.
 - **Below 3 of 4:** the student sees their score, "You need 3 to pass", and a hint for each missed part. Retries are unlimited and have no penalty.
