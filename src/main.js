@@ -8363,7 +8363,10 @@ function renderTeacherLessonSchedule() {
 
   const sessionRows = order.map(tid => {
     const tile  = tileMap[tid];
-    if (!tile || (tile.type !== 'lesson' && tile.type !== 'arrival')) return '';
+    // Every class session gets a row: lessons, Writer's Craft, Study Hall, Camp Day (+ the Land's arrival tile)
+    if (!tile || !['arrival', 'lesson', 'forge', 'studyHall', 'camp'].includes(tile.type)) return '';
+    const noExitTicket = ['forge', 'studyHall', 'camp'].includes(tile.type);   // these pages have no Pear exit ticket
+    const typeTag = tile.type === 'forge' ? "Writer's Craft" : tile.type === 'studyHall' ? 'Study Hall' : tile.type === 'camp' ? 'Camp Day' : '';
     const entry = getLessonScheduleEntry(landId, tid);
     const fields = FIELDS.map(f => {
       const _land = LANDS.find(l => l.id === landId);
@@ -8371,13 +8374,14 @@ function renderTeacherLessonSchedule() {
                 : f.key === 'pear'      ? getEffectivePear(_land, tile)
                 : (entry[f.key] || '');
       const inputId = `tls-${tid}-${f.key}`;
+      if (f.key === 'pear' && noExitTicket) return `<td class="tls-cell"><span class="tls-na">No exit ticket</span></td>`;
       if (f.type === 'textarea') {
         return `<td class="tls-cell"><textarea id="${inputId}" class="tls-input tls-ta" rows="2" placeholder="${f.ph}" data-tid="${tid}" data-field="${f.key}">${val}</textarea></td>`;
       }
       return `<td class="tls-cell"><input id="${inputId}" type="${f.type === 'date' ? 'date' : 'text'}" class="tls-input" value="${val}" placeholder="${f.ph}" data-tid="${tid}" data-field="${f.key}"/></td>`;
     }).join('');
     return `<tr class="tls-row" data-tid="${tid}">
-      <td class="tls-tile-name">${tile.name}</td>
+      <td class="tls-tile-name">${tile.name}${typeTag ? `<span class="tls-type">${typeTag}</span>` : ''}</td>
       ${fields}
       <td class="tls-cell"><button class="tls-save-btn" data-save-tid="${tid}">Save</button></td>
     </tr>`;
