@@ -1,7 +1,8 @@
 import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, runTransaction, signInAnonymously } from './firebaseClient.js'
 import { NAMES, EPITHETS } from './data/characterNames.js'
 import { CHARACTER_ABILITIES, LEVEL10_FRAME_ID, XP_PER_LEVEL, rewardsForLevel, levelStatus, claimableLevels, trackLevels, nextRewardLevel, nextMilestoneLevel, abilityStatus, levelsToCelebrate, isMilestone, isAbilityLevel, isClaimablePart, partLabel, partIcon } from './levelRewards.js'
-import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession } from './currentSession.js'
+import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession, planAllPeriods, summarizeTodaysLessons } from './currentSession.js'
+import { releaseConfig, isManaged, isReleaseTile, releaseTiles, releaseFor, canWorkOn, planEnable, planDisable, previewEnable, planSetAll, planTogglePeriod, nextToRelease, applyPlan, summarize as summarizeRelease, CLASS_IDS } from './lessonRelease.js'
 import { isCatchUpPilot, catchUpKey, catchUpView, applyCatchUp, sessionContent, gradePractice, practiceParts, passMinOf, reviewsOf, catchUpSessions } from './catchUp.js'
 
 /* ═══════════════════════════════════════════════
@@ -1921,6 +1922,14 @@ function saveClassCurrentSession(classId, landId, tileId) {
   if (val) _settings.currentSession[cid] = val; else delete _settings.currentSession[cid];
   set(ref(db, `settings/currentSession/${cid}`), val).catch(console.error);
 }
+// One choice for every period: only settings/currentSession/{1..4} are written (one multi-path update).
+function saveAllClassesCurrentSession(landId, tileId) {
+  if (!_settings) _settings = {};
+  const plan = planAllPeriods(CLASS_IDS, landId, tileId);
+  _settings.currentSession = Object.assign({}, _settings.currentSession || {});
+  Object.entries(plan).forEach(([cid, v]) => { if (v) _settings.currentSession[cid] = v; else delete _settings.currentSession[cid]; });
+  update(ref(db, 'settings/currentSession'), plan).catch(console.error);
+}
 // Everything the hub button / map marker need for this student. Read-only — never writes.
 function getTodaysLessonInfo(student) {
   if (!student) return { status: 'unset' };
@@ -1931,15 +1940,14 @@ function getTodaysLessonInfo(student) {
   if (r.status !== 'ok') return info;
   // Respect existing locks, using the same rules as the map:
   // release date not reached, past this class's progress cap, or a gate the teacher hasn't opened.
-  if (isTileLocked(r.land.id, r.tile.id)) return Object.assign(info, { status: 'not_released' });
+  if (!tileOpenFor(student, r.land.id, r.tile.id)) return Object.assign(info, { status: 'not_released' });
   if (r.relation !== 'done') {
     const asIfHere = r.relation === 'ahead' ? Object.assign({}, pos, { tile: r.tile.id }) : pos;
     const ts = tileState(r.tile, asIfHere, false, r.land);
     if (ts === 'capped') return Object.assign(info, { status: 'capped' });
     if (r.relation === 'behind') {
       // Marker already past it: reachable only through the existing missed-lesson catch-up.
-      const _rd = getReleaseDate(r.land.id, r.tile.id);
-      if (!_rd || isTileLocked(r.land.id, r.tile.id)) return Object.assign(info, { status: 'locked' });
+      if (!tileReleasedFor(student, r.land.id, r.tile.id)) return Object.assign(info, { status: 'locked' });
     } else if (ts === 'locked') {
       return Object.assign(info, { status: 'locked' });
     }
@@ -1949,7 +1957,7 @@ function getTodaysLessonInfo(student) {
   if (r.relation === 'ahead') {
     info.move = planMoveToToday({
       land: r.land, pos, targetTileId: r.tile.id,
-      isReleasedPast: tid => { const d = getReleaseDate(r.land.id, tid); return !!d && !isTileLocked(r.land.id, tid); },
+      isReleasedPast: tid => tileReleasedFor(student, r.land.id, tid),
       isGateTile: tid => Object.values(r.land.gateBosses || {}).some(gb => gb.session === tid) && !(pos.completed || []).includes(tid),
     });
   }
@@ -2132,6 +2140,42 @@ function isTileLocked(landId, tileId) {
   const midnight = new Date(d); midnight.setHours(0, 0, 0, 0);
   return Date.now() < midnight.getTime();
 }
+// ── Lesson release (teacher-controlled unlocking) — rules in src/lessonRelease.js ──
+// settings/lessonRelease/{landId} = { enabled, all: { tileId: true }, classes: { classId: { tileId: bool } } }
+function getReleaseCfg(landId) { return releaseConfig(_settings, landId); }
+function saveReleasePlan(landId, plan) {
+  if (!_settings) _settings = {};
+  if (!_settings.lessonRelease) _settings.lessonRelease = {};
+  const lid = String(landId);
+  _settings.lessonRelease[lid] = applyPlan(_settings.lessonRelease[lid], plan);
+  update(ref(db, `settings/lessonRelease/${lid}`), plan).catch(console.error);   // only the listed children change
+}
+const _landById = id => LANDS.find(l => l.id === Number(id));
+// May this student work on (check off, submit, earn rewards for) the tile? Completed tiles always yes.
+// Release mode off → the old release-date rule.
+function tileOpenFor(student, landId, tileId) {
+  const land = _landById(landId); const tile = land && land.tiles.find(t => t.id === Number(tileId));
+  if (!tile) return !isTileLocked(landId, tileId);
+  const completed = student ? (getLandPos(student).completed || []) : [];
+  return canWorkOn({ cfg: getReleaseCfg(landId), classId: student ? classIdForStudent(student.id) : null, land, tile, completed, dateOpen: !isTileLocked(landId, tileId) });
+}
+// Has the session been released (for missed-lesson detection, schedule advance, "move to today")?
+// Release mode on → the teacher's release; off → a release date that has passed (old rule).
+function tileReleasedFor(student, landId, tileId) {
+  const land = _landById(landId); const tile = land && land.tiles.find(t => t.id === Number(tileId));
+  const cfg = getReleaseCfg(landId);
+  if (isManaged(cfg) && tile && isReleaseTile(land, tile)) return releaseFor(cfg, student ? classIdForStudent(student.id) : null, tileId).released;
+  return !!getReleaseDate(landId, tileId) && !isTileLocked(landId, tileId);
+}
+// Called first in every lesson action handler: blocks saving/submitting/rewards on a locked lesson
+// (also stops a teacher preview from writing anything).
+function lessonActionBlocked(student = STATE.student, land = STATE.lessonLand || LANDS[0], tile = STATE.lessonTile) {
+  if (STATE.lessonPreview) return true;
+  if (!student || !tile || !land) return false;
+  if (tileOpenFor(student, land.id, tile.id)) return false;
+  mount();   // shows the locked card
+  return true;
+}
 // Absence helpers ─────────────────────────────────────────────────────────────
 // Store: students/${sid}/absences  = { "YYYY-MM-DD": true, ... }
 function getStudentAbsences(studentId) {
@@ -2170,20 +2214,22 @@ function isStudentBehindPace(student) {
 }
 // Should the catch-up path be offered for this tile?
 function showCatchUp(student, landId, tileId) {
-  if (isTileLocked(landId, tileId)) return false;
+  if (!tileOpenFor(student, landId, tileId)) return false;
   const entry = getLessonScheduleEntry(landId, tileId);
   if (!entry.recapText && !entry.skillVideo) return false;
   return isStudentAbsentForTile(student.id, landId, tileId) || isStudentBehindPace(student);
 }
 // Returns the tileId of the latest released session per the schedule (or null).
-function getScheduleBasedCurrentTile(land) {
+function getScheduleBasedCurrentTile(land, student = null) {
   const pathOrder = land.pathOrder || [];
+  const managed = isManaged(getReleaseCfg(land.id));
   let latest = null;
   for (const tid of pathOrder) {
-    const entry = getLessonScheduleEntry(land.id, tid);
-    if (!entry.releaseDate) continue;
-    const d = new Date(entry.releaseDate); d.setHours(0,0,0,0);
-    if (Date.now() >= d.getTime()) latest = tid;
+    const tile = land.tiles.find(t => t.id === tid);
+    const released = tileReleasedFor(student, land.id, tid);
+    // Release mode: stop at the first session not released for this class (a period hold is never skipped past).
+    if (managed && tile && isReleaseTile(land, tile) && !released) break;
+    if (released) latest = tid;   // release mode off: same as before (latest past release date)
   }
   return latest;
 }
@@ -2197,10 +2243,7 @@ function getMissedTiles(student, land) {
     const tIdx = order.indexOf(tid);
     if (tIdx >= posIdx) break; // stop at current tile
     if ((pos.completed || []).includes(tid)) continue;
-    const entry = getLessonScheduleEntry(land.id, tid);
-    if (!entry.releaseDate) continue;
-    const d = new Date(entry.releaseDate); d.setHours(0,0,0,0);
-    if (Date.now() >= d.getTime()) missed.push(tid);
+    if (tileReleasedFor(student, land.id, tid)) missed.push(tid);   // released (date passed, or teacher-released)
   }
   return missed;
 }
@@ -2276,6 +2319,7 @@ function cu3State(land, tile) {
   return STATE.cu3;
 }
 function runCatchUpAction(student, land, tile, action, opts = {}) {
+  if (['grade', 'openPear', 'reportPear'].includes(action) && lessonActionBlocked(student, land, tile)) return { ok: false, reason: 'locked-by-release', effects: {} };
   const res = applyCatchUp(getCatchUpRecord(student.id, land.id, tile.id), action,
     { content: sessionContent(land.id, tile.id), legacy: getTaskProgress(student.id, tile.id), pearUrl: getEffectivePear(land, tile), ...opts });
   if (!res.ok) return res;
@@ -2381,6 +2425,7 @@ function renderCatchUpPilot(student, land, tile) {
               const q = c.questions.find(q => q.parts.some(p => p.id === i.id)); const p = q.parts.find(p => p.id === i.id);
               return `<li class="cu3-no"><b>✗ ${escHtml(q.title)}${p.label ? ' ' + p.label : ''}:</b> ${escHtml(i.feedback)}</li>`;
             }).join('')}</ul></div>`
+        : res && res.passed ? `<div class="cu2-status cu2-status-acc" role="status"><b>Preview: ${res.correctCount} of ${res.total} correct — this would pass.</b>${resultItems(res)}</div>`
         : v.tries ? `<p class="cu2-resume">Last try: ${v.last.correct} of ${v.last.total}. You need ${passMin} of ${total} to pass.</p>` : ''}
       <p class="cu3-hint">Read each short section, then choose the best answer. Get ${passMin} of ${total} right to unlock your exit ticket.</p>
       ${c.questions.map(q => `<div class="cu3-q">
@@ -2416,7 +2461,7 @@ function renderCatchUpPilot(student, land, tile) {
 // Auto-advance student to the schedule-based current tile (silently on map open).
 // Only advances forward, never back. Writes to Firebase.
 function autoAdvanceBySchedule(student, land) {
-  const scheduleTile = getScheduleBasedCurrentTile(land);
+  const scheduleTile = getScheduleBasedCurrentTile(land, student);
   if (!scheduleTile) return false;
   const pos    = getLandPos(student);
   const order  = land.pathOrder || [];
@@ -2436,13 +2481,7 @@ function missedCountBeforeGate(student, land, gateTileId) {
   const gateIdx = order.indexOf(gateTileId);
   if (gateIdx < 0) return 0;
   const pos = getLandPos(student);
-  return order.slice(0, gateIdx).filter(tid => {
-    if ((pos.completed || []).includes(tid)) return false;
-    const entry = getLessonScheduleEntry(land.id, tid);
-    if (!entry.releaseDate) return false;
-    const d = new Date(entry.releaseDate); d.setHours(0,0,0,0);
-    return Date.now() >= d.getTime();
-  }).length;
+  return order.slice(0, gateIdx).filter(tid => !(pos.completed || []).includes(tid) && tileReleasedFor(student, land.id, tid)).length;
 }
 // Record how a session was completed ('full' | 'catchUp')
 function recordCompletionMode(studentId, tileId, mode) {
@@ -6232,7 +6271,57 @@ function renderTrainingGroundsTutorial() {
   </div>`;
 }
 
+// Lesson page wrapper: (1) unreleased session → locked card for the student; (2) teacher preview →
+// the student page with a banner (nothing can be saved: lessonActionBlocked() is true in preview).
 function renderLessonStop() {
+  const tile = STATE.lessonTile || {}, land = STATE.lessonLand || LANDS[0], student = STATE.student;
+  if (!STATE.lessonPreview && student && isManaged(getReleaseCfg(land.id)) && isReleaseTile(land, tile) && !tileOpenFor(student, land.id, tile.id))
+    return renderLockedLesson(land, tile);
+  if (!STATE.lessonPreview) return renderLessonStopPage();
+  const cu = isCatchUpPilot(land.id, tile.id);
+  const showCu = cu && STATE.lessonPreviewCatchUp;
+  const rel = summarizeRelease(getReleaseCfg(land.id), tile.id);
+  const relTxt = !isManaged(getReleaseCfg(land.id)) ? 'Release mode is off for this land (release dates apply).'
+    : rel.state === 'all' ? 'Released for all periods.' : rel.state === 'none' ? 'Locked for all periods.' : `Released for ${rel.open.map(c => 'Period ' + c).join(', ')} only.`;
+  const banner = `<div class="ls-preview-banner" role="status"><b>👁 Teacher preview</b> — this is what students see. Nothing is saved. ${relTxt}
+      ${cu ? `<div class="ls-preview-tabs"><button class="btn btn-outline-sm${showCu ? '' : ' ls-preview-on'}" data-preview-cu="0">Lesson page</button><button class="btn btn-outline-sm${showCu ? ' ls-preview-on' : ''}" data-preview-cu="1">Missed-day catch-up page</button></div>` : ''}</div>`;
+  if (showCu) {
+    return `<div class="screen ls-screen"><div class="ls-card enter">
+      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
+      ${banner}
+      ${renderCatchUpPilot({ id: '__preview' }, land, tile)}
+    </div></div>`;
+  }
+  return renderLessonStopPage().replace('<div class="ls-card enter">', `<div class="ls-card enter">${banner}`);
+}
+// Teacher preview of any session's student page (locked or not). Read-only.
+function openLessonPreview(landId, tileId, returnTo) {
+  const land = _landById(landId); const tile = land && land.tiles.find(t => t.id === Number(tileId));
+  if (!tile) return;
+  STATE.student = null; STATE.lessonPreview = true; STATE.lessonPreviewCatchUp = false; STATE.lessonPreviewReturn = returnTo;
+  STATE.lessonTile = tile; STATE.lessonLand = land; STATE.lessonOpenedAt = Date.now(); STATE.cu3 = null; STATE.catchUpOpen = false;
+  STATE.screen = 'lesson-stop'; mount();
+}
+function renderLockedLesson(land, tile) {
+  const name = sessionLabel(tile) || tile.name || 'This lesson';
+  return `<div class="screen ls-screen">
+    <div class="ls-card enter">
+      <button class="npc-modal-close ls-back-btn" aria-label="Close">✕</button>
+      <div class="ls-breadcrumb" style="padding-right:28px;margin-bottom:4px">
+        <button class="ls-bc-back ls-back-btn">← Quest Map</button>
+        <span class="ls-bc-sep" style="margin:0 4px;opacity:.35">|</span>
+        <span class="ls-bc-land">${land.name}</span>
+      </div>
+      <div class="ls-locked-card" id="ls-locked" role="status">
+        <div class="ls-locked-icon" aria-hidden="true">🔒</div>
+        <h2 class="ls-locked-h">${escHtml(name.split(' · ')[0])} isn’t open yet</h2>
+        <p>${getClassTeacherName()} will unlock it when your class is ready. Until then, you can finish any lesson or catch-up that is already open.</p>
+      </div>
+      ${tile.sessionLore ? `<p class="ls-locked-lore">${escHtml(tile.sessionLore)}</p>` : ''}
+    </div>
+  </div>`;
+}
+function renderLessonStopPage() {
   const tile     = STATE.lessonTile || {};
   const land     = STATE.lessonLand || LANDS[0];
   const student  = STATE.student;
@@ -7878,6 +7967,87 @@ function renderTeacherContentLinks() {
     </div>
   </div>`;
 }
+// What turning release mode on would do (confirmation screen + the plan saved on confirm).
+function releasePreview(land) {
+  const dateOf = tid => getLessonScheduleEntry(land.id, tid).releaseDate || '';
+  const passed = tid => !!dateOf(tid) && !isTileLocked(land.id, tid);
+  const pv = previewEnable(land, passed, dateOf, getReleaseCfg(land.id));   // includes a list kept from last time
+  const lockIds = new Set([...pv.lockedFuture, ...pv.lockedNoDate].map(x => x.tile.id));
+  pv.studentsOnLocked = CLASS_DATA.periods.flatMap(p => p.students).filter(s => {
+    const pos = getLandPos(s);
+    return pos.land === land.id && lockIds.has(pos.tile) && !(pos.completed || []).includes(pos.tile);
+  }).length;
+  pv.plan = planEnable(land, passed, dateOf);
+  return pv;
+}
+// Lesson Release panel (Lesson Schedule screen). All writes go through saveReleasePlan().
+function renderLessonReleasePanel(land) {
+  const cfg = getReleaseCfg(land.id);
+  const tiles = releaseTiles(land);
+  if (!tiles.length) return '';
+  if (!isManaged(cfg)) {
+    const pv = releasePreview(land);
+    const intro = `<div class="trl-h">🔓 Lesson Release <span class="trl-off">Off</span></div>
+      <p class="trl-p">Right now sessions open on their release dates, and sessions with no date are open. Turn on release mode so students can't work ahead: you release each session for all periods with one tap, and can hold one period back when you need to.</p>`;
+    if (STATE.trlConfirmLand !== land.id) {
+      return `<div class="trl-panel" id="trl-panel">${intro}
+        <button class="btn btn-outline-sm trl-btn-main" id="trl-enable">Turn on release mode for ${land.name}…</button>
+      </div>`;
+    }
+    // Confirmation step: show exactly what will happen before anything is saved.
+    const fmt = d => { const x = new Date(d + 'T00:00:00'); return isNaN(x) ? d : x.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+    const list = (items, withDate) => items.length
+      ? `<ul class="trl-cf-list">${items.map(x => `<li>${escHtml(sessionLabel(x.tile))}${x.kept ? ' <span class="trl-cf-date">(you released it before)</span>' : withDate && x.date ? ` <span class="trl-cf-date">${fmt(x.date)}</span>` : ''}</li>`).join('')}</ul>`
+      : '<p class="trl-p"><i>None</i></p>';
+    return `<div class="trl-panel trl-confirm" id="trl-panel">${intro}
+      <div class="trl-cf" id="trl-confirm" role="region" aria-label="Confirm turning on release mode">
+        <div class="trl-cf-h">Before you turn it on, here's exactly what will happen in ${land.name}:</div>
+        <div class="trl-cf-grid">
+          <div class="trl-cf-col trl-cf-open" id="trl-cf-open"><b>🔓 Open right away (${pv.open.length})</b><span class="trl-cf-why">Release date has passed${pv.open.some(x => x.kept) ? ', or you released it the last time release mode was on' : ''}</span>${list(pv.open, true)}</div>
+          <div class="trl-cf-col trl-cf-future" id="trl-cf-future"><b>🔒 Stay locked (${pv.lockedFuture.length})</b><span class="trl-cf-why">Release date is in the future — they will NOT open on that date; you release them</span>${list(pv.lockedFuture, true)}</div>
+          <div class="trl-cf-col trl-cf-nodate" id="trl-cf-nodate"><b>🔒 Stay locked — no release date (${pv.lockedNoDate.length})</b><span class="trl-cf-why">No date is set, so they stay locked until you release them</span>${list(pv.lockedNoDate, false)}</div>
+        </div>
+        ${pv.keptPeriodSettings ? `<p class="trl-p">↺ ${pv.keptPeriodSettings} period-specific setting${pv.keptPeriodSettings === 1 ? '' : 's'} from last time will apply again (dashed period buttons).</p>` : ''}
+        <p class="trl-p">✅ Every student keeps everything they've finished — completed sessions, XP, Gold and items are never locked or removed.${pv.studentsOnLocked ? ` <b>${pv.studentsOnLocked} student${pv.studentsOnLocked === 1 ? ' is' : 's are'}</b> currently on a session that will lock; they'll see "isn't open yet" there until you release it.` : ''}</p>
+        <div class="trl-top">
+          <button class="btn btn-outline-sm trl-btn-main" id="trl-enable-confirm">Yes, turn on release mode</button>
+          <button class="btn btn-outline-sm" id="trl-enable-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  const next = nextToRelease(cfg, land);
+  // Show released sessions + the next 3 locked ones; the rest behind "Show all" (less scrolling).
+  let lockedShown = 0;
+  const visible = STATE.trlShowAll ? tiles : tiles.filter(t => summarizeRelease(cfg, t.id).state !== 'none' || lockedShown++ < 3);
+  const rows = visible.map(t => {
+    const sum = summarizeRelease(cfg, t.id);
+    const name = sessionLabel(t);
+    const chip = sum.state === 'all' ? '<span class="trl-chip trl-all">🔓 Released · all periods</span>'
+      : sum.state === 'none' ? '<span class="trl-chip trl-none">🔒 Locked</span>'
+      : `<span class="trl-chip trl-some">Some periods</span>`;
+    const periods = CLASS_IDS.map(c => { const r = releaseFor(cfg, c, t.id);
+      return `<button class="trl-pbtn ${r.released ? 'trl-p-on' : 'trl-p-off'}${r.source === 'class' ? ' trl-p-ovr' : ''}" data-rel-period="${t.id}|${c}" aria-pressed="${r.released}" title="${r.source === 'class' ? 'Set just for this period — click to change' : 'Follows all periods — click to change this period only'}">P${c} ${r.released ? '🔓' : '🔒'}</button>`; }).join('');
+    return `<div class="trl-row" data-rel-row="${t.id}">
+      <span class="trl-name">${escHtml(name)}</span>${chip}
+      <span class="trl-periods" role="group" aria-label="${escHtml(name)} by period">${periods}</span>
+      ${sum.state === 'all'
+        ? `<button class="btn btn-outline-sm" data-rel-all="${t.id}|0">Lock for all periods</button>`
+        : `<button class="btn btn-outline-sm trl-btn-main" data-rel-all="${t.id}|1">🔓 Release for all periods</button>`}
+      <button class="btn btn-outline-sm" data-rel-preview="${t.id}">👁 Preview</button>
+    </div>`;
+  }).join('');
+  return `<div class="trl-panel" id="trl-panel">
+    <div class="trl-h">🔓 Lesson Release <span class="trl-on">On</span></div>
+    <p class="trl-p">Students can only start sessions you've released. Finished work stays open, and released sessions stay open for catch-up. Changing Today's Lesson never locks or unlocks anything. A dashed period button means that period is set differently from the others.</p>
+    <div class="trl-top">
+      ${next ? `<button class="btn btn-outline-sm trl-btn-main" id="trl-next" data-rel-all="${next.id}|1">🔓 Release next: ${escHtml(sessionLabel(next).split(' · ')[0])} for all periods</button>` : '<span class="trl-p">Every session is released.</span>'}
+      <button class="btn btn-outline-sm" id="trl-disable">Turn off release mode</button>
+    </div>
+    <div class="trl-list">${rows}</div>
+    ${tiles.length > visible.length || STATE.trlShowAll ? `<button class="btn btn-outline-sm" id="trl-more">${STATE.trlShowAll ? 'Show fewer sessions' : `Show all ${tiles.length} sessions`}</button>` : ''}
+  </div>`;
+}
 function renderTeacherLessonSchedule() {
   const landId = STATE.tlsLandId || getMostCommonStudentLand().id;
   const land   = LANDS.find(l => l.id === landId) || LANDS[0];
@@ -7929,7 +8099,8 @@ function renderTeacherLessonSchedule() {
         </select>
       </div>
       <div class="tcl-land-banner">🗺️ You are editing the schedule for <b>${land.name}</b>. Wayground and Pear links saved here also appear in Content Links.</div>
-      <p class="tls-hint">Set release dates and links for each session. Students can't open a tile until its release date arrives.</p>
+      ${renderLessonReleasePanel(land)}
+      <p class="tls-hint">Set release dates and links for each session. ${isManaged(getReleaseCfg(land.id)) ? 'Release mode is on: sessions open when you release them above (dates are kept for attendance and missed-lesson notes).' : 'Students can\'t open a tile until its release date arrives.'}</p>
       <div class="tls-table-wrap">
         <table class="tls-table">
           <thead><tr>
@@ -8074,8 +8245,23 @@ function renderTeacherDashboard() {
           <select id="t-today-sel" style="min-height:36px;padding:4px 8px;border-radius:8px;font-weight:700;max-width:100%">
             <option value=""${curVal ? '' : ' selected'}>— Not set —</option>${groups}
           </select>
-          <button class="btn btn-outline-sm" id="t-today-save">Save</button>
+          <button class="btn btn-outline-sm" id="t-today-save" title="Changes only ${period.periodName}">Save for ${period.periodName} only</button>
+          <button class="btn btn-outline-sm t-today-all" id="t-today-save-all" title="Sets the same lesson for every period">Save for all ${CLASS_IDS.length} periods</button>
+          ${curOpt ? `<button class="btn btn-outline-sm" id="t-today-preview" data-preview="${curOpt.value}">👁 Preview</button>` : ''}
           <span style="font-size:12px;font-weight:700;color:${curOpt ? '#A7F3D0' : (cur ? '#FCA5A5' : 'rgba(255,255,255,.65)')}">${curOpt ? `Students see: ${curOpt.land.name} — ${sessionLabel(curOpt.tile)}` : (cur ? 'Saved session no longer exists — choose another' : 'Students see "Today\'s lesson isn\'t ready yet"')}</span>
+          ${(() => {   // all periods at a glance
+            const sum = summarizeTodaysLessons(getCurrentSessionSettings(), CLASS_IDS);
+            const lbl = v => { const o = opts.find(x => x.value === v); return o ? sessionLabel(o.tile).split(' · ')[0] : 'Not set'; };
+            return `<div class="t-today-sum" id="t-today-sum">${sum.same
+              ? `<span class="t-today-same">✓ Same for all periods: ${lbl(sum.value)}</span>`
+              : `<span class="t-today-diff">Periods differ:</span> ${CLASS_IDS.map(c => `<span class="t-today-p${String(c) === String(period.id) ? ' t-today-p-on' : ''}">P${c}: ${lbl(sum.byClass[String(c)])}</span>`).join(' ')}`}</div>`;
+          })()}
+          ${(() => {   // release warning (never unlocks anything by itself)
+            if (!curOpt) return '';
+            const cfg = getReleaseCfg(curOpt.land.id);
+            if (!isManaged(cfg) || !isReleaseTile(curOpt.land, curOpt.tile) || releaseFor(cfg, period.id, curOpt.tile.id).released) return '';
+            return `<div class="t-today-warn" id="t-today-warn">🔒 ${sessionLabel(curOpt.tile).split(' · ')[0]} isn't released for ${period.periodName} yet, so students will see it locked. <button class="btn btn-outline-sm" id="t-today-open-release">Open Lesson Release</button></div>`;
+          })()}
         </div>`;
       })()}
       ${STATE.classSettingsOpen ? `<div class="cs-overlay" id="cs-overlay">
@@ -10758,6 +10944,26 @@ function bindEvents() {
       $("cs-overlay") && $("cs-overlay").addEventListener("click", e => { if (e.target === $("cs-overlay")) closeCS(); });
     }
     $("t-jump-tool-btn") && $("t-jump-tool-btn").addEventListener("click", () => { STATE.jumpToolOpen = true; STATE.jtLandId = null; STATE.jtResult = ''; mount(); });
+    // Today's lesson for ALL periods at once (one multi-path update; never moves students or changes releases).
+    $("t-today-save-all") && $("t-today-save-all").addEventListener("click", () => {
+      const v = ($("t-today-sel") || {}).value || '';
+      const [landId, tileId] = v ? v.split(':').map(Number) : [null, null];
+      saveAllClassesCurrentSession(landId, tileId);
+      mount();
+      const toast = document.createElement("div");
+      toast.className = "gold-toast";
+      toast.innerHTML = `<div class="gold-pop">📍 All ${CLASS_IDS.length} periods: ${v ? 'today\'s lesson saved' : 'today\'s lesson cleared'}</div>`;
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.classList.add("gold-toast-out"); setTimeout(() => toast.remove(), 380); }, 2200);
+    });
+    $("t-today-preview") && $("t-today-preview").addEventListener("click", () => {
+      const [lid, tid] = $("t-today-preview").dataset.preview.split(':').map(Number);
+      openLessonPreview(lid, tid, 'teacher-dash');
+    });
+    $("t-today-open-release") && $("t-today-open-release").addEventListener("click", () => {
+      const v = ($("t-today-sel") || {}).value || ''; STATE.tlsLandId = v ? Number(v.split(':')[0]) : STATE.tlsLandId;
+      STATE.screen = 'teacher-lesson-schedule'; mount();
+    });
     // Today's lesson for the selected period (class). Saving never moves any student.
     $("t-today-save") && $("t-today-save").addEventListener("click", () => {
       const period = CLASS_DATA.periods[STATE.teacherPeriodIdx];
@@ -11518,6 +11724,8 @@ function bindEvents() {
         STATE.arrivalLand = land;
         STATE.screen = "arrival-screen";
         mount();
+      } else if (tile.type === "event" && isManaged(getReleaseCfg(land.id)) && !tileOpenFor(STATE.student, land.id, tile.id)) {
+        STATE.lessonTile = tile; STATE.lessonLand = land; STATE.screen = "lesson-stop"; mount();   // locked card
       } else if (tile.type === "event") {
         const _evPos = getLandPos(STATE.student);
         savePreEventPosition(STATE.student.id, land.id, _evPos.tile);
@@ -11998,6 +12206,35 @@ function bindEvents() {
 
   if (STATE.screen === "teacher-lesson-schedule") {
     $("tls-back") && $("tls-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; mount(); });
+    // Lesson Release (teacher). Each click is one multi-path update on settings/lessonRelease/{land}.
+    {
+      const _rl = () => LANDS.find(l => l.id === (STATE.tlsLandId || getMostCommonStudentLand().id)) || LANDS[0];
+      const _keep = () => { const w = document.querySelector('.t-dash-screen'); return w ? w.scrollTop : 0; };
+      const _redraw = y => { mount(); const w = document.querySelector('.t-dash-screen'); if (w) w.scrollTop = y; };
+      // Step 1 shows the confirmation list (nothing saved). Step 2 saves exactly what was listed.
+      $("trl-enable") && $("trl-enable").addEventListener("click", () => { const y = _keep(); STATE.trlConfirmLand = _rl().id; _redraw(y); });
+      $("trl-enable-cancel") && $("trl-enable-cancel").addEventListener("click", () => { const y = _keep(); STATE.trlConfirmLand = null; _redraw(y); });
+      $("trl-enable-confirm") && $("trl-enable-confirm").addEventListener("click", () => {
+        const land = _rl(); const y = _keep();
+        if (STATE.trlConfirmLand !== land.id) return;
+        STATE.trlConfirmLand = null;
+        saveReleasePlan(land.id, releasePreview(land).plan);
+        _redraw(y);
+      });
+      $("trl-more") && $("trl-more").addEventListener("click", () => { const y = _keep(); STATE.trlShowAll = !STATE.trlShowAll; _redraw(y); });
+      $("trl-disable") && $("trl-disable").addEventListener("click", () => { const y = _keep(); saveReleasePlan(_rl().id, planDisable()); _redraw(y); });
+      document.querySelectorAll("[data-rel-all]").forEach(b => b.addEventListener("click", () => {
+        const [tid, on] = b.dataset.relAll.split('|').map(Number); const y = _keep();
+        saveReleasePlan(_rl().id, planSetAll(tid, !!on));
+        _redraw(y);
+      }));
+      document.querySelectorAll("[data-rel-period]").forEach(b => b.addEventListener("click", () => {
+        const [tid, cid] = b.dataset.relPeriod.split('|').map(Number); const land = _rl(); const y = _keep();
+        saveReleasePlan(land.id, planTogglePeriod(getReleaseCfg(land.id), cid, tid));
+        _redraw(y);
+      }));
+      document.querySelectorAll("[data-rel-preview]").forEach(b => b.addEventListener("click", () => openLessonPreview(_rl().id, Number(b.dataset.relPreview), 'teacher-lesson-schedule')));
+    }
     $("tls-land-sel") && $("tls-land-sel").addEventListener("change", e => {
       STATE.tlsLandId = Number(e.target.value) || 1;
       mount();
@@ -12073,6 +12310,7 @@ function bindEvents() {
     });
 
     $("we-confirm-btn") && $("we-confirm-btn").addEventListener("click", () => {
+      if (lessonActionBlocked()) return;   // lesson release / teacher preview: nothing is saved
       const tile = STATE.lessonTile;
       const land = STATE.lessonLand || LANDS[0];
       const student = STATE.student;
@@ -12348,15 +12586,21 @@ function bindEvents() {
       mount(); window.scrollTo(0, 0);
     }));
     $("ls-help-btn") && $("ls-help-btn").addEventListener("click", () => {
-      if (STATE.helpFlagged) return;
+      if (STATE.helpFlagged || STATE.lessonPreview) return;
       STATE.helpModalOpen = true; mount();
       $("help-modal-input") && $("help-modal-input").focus();
     });
     bindHelpModal();
-    document.querySelectorAll(".ls-back-btn").forEach(btn => btn.addEventListener("click", () => { STATE.sqPartnerPickOpen = false; STATE.catchUpOpen = false; STATE.screen = "quest-map"; mount(); }));
+    document.querySelectorAll(".ls-back-btn").forEach(btn => btn.addEventListener("click", () => {
+      STATE.sqPartnerPickOpen = false; STATE.catchUpOpen = false;
+      if (STATE.lessonPreview) { STATE.lessonPreview = false; STATE.lessonPreviewCatchUp = false; STATE.cu3 = null; STATE.screen = STATE.lessonPreviewReturn || 'teacher-lesson-schedule'; mount(); return; }
+      STATE.screen = "quest-map"; mount();
+    }));
+    document.querySelectorAll("[data-preview-cu]").forEach(b => b.addEventListener("click", () => { STATE.lessonPreviewCatchUp = b.dataset.previewCu === '1'; STATE.cu3 = null; mount(); }));
 
     // Camp tile flow
     $("camp-task-check") && $("camp-task-check").addEventListener("change", e => {
+      if (lessonActionBlocked()) { e.target.checked = !e.target.checked; return; }
       const student = STATE.student;
       const tile    = STATE.lessonTile;
       if (!student || !tile) return;
@@ -12364,6 +12608,7 @@ function bindEvents() {
       mount();
     });
     $("camp-complete-btn") && $("camp-complete-btn").addEventListener("click", () => {
+      if (lessonActionBlocked()) return;   // lesson release / teacher preview: nothing is saved
       const student = STATE.student;
       const tile    = STATE.lessonTile;
       const land    = STATE.lessonLand || LANDS[0];
@@ -12388,6 +12633,7 @@ function bindEvents() {
 
     // Study Hall tile flow
     $("sh-complete-btn") && $("sh-complete-btn").addEventListener("click", () => {
+      if (lessonActionBlocked()) return;   // lesson release / teacher preview: nothing is saved
       const student = STATE.student;
       const tile    = STATE.lessonTile;
       const land    = STATE.lessonLand || LANDS[0];
@@ -12532,6 +12778,7 @@ function bindEvents() {
       } }, 0);
     });
     $("ls-submit") && $("ls-submit").addEventListener("click", () => {
+      if (lessonActionBlocked()) return;   // lesson release / teacher preview: nothing is saved
       const btn = $("ls-submit");
       if (btn.disabled) return;
       const pos  = getLandPos(STATE.student);
@@ -12640,6 +12887,7 @@ function bindEvents() {
     });
     document.querySelectorAll(".ls-check").forEach(cb => {
       cb.addEventListener("change", () => {
+        if (lessonActionBlocked()) { cb.checked = !cb.checked; return; }
         const tile = STATE.lessonTile;
         saveTaskCheck(STATE.student.id, STATE.lessonTile.id, cb.dataset.tier, parseInt(cb.dataset.idx), cb.checked);
         if (cb.checked) saveTaskTimestamp(STATE.student.id, STATE.lessonTile.id, cb.dataset.tier, parseInt(cb.dataset.idx));
@@ -12666,6 +12914,7 @@ function bindEvents() {
     // Lesson flow checkboxes: wayground + workbook
     document.querySelectorAll(".ls-check-new").forEach(cb => {
       cb.addEventListener("change", () => {
+        if (lessonActionBlocked()) { cb.checked = !cb.checked; return; }
         const kind    = cb.dataset.lsKind;
         const tile    = STATE.lessonTile;
         const student = STATE.student;
@@ -12680,6 +12929,7 @@ function bindEvents() {
 
     // Lesson tile flow: Pear exit-ticket button
     $("ls-pear-btn") && $("ls-pear-btn").addEventListener("click", () => {
+      if (lessonActionBlocked()) return;   // lesson release / teacher preview: nothing is saved
       const btn = $("ls-pear-btn");
       if (btn && btn.disabled) return;
       const url = btn && btn.dataset.url;
@@ -12692,6 +12942,7 @@ function bindEvents() {
 
     // New lesson tile: "Read and Learn" button
     $("st-rl-btn") && $("st-rl-btn").addEventListener("click", () => {
+      if (lessonActionBlocked()) return;   // lesson release / teacher preview: nothing is saved
       const btn = $("st-rl-btn");
       if (btn && btn.disabled) return;
       const url = btn && btn.dataset.url;
@@ -12706,6 +12957,7 @@ function bindEvents() {
 
     // New lesson tile: "Exit Ticket" button
     $("st-et-btn") && $("st-et-btn").addEventListener("click", () => {
+      if (lessonActionBlocked()) return;   // lesson release / teacher preview: nothing is saved
       const btn = $("st-et-btn");
       if (btn && btn.disabled) return;
       const url = btn && btn.dataset.url;
@@ -12751,6 +13003,10 @@ function bindEvents() {
         mount();
       }));
       document.querySelectorAll('[data-cu2="grade"]').forEach(b => b.addEventListener("click", () => {
+        if (STATE.lessonPreview) {   // teacher preview: grade on the page only, never saved
+          const { land, tile } = _cuCtx(); const st = cu3State(land, tile);
+          st.result = gradePractice(sessionContent(land.id, tile.id), st.answers); mountKeepingScroll(); return;
+        }
         const { student, land, tile } = _cuCtx(); if (!student || !tile) return;
         if (b.disabled) return; b.disabled = true;                 // one submit per click
         const st = cu3State(land, tile);
@@ -12775,6 +13031,7 @@ function bindEvents() {
 
     // Catch-up completion (fires same boss updates as normal completion)
     $("cu-complete-btn") && $("cu-complete-btn").addEventListener("click", () => {
+      if (lessonActionBlocked()) return;   // lesson release / teacher preview: nothing is saved
       const student = STATE.student;
       const tile    = STATE.lessonTile;
       const land    = STATE.lessonLand || LANDS[0];
@@ -12804,6 +13061,7 @@ function bindEvents() {
 
     // Lesson tile flow: Pass outcome
     $("ls-outcome-pass") && $("ls-outcome-pass").addEventListener("click", () => {
+      if (lessonActionBlocked()) return;   // lesson release / teacher preview: nothing is saved
       const student = STATE.student;
       const tile    = STATE.lessonTile;
       const land    = STATE.lessonLand || LANDS[0];
@@ -12866,6 +13124,7 @@ function bindEvents() {
 
     // Lesson tile flow: Fail outcome
     $("ls-outcome-fail") && $("ls-outcome-fail").addEventListener("click", () => {
+      if (lessonActionBlocked()) return;   // lesson release / teacher preview: nothing is saved
       const student = STATE.student;
       const tile    = STATE.lessonTile;
       const land    = STATE.lessonLand || LANDS[0];

@@ -108,3 +108,27 @@ export function hasStartedSession({ completed, taskProgress, tileId }) {
   if (!tp || typeof tp !== 'object') return false;
   return Object.values(tp).some(v => Array.isArray(v) ? v.some(Boolean) : v === true);
 }
+
+/* ── Today's lesson for every period at once ──
+   One choice → the same { landId, tileId, setAt } for each class, written as a
+   multi-path update on settings/currentSession (only those class entries change;
+   nothing else in settings is touched). A single period can still be changed
+   afterwards with the per-period Save. Clearing (no tile) clears every period. */
+export function planAllPeriods(classIds, landId, tileId, now = new Date().toISOString()) {
+  const val = (landId && tileId) ? { landId: Number(landId), tileId: Number(tileId), setAt: now } : null;
+  const w = {};
+  (classIds || []).forEach(c => { w[String(c)] = val; });
+  return w;
+}
+
+// What each class is set to, and whether they all match: { same, value, byClass: { [classId]: 'land:tile' | '' } }
+export function summarizeTodaysLessons(settingsCurrentSession, classIds) {
+  const byClass = {};
+  (classIds || []).forEach(c => {
+    const e = (settingsCurrentSession || {})[String(c)];
+    byClass[String(c)] = e && e.landId != null && e.tileId != null ? `${Number(e.landId)}:${Number(e.tileId)}` : '';
+  });
+  const vals = Object.values(byClass);
+  const same = vals.length > 0 && vals.every(v => v === vals[0]);
+  return { same, value: same ? vals[0] : null, byClass };
+}

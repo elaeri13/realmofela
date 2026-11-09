@@ -3,6 +3,7 @@
 const here = new URL('.', import.meta.url).pathname;
 const EXPOSE = `
 window.__STATE = STATE; window.__mount = mount; window.__LANDS = LANDS;
+window.__bind = bindEvents; window.__pageHtml = renderLessonStopPage;   // lesson-release bypass test
 `;
 export default ({
   root: new URL('../../..', import.meta.url).pathname,
