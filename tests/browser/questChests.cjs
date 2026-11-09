@@ -190,7 +190,14 @@ const SEED = {
     // ── Catch-up earns the session chest once (Pear report, not just opening the link) ──
     await firstVisit(203);
     await openTile(3);
-    for (const [k, v] of Object.entries({ q1: 2, q2: 1, q3: 3, q4: 0 })) { await page.click(`[data-cu3-part="${k}"][data-cu3-choice="${v}"]`); await page.waitForTimeout(80); }
+    // works with the one-page layout (#22) and the three-step layout (#23)
+    if (await page.$('[data-cu6-go="practice"]')) { await page.click('[data-cu6-go="practice"]'); await page.waitForTimeout(150); }
+    for (const [k, v] of Object.entries({ q1: 2, q2: 1, q3: 3, q4: 0 })) {
+      const sel = `[data-cu3-part="${k}"][data-cu3-choice="${v}"]`;
+      for (let i = 0; i < 4 && !(await page.$(sel)); i++) { await page.click(`[data-cu6-q="${i}"]`); await page.waitForTimeout(120); }
+      await page.click(sel); await page.waitForTimeout(80);
+    }
+    if (!(await page.$('[data-cu2="grade"]')) && await page.$('[data-cu6-q="3"]')) { await page.click('[data-cu6-q="3"]'); await page.waitForTimeout(120); }
     await page.click('[data-cu2="grade"]'); await page.waitForTimeout(400);
     await page.click('[data-cu4-open]'); await page.waitForTimeout(700);
     check('opening the Pear link does NOT earn a chest', !((await stu(203)).questChests || {})['2_3']);
