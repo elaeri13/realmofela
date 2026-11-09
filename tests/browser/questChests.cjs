@@ -27,6 +27,7 @@ const SEED = {
     205: st({ currentTile: 5, completedTiles: [1, 2, 3, 4] }),                                    // Writer's Craft
     206: st({ currentTile: 50, completedTiles: [1, 2, 3, 4, 5] }),                                // Study Hall
     207: st({ currentTile: 4, completedTiles: [1, 2, 3], taskProgress: ready4 }),                 // chest write interrupted
+    208: st({ currentTile: 4, completedTiles: [1, 2] }),                                          // three-step catch-up + chests
   },
 };
 (async () => {
@@ -206,6 +207,43 @@ const SEED = {
     check('catch-up completion (Pear reported) earns the session chest', ((await stu(203)).questChests['2_3'] || {}).source === 'catchUp');
     const dupCu = await page.evaluate(`window.__qc.earnQuestChest(window.__STATE.student, ${land2}, ${land2}.tiles.find(t => t.id === 3), { source: 'lesson' })`);
     check('the same session can never earn a second chest (lesson after catch-up)', dupCu === null);
+    await clearOverlays();
+
+    // ── Three-step catch-up + chests together (phone size): no chest screen gets in the way ──
+    await page.setViewportSize({ width: 390, height: 844 });
+    await firstVisit(208);
+    const b208 = await stu(208);
+    await openTile(3);
+    const threeStep = !!(await page.$('.cu6-steps'));
+    const overlay = () => page.$('.qc-overlay');
+    const pick208 = async (k, v) => {
+      if (!(await page.$('#cu6-practice')) && await page.$('[data-cu6-go="practice"]')) await page.click('[data-cu6-go="practice"]');
+      if (await page.$('#cu6-result')) await page.click('#cu6-result .cu6-next');
+      const sel = `[data-cu3-part="${k}"][data-cu3-choice="${v}"]`;
+      for (let i = 0; i < 4 && !(await page.$(sel)); i++) { await page.click(`[data-cu6-q="${i}"]`); await page.waitForTimeout(120); }
+      await page.click(sel); await page.waitForTimeout(80);
+    };
+    const submit208 = async () => { if (!(await page.$('[data-cu2="grade"]')) && await page.$('[data-cu6-q="3"]')) { await page.click('[data-cu6-q="3"]'); await page.waitForTimeout(120); } await page.click('[data-cu2="grade"]'); await page.waitForTimeout(500); };
+    for (const [k, v] of Object.entries({ q1: 0, q2: 0, q3: 3, q4: 1 })) await pick208(k, v);   // 1 of 4: a failed try
+    await submit208();
+    check('three-step catch-up: a failed try earns no chest and shows no chest screen', !((await stu(208)).questChests || {})['2_3'] && !(await overlay()) && (!threeStep || !!(await page.$('#cu6-result'))));
+    for (const [k, v] of Object.entries({ q1: 2, q2: 1, q3: 3, q4: 0 })) await pick208(k, v);
+    check('no chest screen appears while answering questions', !(await overlay()));
+    await submit208();
+    check('passing practice alone earns no chest (Step 3 shows the Pear steps, uncovered)', !((await stu(208)).questChests || {})['2_3'] && !(await overlay())
+      && await page.evaluate(() => { const b = document.querySelector('[data-cu4-open]'); if (!b) return false; b.scrollIntoView({ block: 'center' }); const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!e && (e === b || b.contains(e)); }));
+    await page.click('[data-cu4-open]'); await page.waitForTimeout(700);
+    check('opening the Pear link: still no chest, report button reachable', !((await stu(208)).questChests || {})['2_3'] && !(await overlay())
+      && await page.evaluate(() => { const b = document.querySelector('[data-cu2="reportPear"]'); if (!b || b.disabled) return false; b.scrollIntoView({ block: 'center' }); const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!e && (e === b || b.contains(e)); }));
+    await page.click('[data-cu2="reportPear"]');
+    check('after "I\'ve Submitted My Exit Ticket": the chest card appears (after the reward pop-ups)', await waitFor(async () => !!(await page.$('#qc-earned')), 10000));
+    s = await stu(208);
+    check('exactly one chest for the session, from the catch-up; catch-up reward +3 XP/+3 Gold paid once', Object.keys(s.questChests).filter(k => k === '2_3').length === 1 && s.questChests['2_3'].source === 'catchUp'
+      && s.gold === b208.gold + 3 && s.xp === b208.xp + 3 && s.catchUp['2_3'].submitCount === 1, `gold ${b208.gold}→${s.gold}, xp ${b208.xp}→${s.xp}`);
+    await page.click('#qc-earned [data-qc="later"]'); await page.waitForTimeout(400);
+    check('"Save for later" returns to the finished catch-up page, nothing covering it', !(await overlay()) && /exit ticket reported/i.test(await page.textContent('#cu2')));
+    check('existing inventory untouched by the catch-up chest (until opened)', JSON.stringify(s.companions || []) === JSON.stringify(b208.companions || []) && (s.materials || 0) === (b208.materials || 0) && JSON.stringify(s.items || []) === JSON.stringify(b208.items || []));
+    await page.setViewportSize({ width: 1280, height: 900 });
     await clearOverlays();
 
     // ── Writer's Craft yes, Study Hall no ──
