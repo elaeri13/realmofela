@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "start": "python3 serve.py",
     "test": "node --test tests/*.test.js",
-    "test:browser": "node tests/browser/todaysLesson.cjs && node tests/browser/catchUpScroll.cjs && node tests/browser/lessonRelease.cjs"
+    "test:browser": "node tests/browser/todaysLesson.cjs && node tests/browser/catchUpScroll.cjs && node tests/browser/lessonRelease.cjs",
+    "test:regression": "node tests/browser/regression/run-all.cjs"
   },
   "type": "module",
   "dependencies": {
