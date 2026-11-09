@@ -2,6 +2,7 @@
 // Measures the real scroller (.ls-screen) before and after each tap on desktop, tablet and phone.
 // In-memory database; no live data.   Run: npm run test:browser
 const { chromium } = require('playwright');
+const { withoutChestPopups } = require('./harness/seedHelpers.cjs');   // chest pop-ups are tested in questChests.cjs
 const { spawn } = require('child_process');
 const path = require('path');
 const ROOT = path.join(__dirname, '../..');
@@ -27,7 +28,7 @@ const KEYS = { 2: { right: { q1: 1, q2a: 2, q2b: 0, q3: 3 }, wrong: { q1: 0, q2a
     ctx.on('page', p => { if (p !== page) p.close().catch(() => {}); });
     const errs = []; page.on('pageerror', e => errs.push(e.message));
     let navs = 0; page.on('framenavigated', f => { if (f === page.mainFrame()) navs++; });
-    await page.addInitScript(s => { window.__SEED = s; }, seed);
+    await page.addInitScript(s => { window.__SEED = s; }, withoutChestPopups(seed));
     await page.goto(`http://127.0.0.1:${PORT}/`); await page.waitForTimeout(2500);
     const navs0 = navs;
     for (const [sid, tid] of [[201, 2], [202, 3]]) {
@@ -85,6 +86,8 @@ const KEYS = { 2: { right: { q1: 1, q2a: 2, q2b: 0, q3: 3 }, wrong: { q1: 0, q2a
       const st = await page.evaluate(id => window.__tree.students[id], sid);
       check(`${tag}: report completes once, reward paid once`, st.completedTiles.includes(tid) && st.gold === g0 + 3 && st.catchUp[`2_${tid}`].submitCount === 1, `${g0}→${st.gold}`);
       check(`${tag}: attempt history fail then pass`, st.catchUp[`2_${tid}`].history.filter(h => /^auto/.test(h.event)).map(h => h.event).join() === 'autoFail,autoPass');
+      // the catch-up just earned a Quest Chest: put its card aside ("Save for later") before the next student
+      await page.evaluate(() => document.querySelectorAll('.qc-overlay').forEach(e => e.remove()));
       // refresh rule: answers are page-only; a reopened page starts with nothing selected unless passed
       await page.evaluate(id => { const S = window.__STATE; S.cu3 = null; S.screen = 'quest-map'; window.__mount(); }, sid);
     }

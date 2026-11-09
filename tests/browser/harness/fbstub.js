@@ -21,6 +21,8 @@ export const onValue = (r, cb) => { listeners.push({ path: r.path, cb }); setTim
 export const off = () => {};
 // Atomic like Firebase: reads the stored value, applies fn, commits unless fn returns undefined.
 export const runTransaction = async (r, fn) => {
+  // test hook: make the next N transactions fail like a dropped connection (nothing is written)
+  if (window.__failTx > 0) { window.__failTx--; throw new Error('injected network failure'); }
   const cur = getAt(r.path);
   const nv = fn(cur === undefined ? null : JSON.parse(JSON.stringify(cur)));
   if (nv === undefined) return { committed: false, snapshot: snap(r.path) };
