@@ -192,6 +192,21 @@ const SEED = {
     await asStudent(103); await openTile(5);
     check('release mode off again: S5 opens', !(await page.$('#ls-locked')));
 
+    // ── Lesson Schedule lists every class session (incl. Session 5 Writer's Craft, Study Hall, Camp Day) ──
+    await teacher('teacher-lesson-schedule');
+    const rowTxt = tid => page.evaluate(t => { const r = document.querySelector(`tr.tls-row[data-tid="${t}"]`); return r ? r.textContent.replace(/\s+/g, ' ') : ''; }, tid);
+    check('Lesson Schedule has a row for Session 5 (Writer\'s Craft)', /S5.*Writer's Craft/.test(await rowTxt(5)), await rowTxt(5));
+    check('…and for Study Hall and Camp Day', /Study Hall/.test(await rowTxt(50)) && /Camp Day/.test(await rowTxt(7)), (await rowTxt(50)) + ' | ' + (await rowTxt(7)));
+    check('Writer\'s Craft row: "No exit ticket" instead of a Pear box; regular lessons keep theirs', !(await page.$('#tls-5-pear')) && /No exit ticket/.test(await rowTxt(5)) && !!(await page.$('#tls-4-pear')));
+    await page.fill('#tls-5-releaseDate', '2026-01-03');
+    await page.fill('#tls-5-wayground', 'https://wayground.com/join?gc=S5LESSON');
+    await click('[data-save-tid="5"]');
+    t = await tree();
+    check('saving Session 5 stores its release date and lesson link (other rows untouched)', t.settings.lessonSchedule[2][5].releaseDate === '2026-01-03'
+      && t.settings.tileLinks[2][5].wayground === 'https://wayground.com/join?gc=S5LESSON' && t.settings.lessonSchedule[2][4].releaseDate === past && !!t.settings.tileLinks[2][4].pear);
+    await asStudent(103); await openTile(5);
+    check('student\'s Session 5 "Open Lesson" button uses the saved link', await page.$eval('#ls-video-btn', a => a.getAttribute('href')) === 'https://wayground.com/join?gc=S5LESSON');
+
     // ── Phone layout ──
     await page.setViewportSize({ width: 390, height: 844 });
     await teacher('teacher-lesson-schedule'); await click('#trl-enable');
