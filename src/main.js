@@ -3139,11 +3139,12 @@ function showXPCelebration(amount, levelsGained, newLevel, onComplete, message =
    students/{id}/levelRewards/{level} via a Firebase transaction (only created if missing), and only
    after that commit is the reward handed out through the existing Gold / companion / equipment code.
 
-   Reward claiming stays OFF on the live site until the Firebase security changes described in
-   docs/phase-3-level-up-plan.md are approved: today any browser can write any student's Gold or
-   reward records, so a claim button cannot be made trustworthy yet. In the local dev server, tests
-   can turn it on with window.__REALM_TEST_CLAIMS = true (stripped from production builds).       */
-const LEVEL_REWARD_CLAIMS_LIVE = false;
+   Reward claiming is ON (approved by the teacher). Students can claim every level they have reached,
+   including levels earned before claiming opened, once per level. Note: until the Firebase security
+   changes in docs/phase-3-level-up-plan.md are done, reward records can still be edited directly in
+   the database (same as Gold/XP today). In the local dev server, tests can also turn claiming on with
+   window.__REALM_TEST_CLAIMS = true.                                                                */
+const LEVEL_REWARD_CLAIMS_LIVE = true;
 function rewardClaimsEnabled() {
   return LEVEL_REWARD_CLAIMS_LIVE ||
     (import.meta.env.DEV && typeof window !== 'undefined' && window.__REALM_TEST_CLAIMS === true);
