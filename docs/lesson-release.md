@@ -64,3 +64,12 @@ Release mode is set **per Land** and is **off** until you turn it on. While it's
   - preview saving nothing
   - turning off
   - phone layout
+
+## Automatic scheduling
+In **Lesson Schedule**, enable **Automatically open scheduled lessons and set Today's Lesson for all periods**. Set each session's Release Date and click its Save button. This opt-in setting applies across all Lands and periods; existing manual Today's Lesson settings are retained for use when it is off.
+
+Dates use **America/Chicago midnight**, including daylight saving changes. The latest due, dated main-path session becomes Today's Lesson. It stays current over weekends or other gaps. For matching dates the later session in path order wins (then later Land in the configured Land list). Before the first scheduled date, Today's Lesson is unset. Avoid assigning the same date across Lands unless that ordering is intended.
+
+Due sessions open automatically on student access without a teacher being logged in or a daily write to Firebase. Undated and future sessions stay locked unless previously released in active manual release mode. Existing period holds, boss gates, progress caps, completed work and catch-up rules are preserved. To edit manual release overrides, turn automatic scheduling off. The hub and maps refresh within 30 seconds of midnight; active lesson pages keep their state and all actions recheck access.
+
+Stored flag: `settings/lessonAutomation/enabled`. Existing `settings/lessonSchedule` release dates provide the schedule; no student data migration is needed.

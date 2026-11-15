@@ -1,0 +1,66 @@
+// Preview checks with fictional students and an in-memory database; never connects to Firebase.
+const { chromium } = require('playwright');
+const { spawn } = require('node:child_process');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const { withoutChestPopups } = require('./harness/seedHelpers.cjs');
+const ROOT = path.join(__dirname, '../..');
+const PORT = 5297;
+const student = { claimed:true, characterName:'Preview Hero', avatarClass:'wizard', completedLand0:true, currentLand:2, currentTile:4, completedTiles:[1,2,3], land2Entry:{seen:true}, level:2, xp:10, xpNext:50, gold:20, pinSet:true, customPin:'1111', house:'amistad', houseConfirmed:true };
+const seed = withoutChestPopups({ settings:{ currentSession:{1:{landId:2,tileId:3}}, lessonSchedule:{2:{2:{releaseDate:'2026-11-13'},3:{releaseDate:'2026-11-14'},4:{releaseDate:'2026-11-15'},5:{releaseDate:'2026-11-16'}}}}, students:{101:student} });
+(async () => {
+  const server = spawn(path.join(ROOT,'node_modules/.bin/vite'),['--config',path.join(__dirname,'harness/vite.config.mjs')],{cwd:ROOT,env:{...process.env,PORT:String(PORT)},stdio:'ignore'});
+  let browser;
+  let checks = 0;
+  const check = (label, value) => { assert.ok(value,label); checks++; console.log('PASS '+label); };
+  try {
+    for (let i=0;i<60;i++) { try { if ((await fetch(`http://127.0.0.1:${PORT}`)).ok) break; } catch {} await new Promise(r=>setTimeout(r,250)); }
+    browser = await chromium.launch(process.env.CHROMIUM_PATH ? {executablePath:process.env.CHROMIUM_PATH} : {});
+    const page = await browser.newPage({viewport:{width:1280,height:1000}});
+    const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+    await page.clock.install({time:new Date('2026-11-15T18:00:00Z')});
+    await page.addInitScript(s=>{window.__SEED=s},seed);
+    await page.goto(`http://127.0.0.1:${PORT}`);
+    await page.waitForFunction(()=>window.__STATE && window.__LANDS?.length);
+    const screen = async name => { await page.evaluate(name=>{const s=window.__STATE;s.student=name==='hub'?{id:101,number:101,cohort:1,pin:'x'}:null;s.lessonPreview=false;s.teacherPeriodIdx=0;s.tlsLandId=2;s.screen=name;window.__mount()},name); };
+    const body = () => page.locator('body').innerText();
+    await screen('teacher-lesson-schedule');
+    check('automatic scheduling starts off', !(await page.isChecked('#tls-auto-today')));
+    await page.check('#tls-auto-today');
+    await page.waitForFunction(()=>window.__tree.settings.lessonAutomation?.enabled===true);
+    check('teacher can enable scheduling', await page.isChecked('#tls-auto-today'));
+    check('timezone and schedule instructions are visible', (await body()).includes('America/Chicago'));
+    await page.locator('tr[data-tid="5"] [data-field="releaseDate"]').fill('2026-11-17');
+    await page.locator('[data-save-tid="5"]').click();
+    await page.waitForFunction(()=>window.__tree.settings.lessonSchedule[2][5].releaseDate==='2026-11-17');
+    check('future date saves from the schedule row',true);
+    await screen('teacher-dash');
+    check('today resolves from the schedule instead of the old manual choice', await page.inputValue('#t-today-sel')==='2:4');
+    check('manual controls disabled while automatic scheduling is on',await page.isDisabled('#t-today-sel') && await page.isDisabled('#t-today-save-all'));
+    await page.screenshot({path:'/tmp/lesson-schedule-desktop.png',fullPage:false});
+    await screen('hub');
+    await page.locator('#today-lesson-btn').click();
+    check('student opens the due lesson',await page.evaluate(()=>window.__STATE.lessonTile?.id===4));
+    check('due lesson is open',!(await page.locator('#ls-locked').count()));
+    const lessonScreen=await page.evaluate(()=>window.__STATE.screen);
+    await page.evaluate(screen=>{const s=window.__STATE;s.lessonTile=s.lessonLand.tiles.find(t=>t.id===5);s.screen=screen;window.__mount()},lessonScreen);
+    check('future lesson shows the locked card',await page.locator('#ls-locked').count()===1);
+    await screen('teacher-dash');
+    await page.clock.setSystemTime(new Date('2026-11-17T05:59:59Z'));
+    await screen('teacher-dash');
+    check('future lesson remains out of Today before Chicago midnight',await page.inputValue('#t-today-sel')==='2:4');
+    await page.clock.setSystemTime(new Date('2026-11-17T06:00:00Z'));
+    await page.clock.runFor(30100);
+    check('open dashboard advances automatically after midnight',await page.inputValue('#t-today-sel')==='2:5');
+    await screen('teacher-lesson-schedule');
+    await page.setViewportSize({width:390,height:844});
+    check('scheduling toggle is visible on a phone',await page.locator('#tls-auto-today').isVisible());
+    await page.screenshot({path:'/tmp/lesson-schedule-phone.png',fullPage:false});
+    await page.uncheck('#tls-auto-today');
+    await page.waitForFunction(()=>window.__tree.settings.lessonAutomation.enabled===false);
+    await screen('teacher-dash');
+    check('switching off restores manual choice and controls',await page.inputValue('#t-today-sel')==='2:3' && !(await page.isDisabled('#t-today-sel')));
+    check('no browser JavaScript errors',errors.length===0);
+    console.log(`${checks} browser checks passed`);
+  } finally { if(browser) await browser.close(); server.kill(); }
+})().catch(e=>{console.error(e);process.exitCode=1});

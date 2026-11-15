@@ -1,3 +1,4 @@
+import { schoolDate, scheduledReleaseConfig, scheduledCurrentSessions } from './lessonAutomation.js';
 import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, runTransaction, signInAnonymously } from './firebaseClient.js'
 import { NAMES, EPITHETS } from './data/characterNames.js'
 import { CHARACTER_ABILITIES, LEVEL10_FRAME_ID, XP_PER_LEVEL, rewardsForLevel, levelStatus, claimableLevels, trackLevels, nextRewardLevel, nextMilestoneLevel, abilityStatus, levelsToCelebrate, isMilestone, isAbilityLevel, isClaimablePart, partLabel, partIcon } from './levelRewards.js'
@@ -1918,7 +1919,11 @@ function saveCollabQuestsEnabled(val) {
 }
 // ── Today's lesson: teacher-designated current session per class ──
 // settings/currentSession/{classId} = { landId, tileId, setAt }  (teacher dashboard only)
-function getCurrentSessionSettings() { return (_settings && _settings.currentSession) || {}; }
+function getCurrentSessionSettings() {
+  return _settings.lessonAutomation?.enabled
+    ? scheduledCurrentSessions(_settings, LANDS, CLASS_IDS)
+    : (_settings.currentSession || {});
+}
 function saveClassCurrentSession(classId, landId, tileId) {
   if (!_settings) _settings = {};
   if (!_settings.currentSession) _settings.currentSession = {};
@@ -2140,14 +2145,16 @@ function getReleaseDate(landId, tileId) {
   return new Date(entry.releaseDate);
 }
 function isTileLocked(landId, tileId) {
-  const d = getReleaseDate(landId, tileId);
-  if (!d) return false;
-  const midnight = new Date(d); midnight.setHours(0, 0, 0, 0);
-  return Date.now() < midnight.getTime();
+  const date = getLessonScheduleEntry(landId, tileId).releaseDate;
+  return !!date && date > schoolDate();
 }
 // ── Lesson release (teacher-controlled unlocking) — rules in src/lessonRelease.js ──
 // settings/lessonRelease/{landId} = { enabled, all: { tileId: true }, classes: { classId: { tileId: bool } } }
-function getReleaseCfg(landId) { return releaseConfig(_settings, landId); }
+function getReleaseCfg(landId) {
+  return _settings.lessonAutomation?.enabled
+    ? scheduledReleaseConfig(_settings, landId)
+    : releaseConfig(_settings, landId);
+}
 function saveReleasePlan(landId, plan) {
   if (!_settings) _settings = {};
   if (!_settings.lessonRelease) _settings.lessonRelease = {};
@@ -8397,8 +8404,12 @@ function renderTeacherLessonSchedule() {
         </select>
       </div>
       <div class="tcl-land-banner">🗺️ You are editing the schedule for <b>${land.name}</b>. Wayground and Pear links saved here also appear in Content Links.</div>
-      ${renderLessonReleasePanel(land)}
-      <p class="tls-hint">Set release dates and links for each session. ${isManaged(getReleaseCfg(land.id)) ? 'Release mode is on: sessions open when you release them above (dates are kept for attendance and missed-lesson notes).' : 'Students can\'t open a tile until its release date arrives.'}</p>
+      <div class="tcl-land-banner">
+        <label><input type="checkbox" id="tls-auto-today" ${_settings.lessonAutomation?.enabled ? 'checked' : ''}> Automatically open scheduled lessons and set Today's Lesson for all periods</label>
+        <p>Set a Release Date below and click Save for each lesson. Lessons open at midnight America/Chicago, even when you are offline. The latest dated lesson stays current until the next date. For dates shared by lessons, the later lesson in path order is current. Undated lessons stay locked unless manually released; period holds and gates still apply. This switch applies to all Lands and overrides manual Today's Lesson selections while on.</p>
+      </div>
+      ${_settings.lessonAutomation?.enabled ? '<p class="tls-hint">Scheduled dates control lesson release. Existing manual releases and period holds remain in effect. To change manual release controls, turn automatic scheduling off.</p>' : renderLessonReleasePanel(land)}
+      <p class="tls-hint">Set release dates and links for each session. ${_settings.lessonAutomation?.enabled ? 'Automatic scheduling is on: release dates open lessons and update Today’s Lesson. Manual releases can open lessons early; period holds still apply.' : isManaged(getReleaseCfg(land.id)) ? 'Release mode is on: sessions open when you release them above (dates are kept for attendance and missed-lesson notes).' : 'Students can\'t open a tile until its release date arrives.'}</p>
       <div class="tls-table-wrap">
         <table class="tls-table">
           <thead><tr>
@@ -8539,12 +8550,13 @@ function renderTeacherDashboard() {
           return `<optgroup label="${l.name}">${inLand.map(o => `<option value="${o.value}"${o.value === curVal ? ' selected' : ''}>${sessionLabel(o.tile)}</option>`).join('')}</optgroup>`;
         }).join('');
         return `<div class="t-today-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 8px;padding:8px 12px;border-radius:10px;background:rgba(15,10,40,.55);border:1.5px solid rgba(251,191,36,.45)">
+          ${_settings.lessonAutomation?.enabled ? '<div style="width:100%;color:#FDE68A;font-size:13px;font-weight:700">📅 Automatic scheduling is on. Today’s Lesson follows Release Dates in Lesson Schedule; manual selections take effect when automatic scheduling is off.</div>' : ''}
           <label for="t-today-sel" style="font-size:13px;font-weight:800;color:#FDE68A">📍 Today's lesson for ${period.periodName}:</label>
-          <select id="t-today-sel" style="min-height:36px;padding:4px 8px;border-radius:8px;font-weight:700;max-width:100%">
+          <select id="t-today-sel" ${_settings.lessonAutomation?.enabled ? 'disabled' : ''} style="min-height:36px;padding:4px 8px;border-radius:8px;font-weight:700;max-width:100%">
             <option value=""${curVal ? '' : ' selected'}>— Not set —</option>${groups}
           </select>
-          <button class="btn btn-outline-sm" id="t-today-save" title="Changes only ${period.periodName}">Save for ${period.periodName} only</button>
-          <button class="btn btn-outline-sm t-today-all" id="t-today-save-all" title="Sets the same lesson for every period">Save for all ${CLASS_IDS.length} periods</button>
+          <button class="btn btn-outline-sm" id="t-today-save" ${_settings.lessonAutomation?.enabled ? 'disabled' : ''} title="Changes only ${period.periodName}">Save for ${period.periodName} only</button>
+          <button class="btn btn-outline-sm t-today-all" id="t-today-save-all" ${_settings.lessonAutomation?.enabled ? 'disabled' : ''} title="Sets the same lesson for every period">Save for all ${CLASS_IDS.length} periods</button>
           ${curOpt ? `<button class="btn btn-outline-sm" id="t-today-preview" data-preview="${curOpt.value}">👁 Preview</button>` : ''}
           <span style="font-size:12px;font-weight:700;color:${curOpt ? '#A7F3D0' : (cur ? '#FCA5A5' : 'rgba(255,255,255,.65)')}">${curOpt ? `Students see: ${curOpt.land.name} — ${sessionLabel(curOpt.tile)}` : (cur ? 'Saved session no longer exists — choose another' : 'Students see "Today\'s lesson isn\'t ready yet"')}</span>
           ${(() => {   // all periods at a glance
@@ -12517,6 +12529,19 @@ function bindEvents() {
   }
 
   if (STATE.screen === "teacher-lesson-schedule") {
+    $("tls-auto-today")?.addEventListener('change', async e => {
+      const enabled = e.target.checked;
+      e.target.disabled = true;
+      try {
+        await set(ref(db, 'settings/lessonAutomation/enabled'), enabled);
+        _settings.lessonAutomation = { ..._settings.lessonAutomation, enabled };
+        mount();
+      } catch (err) {
+        e.target.checked = !enabled;
+        e.target.disabled = false;
+        alert('Could not save automatic scheduling. Please try again.');
+      }
+    });
     $("tls-back") && $("tls-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; mount(); });
     // Lesson Release (teacher). Each click is one multi-path update on settings/lessonRelease/{land}.
     {
@@ -13794,3 +13819,12 @@ Promise.all([
   STATE.errorMsg = 'Failed to load. Check that classData.json is present and the page is served over HTTP (not file://).';
   mount();
 });
+
+let lastSchoolDate = schoolDate();
+setInterval(() => {
+  const today = schoolDate();
+  if (today === lastSchoolDate) return;
+  if (!['hub', 'quest-map', 'sanctum-map', 'teacher-dash'].includes(STATE.screen)) return;
+  lastSchoolDate = today;
+  if (_settings.lessonAutomation?.enabled) mount();
+}, 30000);
