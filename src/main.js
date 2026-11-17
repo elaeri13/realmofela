@@ -1921,15 +1921,28 @@ function saveCollabQuestsEnabled(val) {
 // settings/currentSession/{classId} = { landId, tileId, setAt }  (teacher dashboard only)
 // Today's Lesson follows Release Dates unless the teacher picked a lesson on/after that date
 // (rules in src/lessonAutomation.js). Each entry carries source: 'manual' | 'date'.
-// Teacher dashboard: is the "Catch-Up Needed" list expanded? (collapsed by default; remembered per device)
-function cuNeededOpen() {
-  if (typeof STATE.cuNeededOpen === 'boolean') return STATE.cuNeededOpen;
-  try { STATE.cuNeededOpen = localStorage.getItem('realm-cu-needed-open') === '1'; } catch (e) { STATE.cuNeededOpen = false; }
-  return STATE.cuNeededOpen;
+// Teacher dashboard catch-up sections (Work to Review, Catch-Up Sessions, Catch-Up Needed): expanded?
+// Collapsed by default; the choice is remembered per device and survives live refreshes.
+const CU_SECTIONS = { review: 'realm-cu-review-open', auto: 'realm-cu-auto-open', needed: 'realm-cu-needed-open' };
+function cuSectionOpen(k) {
+  STATE.cuOpen = STATE.cuOpen || {};
+  if (typeof STATE.cuOpen[k] === 'boolean') return STATE.cuOpen[k];
+  try { STATE.cuOpen[k] = localStorage.getItem(CU_SECTIONS[k]) === '1'; } catch (e) { STATE.cuOpen[k] = false; }
+  return STATE.cuOpen[k];
 }
-function setCuNeededOpen(open) {
-  STATE.cuNeededOpen = !!open;
-  try { localStorage.setItem('realm-cu-needed-open', open ? '1' : '0'); } catch (e) {}
+function setCuSectionOpen(k, open) {
+  STATE.cuOpen = STATE.cuOpen || {};
+  STATE.cuOpen[k] = !!open;
+  try { localStorage.setItem(CU_SECTIONS[k], open ? '1' : '0'); } catch (e) {}
+}
+// Tappable section header: title, plus a short count line while collapsed.
+function cuToggleHdr(k, title, closedNote) {
+  const open = cuSectionOpen(k);
+  return `<button type="button" class="t-catchup-hdr t-catchup-toggle" id="t-cu-${k}-toggle" data-cu-toggle="${k}" aria-expanded="${open}" aria-controls="t-cu-${k}-list"
+    style="display:flex;width:100%;align-items:center;gap:8px;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;padding:0">
+    <span>${title}${!open && closedNote ? ` <span style="font-weight:600;opacity:.85">· ${closedNote}</span>` : ''}</span>
+    <span style="margin-left:auto;font-size:12px;opacity:.85;white-space:nowrap">${open ? '▾ Hide' : '▸ Show'}</span>
+  </button>`;
 }
 function getCurrentSessionSettings() {
   return resolveCurrentSessions(_settings || {}, LANDS, CLASS_IDS);
@@ -8873,10 +8886,10 @@ function renderTeacherDashboard() {
         const _cuWaiting = _cuItems.filter(x => x.rec.status === 'returned');
 
         const _cuWhen = iso => { try { return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric' }); } catch (e) { return ''; } };
-        const _cuReviewHtml = (_cuReview.length || _cuWaiting.length) ? `<div class="t-catchup-section t-cu-review">
-          <div class="t-catchup-hdr">📬 Catch-Up Work to Review (${_cuReview.length})</div>
-          <p class="t-cu-sub">Catch-up work submitted for review. Accept or Send Back. <b>Accept confirms completion only</b> — it never awards or upgrades a Bronze/Silver/Gold medal level or a Mastery Seal.</p>
-          <div class="t-catchup-list">
+        const _cuReviewHtml = (_cuReview.length || _cuWaiting.length) ? `<div class="t-catchup-section t-cu-review" id="t-cu-review">
+          ${cuToggleHdr('review', `📬 Catch-Up Work to Review (${_cuReview.length})`, _cuWaiting.length ? `${_cuWaiting.length} waiting on student${_cuWaiting.length === 1 ? '' : 's'}` : '')}
+          ${cuSectionOpen('review') ? `<p class="t-cu-sub">Catch-up work submitted for review. Accept or Send Back. <b>Accept confirms completion only</b> — it never awards or upgrades a Bronze/Silver/Gold medal level or a Mastery Seal.</p>
+          <div class="t-catchup-list" id="t-cu-review-list">
             ${_cuReview.map(x => `<div class="t-catchup-row t-cu-row">
               <span class="t-catchup-name">${escHtml(x.rName)}</span>
               <span class="t-catchup-period">${x.period.periodName}</span>
@@ -8895,7 +8908,7 @@ function renderTeacherDashboard() {
               <span class="t-catchup-missed">${x.land.name} · ${sessionLabel(x.tile).split(' · ')[0]} — sent back: “${escHtml(x.rec.returnNote || '')}”</span>
               <span class="t-catchup-count">Waiting on student</span>
             </div>`).join('')}
-          </div>
+          </div>` : ''}
         </div>` : '';
         // Catch-up list: students with missed sessions, sorted by most missed
         const allStudents = periods.flatMap(p => p.students.map(s => ({ student: s, period: p })));
@@ -8930,15 +8943,16 @@ function renderTeacherDashboard() {
         _cuAuto.sort((a, b) => _rank(a) - _rank(b));
         const _when = (...isos) => { for (const iso of isos) { const d = new Date(iso); if (iso && !isNaN(d)) return d.toLocaleDateString('en-US', { month:'short', day:'numeric' }); } return ''; };
         const _cell = (ok, txt) => `<span class="t-cu-cell ${ok === true ? 't-cu-yes' : ok === false ? 't-cu-no' : ''}">${txt}</span>`;
-        const _cuAutoHtml = _cuAuto.length ? `<div class="t-catchup-section t-cu-auto">
-          <div class="t-catchup-hdr">📊 Catch-Up Sessions — ${_cuShown.filter(x => x.v.tileComplete).length} completed · ${_cuShown.filter(x => x.v.verified).length} verified</div>
-          <div class="t-cu-filter" role="group" aria-label="Show catch-up for">
+        const _cuSpot = _cuAuto.filter(x => x.v.stage === 'reported').length;
+        const _cuAutoHtml = _cuAuto.length ? `<div class="t-catchup-section t-cu-auto" id="t-cu-auto">
+          ${cuToggleHdr('auto', `📊 Catch-Up Sessions — ${_cuShown.filter(x => x.v.tileComplete).length} completed · ${_cuShown.filter(x => x.v.verified).length} verified`, `${_cuAuto.length} student session${_cuAuto.length === 1 ? '' : 's'}${_cuSpot ? ` · ${_cuSpot} ready to verify (optional)` : ''}`)}
+          ${cuSectionOpen('auto') ? `<div class="t-cu-filter" role="group" aria-label="Show catch-up for">
             ${['all', ..._cuSessKeys].map(k => `<button class="t-cu-fbtn${_cuFilter === k ? ' t-cu-fbtn-on' : ''}" data-cu-filter="${k}" aria-pressed="${_cuFilter === k}">${k === 'all' ? 'All sessions' : _cuSessName(k)} (${k === 'all' ? _cuAuto.length : _cuAuto.filter(x => x.key.split('|')[1] === k).length})</button>`).join('')}
           </div>
           <p class="t-cu-sub"><b>✅ Completed (Student Reported)</b> = passed the Realm practice and said they submitted the Pear exit ticket. The tile and reward are already given — no teacher action is needed.
           <b>🛡️ Verified</b> = you checked Pear and clicked Verify. Verifying is an optional spot-check: it never adds rewards, a medal level or a Mastery Seal. <b>Send Back</b> asks the student to redo the exit ticket; it keeps their tile, reward and practice score.</p>
           ${_cuShown.length ? '' : `<p class="t-cu-sub">No students have started this session’s catch-up yet.</p>`}
-          <div class="t-catchup-list">${[..._cuShown].sort((a, b) => _rank(a) - _rank(b)).map(x => {
+          <div class="t-catchup-list" id="t-cu-auto-list">${[..._cuShown].sort((a, b) => _rank(a) - _rank(b)).map(x => {
             const v = x.v;
             const practice = v.passAttempt ? _cell(true, `Practice ✓ ${v.passAttempt.correct}/${v.passAttempt.total}`)
               : v.legacyComplete ? _cell(null, 'Practice: before update')
@@ -8968,19 +8982,15 @@ function renderTeacherDashboard() {
               ${status}${practice}${_cell(null, `${v.tries} ${v.tries === 1 ? 'try' : 'tries'}`)}${pear}${tile}
               ${actions}
             </div>`;
-          }).join('')}</div>
+          }).join('')}</div>` : ''}
         </div>` : '';
         if (catchUpRows.length === 0) return _cuReviewHtml + _cuAutoHtml;
         // Collapsed by default (the list can be long). The choice is remembered on this device and
         // survives the dashboard's live refreshes.
-        const _cuOpen = cuNeededOpen();
+        const _cuOpen = cuSectionOpen('needed');
         const _cuMissedTotal = catchUpRows.reduce((n, r) => n + r.missed.length, 0);
         return _cuReviewHtml + _cuAutoHtml + `<div class="t-catchup-section${_cuOpen ? '' : ' t-catchup-collapsed'}" id="t-cu-needed">
-          <button type="button" class="t-catchup-hdr t-catchup-toggle" id="t-cu-needed-toggle" aria-expanded="${_cuOpen}" aria-controls="t-cu-needed-list"
-            style="display:flex;width:100%;align-items:center;gap:8px;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;padding:0">
-            <span>📋 Catch-Up Needed (${catchUpRows.length} student${catchUpRows.length!==1?'s':''}${_cuOpen ? '' : ` · ${_cuMissedTotal} missed session${_cuMissedTotal!==1?'s':''}`})</span>
-            <span style="margin-left:auto;font-size:12px;opacity:.85">${_cuOpen ? '▾ Hide' : '▸ Show'}</span>
-          </button>
+          ${cuToggleHdr('needed', `📋 Catch-Up Needed (${catchUpRows.length} student${catchUpRows.length!==1?'s':''})`, `${_cuMissedTotal} missed session${_cuMissedTotal!==1?'s':''}`)}
           ${_cuOpen ? `<div class="t-catchup-list" id="t-cu-needed-list">
             ${catchUpRows.map(({ student, period, missedNames, rName }) => `
               <div class="t-catchup-row">
@@ -11247,11 +11257,12 @@ function bindEvents() {
 
   /* TEACHER DASHBOARD */
   if (STATE.screen === "teacher-dash") {
-    $("t-cu-needed-toggle") && $("t-cu-needed-toggle").addEventListener("click", () => {
+    document.querySelectorAll("[data-cu-toggle]").forEach(b => b.addEventListener("click", () => {
+      const k = b.dataset.cuToggle;
       const y = (document.scrollingElement || document.documentElement).scrollTop;
-      setCuNeededOpen(!cuNeededOpen()); mount();
+      setCuSectionOpen(k, !cuSectionOpen(k)); mount();
       (document.scrollingElement || document.documentElement).scrollTop = y;
-    });
+    }));
     const _cuFind = key => {
       const [sid, lid, tid] = key.split(/[|_]/).map(Number);
       const student = CLASS_DATA.periods.flatMap(p => p.students).find(s => s.id === sid);

@@ -32,6 +32,8 @@ const ONE_WRONG = { q1: 0, q2: 1, q3: 3, q4: 0 };
 (async () => {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 } });
+  // These checks use the teacher's catch-up lists, which start collapsed: open them as a teacher would.
+  await ctx.addInitScript(() => { try { ['realm-cu-review-open', 'realm-cu-auto-open', 'realm-cu-needed-open'].forEach(k => localStorage.setItem(k, '1')); } catch (e) {} });
   await ctx.route('https://app.peardeck.com/**', r => r.fulfill({ status: 200, contentType: 'text/html', body: 'pear stub' }));
   const page = await ctx.newPage();
   const opened = []; let catchPopups = true;
