@@ -50,12 +50,12 @@ const R = []; const ok = (n, c, x='') => R.push(`${c ? 'PASS' : 'FAIL'}  ${n}${x
   await page.screenshot({ path: OUT + '/levelup-5.png' });
   await page.click('#lu-journey'); await page.waitForTimeout(400);
   ok('"Hero\'s Journey" button from the celebration opens the screen', (await page.evaluate(() => window.__STATE.screen)) === 'heros-journey');
-  // Claims are closed
-  ok('claims OFF: no claim buttons, rewards marked "Earned — claiming opens soon"', !(await has(page, '[data-claim-level]')) && (await page.$$('.hj-chip-earned')).length === 3);
-  ok('claims OFF: notice explains rewards are saved', /claiming opens soon/.test(await page.$eval('.hj-notice', e => e.innerText)));
-  const w0 = await page.evaluate(() => window.__writes.length);
+  // Claiming is live on the site (no test switch needed): every earned level is claimable, once
+  ok('live claiming: claim buttons for every level already earned (2, 3, 4)', (await page.$$eval('[data-claim-level]', bs => bs.map(x => x.dataset.claimLevel).join(','))) === '2,3,4');
+  ok('live claiming: no "claiming opens soon" notice', !/claiming opens soon/.test(await page.$eval('.hj-notice', e => e.innerText).catch(() => '')));
   const r0 = await page.evaluate(() => window.__claim({ id:101 }, 2));
-  ok('claims OFF: calling the claim function directly is refused and writes nothing', r0.reason === 'closed' && (await page.evaluate(n => window.__writes.length - n, w0)) === 0);
+  const r0b = await page.evaluate(() => window.__claim({ id:101 }, 2));
+  ok('live claiming: a level claims once; claiming it again is refused', r0.ok === true && r0b.ok === false && r0b.reason === 'already' && !!(await stu(page, 101)).levelRewards[2]);
   // Reaching 10
   await page.evaluate(() => window.__awardXP({ id:104 }, 10)); await go(page, 104);
   t = await page.$eval('#lu-overlay', e => e.innerText).catch(() => '');
@@ -70,7 +70,7 @@ const R = []; const ok = (n, c, x='') => R.push(`${c ? 'PASS' : 'FAIL'}  ${n}${x
   const abil = await page.$eval('.hj-abilities', e => e.innerText);
   ok('abilities: Adventurer\'s Guard unlocked + Coming soon; Treasure Sense locked', /Adventurer's Guard[\s\S]*Unlocked · ⏳ Coming soon/.test(abil) && /Treasure Sense[\s\S]*Reach Level 10/.test(abil));
   await page.screenshot({ path: OUT + '/hj-level7-closed.png', fullPage:true });
-  ok('no page errors (claims OFF run)', page.__errs.length === 0, page.__errs.join(' | '));
+  ok('no page errors (live claiming run)', page.__errs.length === 0, page.__errs.join(' | '));
   await page.context().close();
 
   // ───── Claims ON (test-only switch, dev server) ─────
