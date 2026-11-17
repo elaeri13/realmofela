@@ -7,12 +7,13 @@ const ROOT = path.join(__dirname, '../..');
 const OUT = process.argv[2] || require('os').tmpdir();
 const st = x => Object.assign({ claimed:true, characterName:'Hero', avatarClass:'wizard', completedLand0:true, currentLand:2, land2Entry:{seen:true}, level:2, xp:10, xpNext:50, gold:20, pinSet:true, customPin:'1111', house:'amistad', houseConfirmed:true }, x);
 const past = '2026-01-01', future = '2099-01-01';
+const pickedAt = new Date().toISOString();   // the app always saves when the teacher picked (newer than the dates → the pick wins)
 const sched = {}; [2,3,4,5,50,6,7].forEach(t => sched[t] = { releaseDate: past }); sched[8] = { releaseDate: future };
 const SEED = {
   settings: { lessonSchedule: { 2: sched }, currentSession: {
-    1: { landId:2, tileId:4 },          // class 1 → Session 4
-    2: { landId:2, tileId:7 },          // class 2 → Camp Day (after gate S6)
-    4: { landId:2, tileId:31 },         // class 4 → invalid (loot tile)
+    1: { landId:2, tileId:4, setAt:pickedAt },          // class 1 → Session 4
+    2: { landId:2, tileId:7, setAt:pickedAt },          // class 2 → Camp Day (after gate S6)
+    4: { landId:2, tileId:31, setAt:pickedAt },         // class 4 → invalid (loot tile)
   } },
   students: {
     101: st({ currentTile:4, completedTiles:[1,2,3] }),                                   // caught up
@@ -102,13 +103,20 @@ const PORT = Number(process.env.PORT || 5288);
 
   // 5. Class without valid session
   await hub(301); t = await hubText();
-  ok('5 class 3 (not set): friendly message + map button, no lesson button', /isn't available yet/.test(t) && !(await page.$('#today-lesson-btn')) && !!(await page.$('#view-map-btn')));
+  ok('5 class 3 (no pick): follows the latest release date (Camp Day)', /Today: Camp Day/.test(t), t.replace(/\n/g,' | '));
+  // With no release dates at all, a period with no pick sees the friendly message (as before).
+  const fbWrite = obj => page.evaluate(async obj => { const m = await import('/tests/browser/harness/fbstub.js'); await m.update(m.ref(null, ''), obj); await new Promise(r => setTimeout(r, 50)); }, obj);
+  const savedSched = await page.evaluate(() => JSON.parse(JSON.stringify(window.__tree.settings.lessonSchedule)));
+  await fbWrite({ 'settings/lessonSchedule': null });
+  await hub(301); t = await hubText();
+  ok('5 class 3 (not set, no dates): friendly message + map button, no lesson button', /isn't available yet/.test(t) && !(await page.$('#today-lesson-btn')) && !!(await page.$('#view-map-btn')));
+  await fbWrite({ 'settings/lessonSchedule': savedSched });
   await hub(401); t = await hubText();
   ok('5 class 4 (invalid saved tile): same safe message', /isn't available yet/.test(t) && !(await page.$('#today-lesson-btn')));
   await page.click('#view-map-btn'); await page.waitForTimeout(500);
   ok('5 map still opens', (await screen()) === 'quest-map');
   // not released: set class 3 to S8 (future release date)
-  await page.evaluate(() => { window.__tree.settings.currentSession['3'] = { landId:2, tileId:8 }; });
+  await page.evaluate(() => { window.__tree.settings.currentSession['3'] = { landId:2, tileId:8, setAt:new Date().toISOString() }; });
   await page.waitForTimeout(100);
   // settings listener fires on next write; force via a no-op teacher-free reload of settings:
   await page.evaluate(() => { window.__STATE.screen='hub'; });

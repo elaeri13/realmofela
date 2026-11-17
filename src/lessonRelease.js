@@ -3,14 +3,15 @@
 
    Stored at settings/lessonRelease/{landId}:
      { enabled: true,                              // off (missing) = the old rule: release dates only
-       all:     { [tileId]: true },                // released for every period
+       all:     { [tileId]: true | false },        // true = released for every period; false = locked for every period
        classes: { [classId]: { [tileId]: true | false } } }   // one period differs from "all"
    A period entry wins over "all": true = released early for that period, false = held back.
 
    Rules
    - Release mode is per Land and OFF until the teacher turns it on, so nothing changes for students
-     until then. When on, a session opens only after the teacher releases it (release dates no longer
-     open it on their own; they still mark the day for attendance/missed-lesson notes).
+     until then. When on, a session opens on its Release Date (rules in lessonAutomation.js) or when
+     the teacher releases it, whichever comes first. A period entry, or "locked for all periods"
+     (all = false), wins over the date.
    - A session the student already completed is never locked (finished work is never lost).
    - Only real class sessions are managed (the Today's Lesson session types plus writing events);
      boss/dungeon tiles keep their own teacher unlock, branch/loot tiles follow their parent.
@@ -35,21 +36,29 @@ export function releaseTiles(land) {
 export const releaseConfig = (settings, landId) => (((settings || {}).lessonRelease || {})[String(landId)]) || null;
 export const isManaged = cfg => !!(cfg && cfg.enabled);
 
-// Is this session released for this period?  → { released, source: 'off' | 'class' | 'all' | 'none' }
-export function releaseFor(cfg, classId, tileId) {
+// Is this session released for every period (ignoring period entries)?
+// dateReleased = its Release Date has arrived. → { released, source: 'all' | 'held' | 'date' | 'none' }
+export function baseRelease(cfg, tileId, dateReleased = false) {
+  const a = ((cfg || {}).all || {})[String(tileId)];
+  if (a === true) return { released: true, source: 'all' };
+  if (a === false) return { released: false, source: 'held' };
+  return dateReleased ? { released: true, source: 'date' } : { released: false, source: 'none' };
+}
+// Is this session released for this period?  → { released, source: 'off' | 'class' | 'all' | 'held' | 'date' | 'none' }
+export function releaseFor(cfg, classId, tileId, dateReleased = false) {
   if (!isManaged(cfg)) return { released: true, source: 'off' };
   const o = (((cfg.classes || {})[String(classId)]) || {})[String(tileId)];
   if (o === true || o === false) return { released: o, source: 'class' };
-  const all = !!((cfg.all || {})[String(tileId)]);
-  return { released: all, source: all ? 'all' : 'none' };
+  return baseRelease(cfg, tileId, dateReleased);
 }
 
 // Can this student work on (start, check off, submit, earn rewards for) this tile right now?
 // dateOpen = the old release-date rule for this tile (used when release mode is off).
-export function canWorkOn({ cfg, classId, land, tile, completed = [], dateOpen = true }) {
+// dateReleased = the session's Release Date has arrived (used when release mode is on).
+export function canWorkOn({ cfg, classId, land, tile, completed = [], dateOpen = true, dateReleased = false }) {
   if (!tile) return false;
   if ((completed || []).includes(tile.id)) return true;              // finished work stays reachable
-  if (isManaged(cfg) && isReleaseTile(land, tile)) return releaseFor(cfg, classId, tile.id).released;
+  if (isManaged(cfg) && isReleaseTile(land, tile)) return releaseFor(cfg, classId, tile.id, dateReleased).released;
   return !!dateOpen;
 }
 
@@ -87,26 +96,28 @@ export function previewEnable(land, isDatePassed, getDate, prev = null) {
   return out;
 }
 
-// Release (or undo) one session for ALL periods in one action. Clears that session's period overrides
-// so every period ends up the same.
-export function planSetAll(tileId, released, classIds = CLASS_IDS) {
-  const w = { [`all/${tileId}`]: released ? true : null };
+// Release (or lock) one session for ALL periods in one action. Clears that session's period overrides
+// so every period ends up the same. Locking a session whose date has arrived stores false (stays locked
+// until released); locking one whose date hasn't arrived just clears the release (it opens on its date).
+export function planSetAll(tileId, released, classIds = CLASS_IDS, dateReleased = false) {
+  const w = { [`all/${tileId}`]: released ? true : (dateReleased ? false : null) };
   classIds.forEach(c => { w[`classes/${c}/${tileId}`] = null; });
   return w;
 }
 
 // Flip one period. If the result matches the all-periods setting, the override is removed.
-export function planTogglePeriod(cfg, classId, tileId) {
-  const now = releaseFor(cfg, classId, tileId).released;
-  const allState = !!(((cfg || {}).all || {})[String(tileId)]);
+export function planTogglePeriod(cfg, classId, tileId, dateReleased = false) {
+  const now = releaseFor(cfg, classId, tileId, dateReleased).released;
+  const allState = baseRelease(cfg, tileId, dateReleased).released;
   const next = !now;
   return { [`classes/${classId}/${tileId}`]: next === allState ? null : next };
 }
 
 // First session (path order) not yet released for all periods — for "Release next session".
 // Period holds on earlier sessions are left alone (releasing next never undoes a hold).
-export function nextToRelease(cfg, land) {
-  return releaseTiles(land).find(t => !(((cfg || {}).all || {})[String(t.id)])) || null;
+// isDateReleased(tileId) → bool: sessions already opened by their date are skipped.
+export function nextToRelease(cfg, land, isDateReleased = () => false) {
+  return releaseTiles(land).find(t => !baseRelease(cfg, t.id, isDateReleased(t.id)).released) || null;
 }
 
 // Apply a plan to a local copy (what the database will hold after the update).
@@ -121,7 +132,7 @@ export function applyPlan(cfg, plan) {
 }
 
 // Teacher summary for one session: 'all' | 'none' | 'some', plus which periods are open.
-export function summarize(cfg, tileId, classIds = CLASS_IDS) {
-  const open = classIds.filter(c => releaseFor(cfg, c, tileId).released);
+export function summarize(cfg, tileId, classIds = CLASS_IDS, dateReleased = false) {
+  const open = classIds.filter(c => releaseFor(cfg, c, tileId, dateReleased).released);
   return { state: open.length === classIds.length ? 'all' : open.length ? 'some' : 'none', open };
 }

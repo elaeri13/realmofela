@@ -1,10 +1,10 @@
-import { schoolDate, scheduledReleaseConfig, scheduledCurrentSessions } from './lessonAutomation.js';
+import { schoolDate, localDateFromYmd, effectiveReleaseDates, resolveCurrentSessions } from './lessonAutomation.js';
 import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, runTransaction, signInAnonymously } from './firebaseClient.js'
 import { NAMES, EPITHETS } from './data/characterNames.js'
 import { CHARACTER_ABILITIES, LEVEL10_FRAME_ID, XP_PER_LEVEL, rewardsForLevel, levelStatus, claimableLevels, trackLevels, nextRewardLevel, nextMilestoneLevel, abilityStatus, levelsToCelebrate, isMilestone, isAbilityLevel, isClaimablePart, partLabel, partIcon } from './levelRewards.js'
 import { classIdForStudent, listSessionOptions, sessionLabel, resolveTodaysLesson, planMoveToToday, hasStartedSession, planAllPeriods, summarizeTodaysLessons } from './currentSession.js'
 import { TIER_INFO, POTIONS, RETIRED_POTIONS, earnInto, openInto, armInto, migratePotionsInto, successfulAfterLaunch, isChestSession, chestKey } from './questChests.js'
-import { releaseConfig, isManaged, isReleaseTile, releaseTiles, releaseFor, canWorkOn, planEnable, planDisable, previewEnable, planSetAll, planTogglePeriod, nextToRelease, applyPlan, summarize as summarizeRelease, CLASS_IDS } from './lessonRelease.js'
+import { releaseConfig, isManaged, isReleaseTile, releaseTiles, releaseFor, baseRelease, canWorkOn, planEnable, planDisable, previewEnable, planSetAll, planTogglePeriod, nextToRelease, applyPlan, summarize as summarizeRelease, CLASS_IDS } from './lessonRelease.js'
 import { isCatchUpPilot, catchUpKey, catchUpView, applyCatchUp, sessionContent, gradePractice, practiceParts, passMinOf, reviewsOf, catchUpSessions } from './catchUp.js'
 
 /* ═══════════════════════════════════════════════
@@ -1919,10 +1919,20 @@ function saveCollabQuestsEnabled(val) {
 }
 // ── Today's lesson: teacher-designated current session per class ──
 // settings/currentSession/{classId} = { landId, tileId, setAt }  (teacher dashboard only)
+// Today's Lesson follows Release Dates unless the teacher picked a lesson on/after that date
+// (rules in src/lessonAutomation.js). Each entry carries source: 'manual' | 'date'.
+// Teacher dashboard: is the "Catch-Up Needed" list expanded? (collapsed by default; remembered per device)
+function cuNeededOpen() {
+  if (typeof STATE.cuNeededOpen === 'boolean') return STATE.cuNeededOpen;
+  try { STATE.cuNeededOpen = localStorage.getItem('realm-cu-needed-open') === '1'; } catch (e) { STATE.cuNeededOpen = false; }
+  return STATE.cuNeededOpen;
+}
+function setCuNeededOpen(open) {
+  STATE.cuNeededOpen = !!open;
+  try { localStorage.setItem('realm-cu-needed-open', open ? '1' : '0'); } catch (e) {}
+}
 function getCurrentSessionSettings() {
-  return _settings.lessonAutomation?.enabled
-    ? scheduledCurrentSessions(_settings, LANDS, CLASS_IDS)
-    : (_settings.currentSession || {});
+  return resolveCurrentSessions(_settings || {}, LANDS, CLASS_IDS);
 }
 function saveClassCurrentSession(classId, landId, tileId) {
   if (!_settings) _settings = {};
@@ -2142,7 +2152,7 @@ function isValidHttpsUrl(s) {
 function getReleaseDate(landId, tileId) {
   const entry = getLessonScheduleEntry(landId, tileId);
   if (!entry.releaseDate) return null;
-  return new Date(entry.releaseDate);
+  return localDateFromYmd(entry.releaseDate);   // local midnight (a bare 'YYYY-MM-DD' parses as UTC → a day early)
 }
 function isTileLocked(landId, tileId) {
   const date = getLessonScheduleEntry(landId, tileId).releaseDate;
@@ -2150,11 +2160,23 @@ function isTileLocked(landId, tileId) {
 }
 // ── Lesson release (teacher-controlled unlocking) — rules in src/lessonRelease.js ──
 // settings/lessonRelease/{landId} = { enabled, all: { tileId: true }, classes: { classId: { tileId: bool } } }
-function getReleaseCfg(landId) {
-  return _settings.lessonAutomation?.enabled
-    ? scheduledReleaseConfig(_settings, landId)
-    : releaseConfig(_settings, landId);
+function getReleaseCfg(landId) { return releaseConfig(_settings, landId); }
+// Release mode on: has this session's Release Date (its own, or one it borrows) arrived?
+// Dates are cached per Land and recomputed whenever that Land's saved dates change.
+const _effDateCache = new Map();
+function _effDates(landId) {
+  const land = _landById(landId);
+  if (!land) return {};
+  const sched = ((_settings && _settings.lessonSchedule) || {})[String(landId)] || {};
+  const sig = Object.keys(sched).map(k => `${k}=${(sched[k] || {}).releaseDate || ''}`).join(',');
+  const hit = _effDateCache.get(land.id);
+  if (hit && hit.sig === sig) return hit.dates;
+  const dates = effectiveReleaseDates(land, sched);
+  _effDateCache.set(land.id, { sig, dates });
+  return dates;
 }
+function effectiveDateOf(landId, tileId) { return _effDates(landId)[String(tileId)] || ''; }
+function dateReleasedFor(landId, tileId) { const d = effectiveDateOf(landId, tileId); return !!d && d <= schoolDate(); }
 function saveReleasePlan(landId, plan) {
   if (!_settings) _settings = {};
   if (!_settings.lessonRelease) _settings.lessonRelease = {};
@@ -2169,14 +2191,14 @@ function tileOpenFor(student, landId, tileId) {
   const land = _landById(landId); const tile = land && land.tiles.find(t => t.id === Number(tileId));
   if (!tile) return !isTileLocked(landId, tileId);
   const completed = student ? (getLandPos(student).completed || []) : [];
-  return canWorkOn({ cfg: getReleaseCfg(landId), classId: student ? classIdForStudent(student.id) : null, land, tile, completed, dateOpen: !isTileLocked(landId, tileId) });
+  return canWorkOn({ cfg: getReleaseCfg(landId), classId: student ? classIdForStudent(student.id) : null, land, tile, completed, dateOpen: !isTileLocked(landId, tileId), dateReleased: dateReleasedFor(landId, tileId) });
 }
 // Has the session been released (for missed-lesson detection, schedule advance, "move to today")?
 // Release mode on → the teacher's release; off → a release date that has passed (old rule).
 function tileReleasedFor(student, landId, tileId) {
   const land = _landById(landId); const tile = land && land.tiles.find(t => t.id === Number(tileId));
   const cfg = getReleaseCfg(landId);
-  if (isManaged(cfg) && tile && isReleaseTile(land, tile)) return releaseFor(cfg, student ? classIdForStudent(student.id) : null, tileId).released;
+  if (isManaged(cfg) && tile && isReleaseTile(land, tile)) return releaseFor(cfg, student ? classIdForStudent(student.id) : null, tileId, dateReleasedFor(landId, tileId)).released;
   return !!getReleaseDate(landId, tileId) && !isTileLocked(landId, tileId);
 }
 // Called first in every lesson action handler: blocks saving/submitting/rewards on a locked lesson
@@ -2206,9 +2228,8 @@ function setStudentAbsence(studentId, dateStr, present) {
 }
 // Is the student absent during the release date of this tile?
 function isStudentAbsentForTile(studentId, landId, tileId) {
-  const d = getReleaseDate(landId, tileId);
-  if (!d) return false;
-  const dateStr = d.toISOString().slice(0, 10);
+  const dateStr = getLessonScheduleEntry(landId, tileId).releaseDate;
+  if (!dateStr) return false;
   return !!getStudentAbsences(studentId)[dateStr];
 }
 // Is student 2+ sessions behind expected pace?
@@ -6581,7 +6602,7 @@ function renderLessonStop() {
   if (!STATE.lessonPreview) return renderLessonStopPage();
   const cu = isCatchUpPilot(land.id, tile.id);
   const showCu = cu && STATE.lessonPreviewCatchUp;
-  const rel = summarizeRelease(getReleaseCfg(land.id), tile.id);
+  const rel = summarizeRelease(getReleaseCfg(land.id), tile.id, CLASS_IDS, dateReleasedFor(land.id, tile.id));
   const relTxt = !isManaged(getReleaseCfg(land.id)) ? 'Release mode is off for this land (release dates apply).'
     : rel.state === 'all' ? 'Released for all periods.' : rel.state === 'none' ? 'Locked for all periods.' : `Released for ${rel.open.map(c => 'Period ' + c).join(', ')} only.`;
   const banner = `<div class="ls-preview-banner" role="status"><b>👁 Teacher preview</b> — this is what students see. Nothing is saved. ${relTxt}
@@ -8270,8 +8291,8 @@ function renderTeacherContentLinks() {
 }
 // What turning release mode on would do (confirmation screen + the plan saved on confirm).
 function releasePreview(land) {
-  const dateOf = tid => getLessonScheduleEntry(land.id, tid).releaseDate || '';
-  const passed = tid => !!dateOf(tid) && !isTileLocked(land.id, tid);
+  const dateOf = tid => effectiveDateOf(land.id, tid);   // own date, or one borrowed (lessonAutomation.js)
+  const passed = tid => dateReleasedFor(land.id, tid);
   const pv = previewEnable(land, passed, dateOf, getReleaseCfg(land.id));   // includes a list kept from last time
   const lockIds = new Set([...pv.lockedFuture, ...pv.lockedNoDate].map(x => x.tile.id));
   pv.studentsOnLocked = CLASS_DATA.periods.flatMap(p => p.students).filter(s => {
@@ -8289,7 +8310,7 @@ function renderLessonReleasePanel(land) {
   if (!isManaged(cfg)) {
     const pv = releasePreview(land);
     const intro = `<div class="trl-h">🔓 Lesson Release <span class="trl-off">Off</span></div>
-      <p class="trl-p">Right now sessions open on their release dates, and sessions with no date are open. Turn on release mode so students can't work ahead: you release each session for all periods with one tap, and can hold one period back when you need to.</p>`;
+      <p class="trl-p">Right now sessions open on their release dates, and sessions with no date are open. Turn on release mode so students can't work ahead: sessions open on their dates (a session with no date opens with the next dated one), you can release early with one tap, and you can hold one period back when you need to.</p>`;
     if (STATE.trlConfirmLand !== land.id) {
       return `<div class="trl-panel" id="trl-panel">${intro}
         <button class="btn btn-outline-sm trl-btn-main" id="trl-enable">Turn on release mode for ${land.name}…</button>
@@ -8305,8 +8326,8 @@ function renderLessonReleasePanel(land) {
         <div class="trl-cf-h">Before you turn it on, here's exactly what will happen in ${land.name}:</div>
         <div class="trl-cf-grid">
           <div class="trl-cf-col trl-cf-open" id="trl-cf-open"><b>🔓 Open right away (${pv.open.length})</b><span class="trl-cf-why">Release date has passed${pv.open.some(x => x.kept) ? ', or you released it the last time release mode was on' : ''}</span>${list(pv.open, true)}</div>
-          <div class="trl-cf-col trl-cf-future" id="trl-cf-future"><b>🔒 Stay locked (${pv.lockedFuture.length})</b><span class="trl-cf-why">Release date is in the future — they will NOT open on that date; you release them</span>${list(pv.lockedFuture, true)}</div>
-          <div class="trl-cf-col trl-cf-nodate" id="trl-cf-nodate"><b>🔒 Stay locked — no release date (${pv.lockedNoDate.length})</b><span class="trl-cf-why">No date is set, so they stay locked until you release them</span>${list(pv.lockedNoDate, false)}</div>
+          <div class="trl-cf-col trl-cf-future" id="trl-cf-future"><b>🔒 Stay locked (${pv.lockedFuture.length})</b><span class="trl-cf-why">Release date is in the future — they open on that date (or earlier if you release them)</span>${list(pv.lockedFuture, true)}</div>
+          <div class="trl-cf-col trl-cf-nodate" id="trl-cf-nodate"><b>🔒 Stay locked — no release date (${pv.lockedNoDate.length})</b><span class="trl-cf-why">No date here or on a later session, so they stay locked until you release them</span>${list(pv.lockedNoDate, false)}</div>
         </div>
         ${pv.keptPeriodSettings ? `<p class="trl-p">↺ ${pv.keptPeriodSettings} period-specific setting${pv.keptPeriodSettings === 1 ? '' : 's'} from last time will apply again (dashed period buttons).</p>` : ''}
         <p class="trl-p">✅ Every student keeps everything they've finished — completed sessions, XP, Gold and items are never locked or removed.${pv.studentsOnLocked ? ` <b>${pv.studentsOnLocked} student${pv.studentsOnLocked === 1 ? ' is' : 's are'}</b> currently on a session that will lock; they'll see "isn't open yet" there until you release it.` : ''}</p>
@@ -8317,17 +8338,22 @@ function renderLessonReleasePanel(land) {
       </div>
     </div>`;
   }
-  const next = nextToRelease(cfg, land);
+  const _dr = tid => dateReleasedFor(land.id, tid);
+  const next = nextToRelease(cfg, land, _dr);
   // Show released sessions + the next 3 locked ones; the rest behind "Show all" (less scrolling).
   let lockedShown = 0;
-  const visible = STATE.trlShowAll ? tiles : tiles.filter(t => summarizeRelease(cfg, t.id).state !== 'none' || lockedShown++ < 3);
+  const visible = STATE.trlShowAll ? tiles : tiles.filter(t => summarizeRelease(cfg, t.id, CLASS_IDS, _dr(t.id)).state !== 'none' || lockedShown++ < 3);
+  const _fmtD = d => { const x = localDateFromYmd(d); return x ? x.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''; };
   const rows = visible.map(t => {
-    const sum = summarizeRelease(cfg, t.id);
+    const dr = _dr(t.id);
+    const sum = summarizeRelease(cfg, t.id, CLASS_IDS, dr);
+    const base = baseRelease(cfg, t.id, dr);
+    const eff = effectiveDateOf(land.id, t.id);
     const name = sessionLabel(t);
-    const chip = sum.state === 'all' ? '<span class="trl-chip trl-all">🔓 Released · all periods</span>'
-      : sum.state === 'none' ? '<span class="trl-chip trl-none">🔒 Locked</span>'
+    const chip = sum.state === 'all' ? (base.source === 'date' ? `<span class="trl-chip trl-all">📅 Opened by date · all periods</span>` : '<span class="trl-chip trl-all">🔓 Released · all periods</span>')
+      : sum.state === 'none' ? (base.source === 'held' ? '<span class="trl-chip trl-none">🔒 Locked by you</span>' : eff ? `<span class="trl-chip trl-none">🔒 Opens ${_fmtD(eff)}</span>` : '<span class="trl-chip trl-none">🔒 Locked · no date</span>')
       : `<span class="trl-chip trl-some">Some periods</span>`;
-    const periods = CLASS_IDS.map(c => { const r = releaseFor(cfg, c, t.id);
+    const periods = CLASS_IDS.map(c => { const r = releaseFor(cfg, c, t.id, dr);
       return `<button class="trl-pbtn ${r.released ? 'trl-p-on' : 'trl-p-off'}${r.source === 'class' ? ' trl-p-ovr' : ''}" data-rel-period="${t.id}|${c}" aria-pressed="${r.released}" title="${r.source === 'class' ? 'Set just for this period — click to change' : 'Follows all periods — click to change this period only'}">P${c} ${r.released ? '🔓' : '🔒'}</button>`; }).join('');
     return `<div class="trl-row" data-rel-row="${t.id}">
       <span class="trl-name">${escHtml(name)}</span>${chip}
@@ -8404,12 +8430,8 @@ function renderTeacherLessonSchedule() {
         </select>
       </div>
       <div class="tcl-land-banner">🗺️ You are editing the schedule for <b>${land.name}</b>. Wayground and Pear links saved here also appear in Content Links.</div>
-      <div class="tcl-land-banner">
-        <label><input type="checkbox" id="tls-auto-today" ${_settings.lessonAutomation?.enabled ? 'checked' : ''}> Automatically open scheduled lessons and set Today's Lesson for all periods</label>
-        <p>Set a Release Date below and click Save for each lesson. Lessons open at midnight America/Chicago, even when you are offline. The latest dated lesson stays current until the next date. For dates shared by lessons, the later lesson in path order is current. Undated lessons stay locked unless manually released; period holds and gates still apply. This switch applies to all Lands and overrides manual Today's Lesson selections while on.</p>
-      </div>
-      ${_settings.lessonAutomation?.enabled ? '<p class="tls-hint">Scheduled dates control lesson release. Existing manual releases and period holds remain in effect. To change manual release controls, turn automatic scheduling off.</p>' : renderLessonReleasePanel(land)}
-      <p class="tls-hint">Set release dates and links for each session. ${_settings.lessonAutomation?.enabled ? 'Automatic scheduling is on: release dates open lessons and update Today’s Lesson. Manual releases can open lessons early; period holds still apply.' : isManaged(getReleaseCfg(land.id)) ? 'Release mode is on: sessions open when you release them above (dates are kept for attendance and missed-lesson notes).' : 'Students can\'t open a tile until its release date arrives.'}</p>
+      ${renderLessonReleasePanel(land)}
+      <p class="tls-hint" id="tls-date-hint">📅 Set a Release Date and click Save for each session. On that date (midnight, Central time) the session opens and becomes Today's Lesson for every period — no need to move students. ${isManaged(getReleaseCfg(land.id)) ? 'Release mode is on: a session with no date opens with the next dated session, and you can still release early or hold a period back above.' : 'Students can\'t open a tile until its release date arrives.'} A lesson you pick on the dashboard wins until the next dated lesson arrives.</p>
       <div class="tls-table-wrap">
         <table class="tls-table">
           <thead><tr>
@@ -8550,15 +8572,17 @@ function renderTeacherDashboard() {
           return `<optgroup label="${l.name}">${inLand.map(o => `<option value="${o.value}"${o.value === curVal ? ' selected' : ''}>${sessionLabel(o.tile)}</option>`).join('')}</optgroup>`;
         }).join('');
         return `<div class="t-today-row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 8px;padding:8px 12px;border-radius:10px;background:rgba(15,10,40,.55);border:1.5px solid rgba(251,191,36,.45)">
-          ${_settings.lessonAutomation?.enabled ? '<div style="width:100%;color:#FDE68A;font-size:13px;font-weight:700">📅 Automatic scheduling is on. Today’s Lesson follows Release Dates in Lesson Schedule; manual selections take effect when automatic scheduling is off.</div>' : ''}
           <label for="t-today-sel" style="font-size:13px;font-weight:800;color:#FDE68A">📍 Today's lesson for ${period.periodName}:</label>
-          <select id="t-today-sel" ${_settings.lessonAutomation?.enabled ? 'disabled' : ''} style="min-height:36px;padding:4px 8px;border-radius:8px;font-weight:700;max-width:100%">
+          <select id="t-today-sel" style="min-height:36px;padding:4px 8px;border-radius:8px;font-weight:700;max-width:100%">
             <option value=""${curVal ? '' : ' selected'}>— Not set —</option>${groups}
           </select>
-          <button class="btn btn-outline-sm" id="t-today-save" ${_settings.lessonAutomation?.enabled ? 'disabled' : ''} title="Changes only ${period.periodName}">Save for ${period.periodName} only</button>
-          <button class="btn btn-outline-sm t-today-all" id="t-today-save-all" ${_settings.lessonAutomation?.enabled ? 'disabled' : ''} title="Sets the same lesson for every period">Save for all ${CLASS_IDS.length} periods</button>
+          <button class="btn btn-outline-sm" id="t-today-save" title="Changes only ${period.periodName}">Save for ${period.periodName} only</button>
+          <button class="btn btn-outline-sm t-today-all" id="t-today-save-all" title="Sets the same lesson for every period">Save for all ${CLASS_IDS.length} periods</button>
           ${curOpt ? `<button class="btn btn-outline-sm" id="t-today-preview" data-preview="${curOpt.value}">👁 Preview</button>` : ''}
           <span style="font-size:12px;font-weight:700;color:${curOpt ? '#A7F3D0' : (cur ? '#FCA5A5' : 'rgba(255,255,255,.65)')}">${curOpt ? `Students see: ${curOpt.land.name} — ${sessionLabel(curOpt.tile)}` : (cur ? 'Saved session no longer exists — choose another' : 'Students see "Today\'s lesson isn\'t ready yet"')}</span>
+          ${curOpt ? `<div class="t-today-src" id="t-today-src" style="width:100%;font-size:12px;font-weight:700;color:#FDE68A">${cur.source === 'date'
+            ? `📅 Set by date (${(localDateFromYmd(cur.date) || new Date()).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}) from Lesson Schedule. Pick a lesson above to change it for today.`
+            : `✋ Picked by you. The next dated lesson in Lesson Schedule takes over on its date.`}</div>` : ''}
           ${(() => {   // all periods at a glance
             const sum = summarizeTodaysLessons(getCurrentSessionSettings(), CLASS_IDS);
             const lbl = v => { const o = opts.find(x => x.value === v); return o ? sessionLabel(o.tile).split(' · ')[0] : 'Not set'; };
@@ -8569,7 +8593,7 @@ function renderTeacherDashboard() {
           ${(() => {   // release warning (never unlocks anything by itself)
             if (!curOpt) return '';
             const cfg = getReleaseCfg(curOpt.land.id);
-            if (!isManaged(cfg) || !isReleaseTile(curOpt.land, curOpt.tile) || releaseFor(cfg, period.id, curOpt.tile.id).released) return '';
+            if (!isManaged(cfg) || !isReleaseTile(curOpt.land, curOpt.tile) || releaseFor(cfg, period.id, curOpt.tile.id, dateReleasedFor(curOpt.land.id, curOpt.tile.id)).released) return '';
             return `<div class="t-today-warn" id="t-today-warn">🔒 ${sessionLabel(curOpt.tile).split(' · ')[0]} isn't released for ${period.periodName} yet, so students will see it locked. <button class="btn btn-outline-sm" id="t-today-open-release">Open Lesson Release</button></div>`;
           })()}
         </div>`;
@@ -8946,9 +8970,17 @@ function renderTeacherDashboard() {
           }).join('')}</div>
         </div>` : '';
         if (catchUpRows.length === 0) return _cuReviewHtml + _cuAutoHtml;
-        return _cuReviewHtml + _cuAutoHtml + `<div class="t-catchup-section">
-          <div class="t-catchup-hdr">📋 Catch-Up Needed (${catchUpRows.length} student${catchUpRows.length!==1?'s':''})</div>
-          <div class="t-catchup-list">
+        // Collapsed by default (the list can be long). The choice is remembered on this device and
+        // survives the dashboard's live refreshes.
+        const _cuOpen = cuNeededOpen();
+        const _cuMissedTotal = catchUpRows.reduce((n, r) => n + r.missed.length, 0);
+        return _cuReviewHtml + _cuAutoHtml + `<div class="t-catchup-section${_cuOpen ? '' : ' t-catchup-collapsed'}" id="t-cu-needed">
+          <button type="button" class="t-catchup-hdr t-catchup-toggle" id="t-cu-needed-toggle" aria-expanded="${_cuOpen}" aria-controls="t-cu-needed-list"
+            style="display:flex;width:100%;align-items:center;gap:8px;background:none;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;padding:0">
+            <span>📋 Catch-Up Needed (${catchUpRows.length} student${catchUpRows.length!==1?'s':''}${_cuOpen ? '' : ` · ${_cuMissedTotal} missed session${_cuMissedTotal!==1?'s':''}`})</span>
+            <span style="margin-left:auto;font-size:12px;opacity:.85">${_cuOpen ? '▾ Hide' : '▸ Show'}</span>
+          </button>
+          ${_cuOpen ? `<div class="t-catchup-list" id="t-cu-needed-list">
             ${catchUpRows.map(({ student, period, missedNames, rName }) => `
               <div class="t-catchup-row">
                 <span class="t-catchup-name">${rName}</span>
@@ -8956,7 +8988,7 @@ function renderTeacherDashboard() {
                 <span class="t-catchup-missed">${missedNames.join(', ')}</span>
                 <span class="t-catchup-count">${missedNames.length} missed</span>
               </div>`).join('')}
-          </div>
+          </div>` : ''}
         </div>`;
       })()}
       <div class="t-student-grid">${cards}</div>
@@ -10514,6 +10546,7 @@ function bindEvents() {
       btn.addEventListener("click", () => {
         const id = parseInt(btn.dataset.id, 10);
         STATE.student = STATE.currentPeriod.students.find(s => s.id === id);
+        STATE._sessionResetVersion = undefined;   // not signed in until the secret number is accepted
         STATE.pin = ""; STATE.pinError = ""; STATE.screen = "pin"; mount();
       });
     });
@@ -10521,7 +10554,7 @@ function bindEvents() {
 
   /* PIN */
   if (STATE.screen === "pin") {
-    $("pin-back") && $("pin-back").addEventListener("click", () => { STATE.screen = "grid"; STATE.student = null; STATE.pin = ""; STATE.pinError = ""; mount(); });
+    $("pin-back") && $("pin-back").addEventListener("click", () => { STATE.screen = "grid"; STATE.student = null; STATE._sessionResetVersion = undefined; STATE.pin = ""; STATE.pinError = ""; mount(); });
     $("num-del") && $("num-del").addEventListener("click", () => { STATE.pin = STATE.pin.slice(0,-1); mount(); });
     document.querySelectorAll("[data-digit]").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -10709,7 +10742,7 @@ function bindEvents() {
     $("open-hj-btn") && $("open-hj-btn").addEventListener("click", () => { STATE.screen = "heros-journey"; STATE.hjReveal = null; mount(); window.scrollTo(0, 0); });
     bindLevelUpOverlay();
     bindHouseSelection();
-    $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; STATE.genName = null; STATE.genEpithet = null; STATE.namingOptions = null; STATE.epithetOptions = null; STATE._namingReturnScreen = null; mount(); });
+    $("hub-logout") && $("hub-logout").addEventListener("click", () => { STATE.screen = "code"; STATE.student = null; STATE._sessionResetVersion = undefined; STATE.currentPeriod = null; STATE.pin = ""; STATE.pinError = ""; STATE.studentNumEntry = ""; STATE.helpFlagged = false; STATE.avStep = 0; STATE.avClass = null; STATE.avVariant = null; STATE.avTone = null; STATE.customizeOpen = false; STATE.pendingTitle = null; STATE.custTab = "avatar"; STATE.genName = null; STATE.genEpithet = null; STATE.namingOptions = null; STATE.epithetOptions = null; STATE._namingReturnScreen = null; mount(); });
     // Trophy mastery trial request — tap an available trophy
     document.querySelectorAll("[data-trophy-req]").forEach(cell => {
       cell.addEventListener("click", () => {
@@ -11213,6 +11246,11 @@ function bindEvents() {
 
   /* TEACHER DASHBOARD */
   if (STATE.screen === "teacher-dash") {
+    $("t-cu-needed-toggle") && $("t-cu-needed-toggle").addEventListener("click", () => {
+      const y = (document.scrollingElement || document.documentElement).scrollTop;
+      setCuNeededOpen(!cuNeededOpen()); mount();
+      (document.scrollingElement || document.documentElement).scrollTop = y;
+    });
     const _cuFind = key => {
       const [sid, lid, tid] = key.split(/[|_]/).map(Number);
       const student = CLASS_DATA.periods.flatMap(p => p.students).find(s => s.id === sid);
@@ -12529,19 +12567,6 @@ function bindEvents() {
   }
 
   if (STATE.screen === "teacher-lesson-schedule") {
-    $("tls-auto-today")?.addEventListener('change', async e => {
-      const enabled = e.target.checked;
-      e.target.disabled = true;
-      try {
-        await set(ref(db, 'settings/lessonAutomation/enabled'), enabled);
-        _settings.lessonAutomation = { ..._settings.lessonAutomation, enabled };
-        mount();
-      } catch (err) {
-        e.target.checked = !enabled;
-        e.target.disabled = false;
-        alert('Could not save automatic scheduling. Please try again.');
-      }
-    });
     $("tls-back") && $("tls-back").addEventListener("click", () => { STATE.screen = "teacher-dash"; mount(); });
     // Lesson Release (teacher). Each click is one multi-path update on settings/lessonRelease/{land}.
     {
@@ -12562,12 +12587,12 @@ function bindEvents() {
       $("trl-disable") && $("trl-disable").addEventListener("click", () => { const y = _keep(); saveReleasePlan(_rl().id, planDisable()); _redraw(y); });
       document.querySelectorAll("[data-rel-all]").forEach(b => b.addEventListener("click", () => {
         const [tid, on] = b.dataset.relAll.split('|').map(Number); const y = _keep();
-        saveReleasePlan(_rl().id, planSetAll(tid, !!on));
+        saveReleasePlan(_rl().id, planSetAll(tid, !!on, CLASS_IDS, dateReleasedFor(_rl().id, tid)));
         _redraw(y);
       }));
       document.querySelectorAll("[data-rel-period]").forEach(b => b.addEventListener("click", () => {
         const [tid, cid] = b.dataset.relPeriod.split('|').map(Number); const land = _rl(); const y = _keep();
-        saveReleasePlan(land.id, planTogglePeriod(getReleaseCfg(land.id), cid, tid));
+        saveReleasePlan(land.id, planTogglePeriod(getReleaseCfg(land.id), cid, tid, dateReleasedFor(land.id, tid)));
         _redraw(y);
       }));
       document.querySelectorAll("[data-rel-preview]").forEach(b => b.addEventListener("click", () => openLessonPreview(_rl().id, Number(b.dataset.relPreview), 'teacher-lesson-schedule')));
@@ -13694,7 +13719,9 @@ function initFirebaseCache() {
     onValue(ref(db, 'students'), (snap) => {
       const newOverrides = snap.exists() ? snap.val() : {};
       // Force-logout: if a logged-in student's _resetVersion changed, their session is stale.
-      if (STATE.student) {
+      // Only once they're signed in (secret number accepted): _sessionResetVersion is undefined while a
+      // student is still on the secret-number screen, so other students' saves can't reload that page.
+      if (STATE.student && STATE._sessionResetVersion !== undefined) {
         const sid = String(STATE.student.id);
         const incoming = (newOverrides[sid] || {})._resetVersion ?? null;
         if (incoming !== null && incoming !== STATE._sessionResetVersion) {
@@ -13826,5 +13853,5 @@ setInterval(() => {
   if (today === lastSchoolDate) return;
   if (!['hub', 'quest-map', 'sanctum-map', 'teacher-dash'].includes(STATE.screen)) return;
   lastSchoolDate = today;
-  if (_settings.lessonAutomation?.enabled) mount();
+  mount();   // a new school day: lessons may have opened and Today's Lesson may have moved
 }, 30000);
