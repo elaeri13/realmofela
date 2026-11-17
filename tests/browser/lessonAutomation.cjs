@@ -15,6 +15,7 @@ const students = {
   101: { ...base, characterName: 'Preview Hero', currentTile: 2, completedTiles: [1] },
   102: { ...base, characterName: 'Preview Sage', currentTile: 5, completedTiles: [1] },   // skipped 2-4 → missed
   103: { ...base, characterName: 'Preview Bard', currentTile: 5, completedTiles: [1, 2] },
+  105: { ...base, characterName: 'Preview Ranger', currentTile: 2, completedTiles: [1] },   // signs in after the teacher picks an earlier lesson
 };
 const seed = withoutChestPopups({
   settings: {
@@ -96,6 +97,14 @@ const seed = withoutChestPopups({
     await screen('teacher-dash');
     check("teacher's pick wins today", (await page.inputValue('#t-today-sel')) === '2:3'
       && (await page.locator('#t-today-src').innerText()).includes('Picked by you'));
+    // Session 4 is open by date, but the class is behind: Today's Lesson is Session 3.
+    // Opening the map must move the student to Session 3, never past it.
+    await screen('quest-map', 105);
+    await page.waitForFunction(() => window.__tree.students[105].currentTile !== 2, null, { timeout: 3000 }).catch(() => {});
+    check('map moves the student only as far as Today\'s Lesson (Session 3), not to the newest open session',
+      (await tree('students/105/currentTile')) === 3 && JSON.stringify(await tree('students/105/completedTiles')) === '[1]');
+    await screen('hub', 105);
+    check('hub shows Today\'s Lesson as the lesson to do, not as missed', /Session 3/.test(await page.locator('.hub-actions').innerText()) && !!(await page.$('#today-lesson-btn')));
     await page.clock.setSystemTime(new Date('2026-11-17T05:59:59Z'));   // 11:59:59 pm Nov 16 in Chicago
     await screen('teacher-dash');
     check('pick still current the next day (no new date yet)', (await page.inputValue('#t-today-sel')) === '2:3');

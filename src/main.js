@@ -2253,9 +2253,12 @@ function showCatchUp(student, landId, tileId) {
   return isStudentAbsentForTile(student.id, landId, tileId) || isStudentBehindPace(student);
 }
 // Returns the tileId of the latest released session per the schedule (or null).
+// Never goes past the student's period's Today's Lesson (when it is set in this Land): sessions
+// released or dated ahead of where the class actually is must not pull students forward.
 function getScheduleBasedCurrentTile(land, student = null) {
   const pathOrder = land.pathOrder || [];
   const managed = isManaged(getReleaseCfg(land.id));
+  const stopAt = todaysTileInLand(student, land);
   let latest = null;
   for (const tid of pathOrder) {
     const tile = land.tiles.find(t => t.id === tid);
@@ -2263,8 +2266,19 @@ function getScheduleBasedCurrentTile(land, student = null) {
     // Release mode: stop at the first session not released for this class (a period hold is never skipped past).
     if (managed && tile && isReleaseTile(land, tile) && !released) break;
     if (released) latest = tid;   // release mode off: same as before (latest past release date)
+    if (tid === stopAt) break;    // Today's Lesson is as far as the schedule moves anyone
   }
   return latest;
+}
+// The student's period's Today's Lesson tile, if it is in this Land's path (else null).
+function todaysTileInLand(student, land) {
+  if (!student || !land) return null;
+  const cid = classIdForStudent(student.id);
+  if (cid === null || cid === undefined) return null;
+  const cur = getCurrentSessionSettings()[String(cid)];
+  if (!cur || Number(cur.landId) !== land.id) return null;
+  const tid = Number(cur.tileId);
+  return (land.pathOrder || []).includes(tid) ? tid : null;
 }
 // Returns array of tile IDs that are released but not completed and the student has moved past.
 function getMissedTiles(student, land) {
