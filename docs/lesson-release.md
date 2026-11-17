@@ -64,7 +64,7 @@ Always on; there is no separate switch. (`settings/lessonAutomation/enabled`, ad
   - any other session opens when the next dated session after it opens, so one missing date never freezes the map;
   - if nothing after it is dated, it waits for you to release it.
 - **Release mode off:** unchanged — dated sessions open on their date and undated ones are open.
-- **Students are moved for you.** When a student opens the map, their marker moves forward to the latest open session (skipped sessions are not marked complete; they show as missed for catch-up). It never moves past a held-back or locked session.
+- **Students are moved for you.** When a student opens the map, their marker moves forward to the latest open session (skipped sessions are not marked complete; they show as missed for catch-up). It never moves past a held-back or locked session, and never past that period's Today's Lesson (so sessions you dated or released ahead don't pull students forward).
 - **Today's Lesson** = the latest session whose date has arrived, for every period. It stays current over weekends until the next date. Same date on two sessions → the later one in path order.
 - **Your pick wins until the next date.** If you pick a lesson on the dashboard, it stays Today's Lesson until a newer dated lesson arrives. Periods you didn't change keep following the dates. With no dates at all, Today's Lesson works exactly as before.
 - **Open screens refresh** within 30 seconds of midnight (hub, maps, dashboard).
