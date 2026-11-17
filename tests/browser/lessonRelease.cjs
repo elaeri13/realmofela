@@ -87,8 +87,9 @@ const SEED = {
     check('step 1 saves nothing — it only shows the confirmation', !(await tree()).settings.lessonRelease && !!(await page.$('#trl-confirm')));
     const cfOpen = await text('#trl-cf-open'), cfFuture = await text('#trl-cf-future'), cfNoDate = await text('#trl-cf-nodate');
     check('confirmation: "Open right away" lists only sessions whose date has passed (S2–S4)', /Open right away \(3\)/.test(cfOpen) && /Session 2/.test(cfOpen) && /Session 4/.test(cfOpen) && !/Session 5|Session 6/.test(cfOpen), cfOpen);
-    check('confirmation: future-dated session listed as staying locked, with its date', /Stay locked \(1\)/.test(cfFuture) && /Camp Day|Session 7/.test(cfFuture) && /2099/.test(cfFuture), cfFuture);
-    check('confirmation: sessions with NO release date listed separately as staying locked', /no release date/.test(cfNoDate) && /Session 5|Writer/.test(cfNoDate) && /Study Hall/.test(cfNoDate) && /Session 6/.test(cfNoDate), cfNoDate);
+    // Camp Day (tile 7) is dated 2099; the undated sessions before it (S5, Study Hall, S6) open with it.
+    check('confirmation: future-dated session (and undated ones before it) listed as staying locked, with the date', /Stay locked \(4\)/.test(cfFuture) && /Camp Day/.test(cfFuture) && /Session 5/.test(cfFuture) && /Session 6/.test(cfFuture) && /2099/.test(cfFuture), cfFuture);
+    check('confirmation: sessions with no date on them or after them listed separately as staying locked', /no release date/.test(cfNoDate) && /Session 8/.test(cfNoDate) && /Scribe's Calling/.test(cfNoDate) && !/Session 6\b/.test(cfNoDate), cfNoDate);
     check('confirmation: progress is kept, and it says how many students sit on a session that will lock', /keeps everything they've finished/.test(await text('#trl-confirm')) && /3 students are/.test(await text('#trl-confirm')), await text('#trl-confirm'));
     await click('#trl-enable-cancel');
     check('Cancel saves nothing and closes the confirmation', !(await tree()).settings.lessonRelease && !(await page.$('#trl-confirm')) && !!(await page.$('#trl-enable')));

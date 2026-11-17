@@ -199,7 +199,8 @@ const ONE_WRONG = { q1: 0, q2: 1, q3: 3, q4: 0 };
   await p2.close();
 
   // ── Session 3 is today's lesson (released today, Session 4 not yet) ──
-  const today = new Date(); const iso = d => d.toISOString().slice(0, 10);
+  // "Today" is the school day in Central time (the app's rule), not the UTC date.
+  const today = new Date(); const iso = d => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
   const later = new Date(Date.now() + 7 * 864e5);
   const s3today = seed(true); s3today.settings.lessonSchedule[2][3] = { releaseDate: iso(today) }; s3today.settings.lessonSchedule[2][4] = { releaseDate: iso(later) };
   const p3 = await ctx.newPage();
