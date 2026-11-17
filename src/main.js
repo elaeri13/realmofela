@@ -1,3 +1,5 @@
+// Which version is running (set at build time; see vite.config.js).
+const BUILD_ID = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev';
 import { schoolDate, localDateFromYmd, effectiveReleaseDates, resolveCurrentSessions } from './lessonAutomation.js';
 import { db, auth, ref, set, get, update, onValue, push, query, limitToLast, runTransaction, signInAnonymously } from './firebaseClient.js'
 import { NAMES, EPITHETS } from './data/characterNames.js'
@@ -4149,6 +4151,7 @@ function renderCode() {
       </button>
       <p class="footer-tip">💡 Ask your teacher for the class code</p>
       <button class="teacher-link" id="teacher-link-btn">🔐 Teacher Access</button>
+      <div class="build-id" style="margin-top:10px;font-size:10px;opacity:.55;text-align:center">Build ${BUILD_ID}</div>
       <p class="login-page-footer">Built and operated by Amber Odom, 5th Grade ELA, Lake Charles Charter Academy. This site stores no student-identifying information.<br><a href="/about.html" class="login-page-footer-link">About</a> · <a href="/privacy.html" class="login-page-footer-link">Privacy</a></p>
     </div>
   </div>`;
@@ -8574,6 +8577,7 @@ function renderTeacherDashboard() {
              <button class="btn btn-outline-sm" id="t-reset-pins-no">Cancel</button>`
           : `<button class="btn btn-outline-sm" id="t-reset-pins-btn">🔑 Reset all PINs in this period</button>`}
       </div>
+      <div class="build-id" id="t-build-id" style="font-size:11px;opacity:.6;margin:2px 0 4px">Build ${BUILD_ID}</div>
       ${(() => {
         // Today's lesson for this class (teacher-only; students never see this control)
         if (!period) return '';
