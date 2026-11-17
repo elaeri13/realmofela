@@ -1686,6 +1686,8 @@ input  { font-family: var(--font-body); }
 /* Teacher catch-up list */
 .t-catchup-section { background:rgba(217,119,6,.08); border:2px solid rgba(217,119,6,.25); border-radius:12px; padding:14px 16px; margin:12px 0; }
 .t-catchup-hdr { font-size:14px; font-weight:900; color:#92400E; margin-bottom:10px; }
+.t-catchup-toggle[aria-expanded="false"] { margin-bottom:0; }
+.t-catchup-toggle:focus-visible { outline:2px solid #FDE68A; outline-offset:4px; border-radius:6px; }
 .t-catchup-list { display:flex; flex-direction:column; gap:6px; }
 .t-catchup-row { display:grid; grid-template-columns:1fr auto auto auto; gap:8px; align-items:center; font-size:12px; background:rgba(255,255,255,.5); border-radius:8px; padding:7px 10px; }
 .t-catchup-name { font-weight:800; color:#1E1B4B; }

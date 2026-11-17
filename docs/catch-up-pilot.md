@@ -117,6 +117,7 @@ A progress bar at the top shows **① Review → ② Practice → ③ Exit Ticke
   - **Verify** and **Send Back** buttons
 - **The activity log** records practice passes and fails, Pear reports ("not verified yet") and verifications.
 - **The shared "Catch-Up Work to Review" list** no longer shows the auto-graded sessions. Other sessions are unchanged.
+- **All three dashboard catch-up sections can be minimized** (Catch-Up Work to Review, Catch-Up Sessions, Catch-Up Needed). They start collapsed, showing their counts on one line; tap the header to show or hide. The choice is remembered on that device and stays put during live updates.
 
 ## Data (existing structure only)
 - **Fields used:** only fields that already exist on the catch-up record: `history`, `etOpenedAt`, `etConfirmedAt`, `status` (submitted / returned / accepted), `submittedAt`, `submitCount`, `acceptedAt`, `returnNote`, `returnedAt`, `rewardGrantedAt`, `startedAt`, `updatedAt`.

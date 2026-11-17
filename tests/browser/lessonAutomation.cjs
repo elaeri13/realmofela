@@ -13,7 +13,10 @@ const OUT = process.env.REG_OUT || os.tmpdir();
 const base = { claimed: true, avatarClass: 'wizard', completedLand0: true, currentLand: 2, land2Entry: { seen: true }, level: 2, xp: 10, xpNext: 50, gold: 20, pinSet: true, customPin: '1111', house: 'amistad', houseConfirmed: true };
 const students = {
   101: { ...base, characterName: 'Preview Hero', currentTile: 2, completedTiles: [1] },
-  102: { ...base, characterName: 'Preview Sage', currentTile: 5, completedTiles: [1] },   // skipped 2-4 → missed
+  102: { ...base, characterName: 'Preview Sage', currentTile: 5, completedTiles: [1],   // skipped 2-4 → missed
+         catchUp: { '2_4': { status: 'submitted', submittedAt: '2026-11-14T10:00:00Z', submitCount: 1 } } },   // work to review
+  104: { ...base, characterName: 'Preview Knight', currentTile: 4, completedTiles: [1, 2, 3],
+         catchUp: { '2_3': { etOpenedAt: '2026-11-14T10:00:00Z' } } },   // started an auto-graded catch-up session
   103: { ...base, characterName: 'Preview Bard', currentTile: 5, completedTiles: [1, 2] },
 };
 const seed = withoutChestPopups({
@@ -64,7 +67,7 @@ const seed = withoutChestPopups({
     // ── Catch-Up Needed list starts collapsed, expands, and stays as chosen through live updates ──
     check('Catch-Up Needed starts collapsed', (await page.locator('#t-cu-needed-list').count()) === 0
       && (await page.locator('#t-cu-needed-toggle').getAttribute('aria-expanded')) === 'false');
-    check('collapsed header still shows the counts', /Catch-Up Needed \(\d+ students? · \d+ missed sessions?\)/.test(await page.locator('#t-cu-needed-toggle').innerText()));
+    check('collapsed header still shows the counts', /Catch-Up Needed \(\d+ students?\) · \d+ missed sessions?/.test(await page.locator('#t-cu-needed-toggle').innerText()));
     await page.locator('#t-cu-needed-toggle').click();
     check('tap shows the list', (await page.locator('#t-cu-needed-list').count()) === 1 && (await page.locator('#t-cu-needed-list').innerText()).includes('missed'));
     // A write from "another device": same in-memory database module the app uses.
@@ -74,6 +77,22 @@ const seed = withoutChestPopups({
     await page.locator('#t-cu-needed-toggle').click();
     check('tap again hides it', (await page.locator('#t-cu-needed-list').count()) === 0);
     check('choice remembered on this device', await page.evaluate(() => localStorage.getItem('realm-cu-needed-open') === '0'));
+
+    // ── Catch-Up Work to Review and Catch-Up Sessions collapse the same way ──
+    for (const [k, name] of [['review', 'Work to Review'], ['auto', 'Catch-Up Sessions']]) {
+      check(`${name} starts collapsed`, (await page.locator(`#t-cu-${k}-list`).count()) === 0
+        && (await page.locator(`#t-cu-${k}-toggle`).getAttribute('aria-expanded')) === 'false');
+      await page.locator(`#t-cu-${k}-toggle`).click();
+      check(`${name}: tap shows the list`, (await page.locator(`#t-cu-${k}-list`).count()) === 1);
+      await page.evaluate(async () => { const m = await import('/tests/browser/harness/fbstub.js'); await m.update(m.ref(null, ''), { 'helpflags/998': { ts: 2 } }); });
+      await page.waitForTimeout(100);
+      check(`${name}: stays open after a live refresh`, (await page.locator(`#t-cu-${k}-list`).count()) === 1);
+    }
+    check('Work to Review list shows the submitted work with Accept', (await page.locator('#t-cu-review-list [data-cu-accept]').count()) === 1);
+    check('Catch-Up Sessions filter is inside the open section', (await page.locator('#t-cu-auto [data-cu-filter]').count()) > 0);
+    for (const k of ['review', 'auto']) await page.locator(`#t-cu-${k}-toggle`).click();
+    check('both collapse again', (await page.locator('#t-cu-review-list, #t-cu-auto-list').count()) === 0
+      && await page.evaluate(() => localStorage.getItem('realm-cu-review-open') === '0' && localStorage.getItem('realm-cu-auto-open') === '0'));
     await page.screenshot({ path: path.join(OUT, 'lesson-dates-dashboard.png') });
 
     // ── Student: map moves them to the dated session; future one stays locked ──
